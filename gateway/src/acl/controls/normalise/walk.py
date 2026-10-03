@@ -59,7 +59,17 @@ def walk_leaves(payload: Payload) -> list[Leaf]:
                                 f"messages[{i}].content[{j}].text", ("messages", i, "content", j, "text"), part["text"]
                             )
                         )
+            if isinstance(m.name, str) and m.name:
+                out.append(Leaf(f"messages[{i}].name", ("messages", i, "name"), m.name))
             for k, tc in enumerate(m.tool_calls or []):
+                if tc.function.name:
+                    out.append(
+                        Leaf(
+                            f"messages[{i}].tool_calls[{k}].function.name",
+                            ("messages", i, "tool_calls", k, "function", "name"),
+                            tc.function.name,
+                        )
+                    )
                 out.append(
                     Leaf(
                         f"messages[{i}].tool_calls[{k}].function.arguments",
@@ -68,6 +78,9 @@ def walk_leaves(payload: Payload) -> list[Leaf]:
                         True,
                     )
                 )
+        for i, tool in enumerate(payload.tools or []):
+            _leaves(tool, ("tools", i), f"tools[{i}]", 0, out)
+        _leaves(payload.params, ("params",), "params", 0, out)
     elif kind == "completion":
         if payload.content:
             out.append(Leaf("content", ("content",), payload.content))

@@ -32,9 +32,11 @@ def test_cache_key_covers_control_policy_preset_point_and_content() -> None:
     ctx = make_context("hello")
     key = VerdictCache.key("SEC-X-01", "v1", ctx)
     cache.put(key, verdict(action=Action.redact, outputs={"payload": "n"}))
+    assert cache.get(key) is None  # verdicts with request-specific outputs are never cached (CP1 finding)
+    cache.put(key, verdict(action=Action.redact))
     hit = cache.get(key)
     assert hit is not None and hit.status == VerdictStatus.cached and hit.latency_ms == 0
-    assert hit.outputs == {"payload": "n"}  # in-process outputs survive the cache
+    assert hit.outputs == {}
     assert cache.get(VerdictCache.key("SEC-X-02", "v1", ctx)) is None  # other control
     assert cache.get(VerdictCache.key("SEC-X-01", "v2", ctx)) is None  # other policy version
     assert cache.get(VerdictCache.key("SEC-X-01", "v1", make_context("hello", preset="strict"))) is None  # type: ignore[arg-type]

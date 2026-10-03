@@ -10,6 +10,7 @@ from fastapi.responses import Response
 from acl.api.chat_flow import ChatFlow, EmbeddingsFlow, models_listing
 from acl.api.deps import PrincipalDep
 from acl.api.errors import GatewayError
+from acl.api.request_validation import check_body
 
 router = APIRouter(prefix="/v1", tags=["openai"])
 
@@ -17,10 +18,11 @@ router = APIRouter(prefix="/v1", tags=["openai"])
 async def _json_body(request: Request) -> dict[str, Any]:
     try:
         body = await request.json()
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:  # UnicodeDecodeError is a ValueError
         raise GatewayError(400, "invalid_request_error", "request body must be valid JSON") from exc
     if not isinstance(body, dict):
         raise GatewayError(400, "invalid_request_error", "request body must be a JSON object")
+    check_body(body)  # lone surrogates / absurd nesting → 400 before any processing
     return body
 
 

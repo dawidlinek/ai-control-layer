@@ -1,40 +1,59 @@
 """Content-hash verdict cache (concept §6.2: "verdicts are cached by content hash").
 
-Only controls with `cacheable = True` are cached: their verdict must depend solely on the payload
-text, the control's config, the policy version and the preset. The key therefore is
+Only controls with `cacheable = True` are cached: their verdict must depend solely on the payload,
+the control's config, the policy version and the preset. The key therefore is
 
-    (control id, policy version, preset, inspection point, sha256(field paths + texts))
+    (control id, policy version, preset, inspection point, sha256(canonical JSON of the FULL payload))
 
-Entries are bounded (LRU) and expire after `ttl_s`. Cached verdicts are returned as deep copies
-with `status=cached` and zero latency.
+The digest covers everything a cacheable control can read about the payload: the original payload
+(every field, not only the inspected text: tools, content parts, params, message names, ...), the
+normalised payload published by SEC-NORM-01 and its decoded views. Two requests that differ in any byte
+never share an entry (CP1 finding: keying on text alone replayed one user's normalised payload, incl.
+image parts and tools, into another user's request).
+
+Verdicts that carry `outputs` (data for later phases, e.g. a normalised payload) are never cached and
+never replayed: outputs are request-specific by nature. Entries are bounded (LRU) and expire after
+`ttl_s`. Cached verdicts are returned as deep copies with `status=cached` and zero latency.
 """
 
 from __future__ import annotations
 
 import hashlib
 import time
+import uuid
 from collections import OrderedDict
+from typing import Any
 
+from pydantic import BaseModel
+
+from acl.contracts.canonical import canonical_json
 from acl.contracts.common import VerdictStatus
 from acl.contracts.decision import Verdict
 from acl.contracts.inspection import InspectionContext
-from acl.engine.text import iter_texts
 
 CacheKey = tuple[str, str, str, str, str]
 
 
+def _dump(obj: Any) -> Any:
+    return obj.model_dump(mode="json") if isinstance(obj, BaseModel) else None
+
+
 def payload_digest(ctx: InspectionContext) -> str:
-    """sha256 over the (field, text) pairs the controls actually see (normalised payload if published)."""
-    payload = ctx.attributes.get("payload", ctx.payload)
-    if not hasattr(payload, "kind"):
-        payload = ctx.payload
-    h = hashlib.sha256()
-    for field, text in iter_texts(payload):
-        h.update(field.encode("utf-8"))
-        h.update(b"\0")
-        h.update(text.encode("utf-8", "surrogatepass"))
-        h.update(b"\0")
-    return h.hexdigest()
+    """sha256 over the canonical JSON of the full original payload, the normalised payload and decoded views."""
+    normalised = ctx.attributes.get("payload")
+    if getattr(normalised, "kind", None) != ctx.payload.kind:
+        normalised = None
+    material = {
+        "payload": _dump(ctx.payload),
+        "normalised": _dump(normalised),
+        "views": ctx.attributes.get("decoded_views") or [],
+    }
+    try:
+        blob = canonical_json(material).encode("utf-8", "surrogatepass")
+    except (TypeError, ValueError):
+        # Not canonically serialisable: never share an entry (a unique digest is a guaranteed miss).
+        return f"uncacheable-{uuid.uuid4().hex}"
+    return hashlib.sha256(blob).hexdigest()
 
 
 class VerdictCache:
@@ -67,10 +86,13 @@ class VerdictCache:
         hit = verdict.model_copy(deep=True)
         hit.status = VerdictStatus.cached
         hit.latency_ms = 0.0
+        hit.outputs = {}  # defensive: outputs are never replayed (`put` refuses them anyway)
         return hit
 
     def put(self, key: CacheKey, verdict: Verdict) -> None:
         if verdict.status != VerdictStatus.ok:  # never cache timeouts / errors
+            return
+        if verdict.outputs:  # request-specific data for later phases: never cache, never replay
             return
         self._data[key] = (time.monotonic(), verdict.model_copy(deep=True))
         self._data.move_to_end(key)

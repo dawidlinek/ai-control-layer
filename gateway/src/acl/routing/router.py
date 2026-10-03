@@ -16,7 +16,10 @@ Then, in order:
        reason cites the org lock (e.g. LOCK-01). Presets whose `sensitive_external_action` is `block`
        refuse instead;
     3. a disabled / killed / unavailable connector or model falls back to `targets.degraded`
-       (`degraded=True`).
+       (`degraded=True`), but only if the fallback honours the same obligations: data class usable,
+       no org lock, and a LOCAL model whenever the request must stay local (route_local/downgrade,
+       confidential/restricted data, `local_only` sensitivity) or was routed to a local model. Otherwise
+       503 (`route`) / no failover (`degraded_route`); data is never sent to a cloud model instead.
 """
 
 from __future__ import annotations
@@ -102,6 +105,30 @@ class Router:
                 and tier not in lock.allowed_tiers
             ):
                 return lock.id
+        return None
+
+    def _requires_local(self, req: RouteRequest) -> bool:
+        """The request may only be served by a local model (route_local/downgrade, sensitivity, data class)."""
+        if req.force_local or req.data_class in (DataClass.confidential, DataClass.restricted):
+            return True
+        sens = self.policy.routing.data_class_sensitivity.get(req.data_class, "low")
+        return self.policy.routing.sensitivity.get(sens) == "local_only"
+
+    def _fallback_refusal(self, fallback: str, primary: str, req: RouteRequest) -> str | None:
+        """Why the degraded target may NOT serve this request (None = permitted).
+
+        The failover path honours exactly the obligations of the primary path: a misconfigured
+        `routing.targets.degraded` pointing at a cloud model must never receive local-only data.
+        """
+        if req.data_class not in req.usable.get(fallback, ()):
+            return "the degraded target is not permitted for this principal/data class"
+        if self._lock_for(fallback, req.data_class) is not None:
+            return "the degraded target is forbidden for this data class by an org lock"
+        if self._tier(fallback) != ConnectorTier.local:
+            if self._requires_local(req):
+                return "the degraded target is not local and this request must stay local"
+            if self._tier(primary) == ConnectorTier.local:
+                return "the request was routed to a local model and may not fail over to the cloud"
         return None
 
     def route(self, req: RouteRequest) -> Route:
@@ -194,9 +221,10 @@ class Router:
                     status=503,
                     code="service_unavailable",
                 )
-            if req.data_class not in req.usable.get(fallback, ()):
+            refusal = self._fallback_refusal(fallback, model_id, req)
+            if refusal is not None:
                 raise RouteError(
-                    f"{model_id} unavailable ({problem}) and the degraded target is not permitted for this principal",
+                    f"{model_id} unavailable ({problem}) and {refusal}",
                     status=503,
                     code="service_unavailable",
                 )
@@ -231,14 +259,17 @@ class Router:
         )
 
     def degraded_route(self, current: Route, req: RouteRequest, why: str) -> Route | None:
-        """Runtime fallback after an upstream failure (retryable errors only). None if not possible."""
+        """Runtime fallback after an upstream failure (retryable errors only). None if not possible.
+
+        Same obligations as `route()`: a request that must stay local never fails over to a cloud model.
+        """
         targets = self.policy.routing.targets
         fallback = self._ref(targets.degraded)
         if (
             fallback is None
             or fallback == current.info.model
             or self.table.model_problem(fallback) is not None
-            or req.data_class not in req.usable.get(fallback, ())
+            or self._fallback_refusal(fallback, current.info.model, req) is not None
         ):
             return None
         entry = self._models[fallback]

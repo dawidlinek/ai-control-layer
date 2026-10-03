@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import logging
 import re
@@ -28,6 +29,7 @@ from pydantic import ValidationError
 
 from acl import __version__
 from acl.api.errors import GatewayError, error_body
+from acl.api.request_validation import validate_chat_body, validate_embeddings_body
 from acl.audit.builder import redacted_text
 from acl.contracts.audit import AuditEvent, EventType, LatencyBreakdown, Usage
 from acl.contracts.canonical import value_hash
@@ -68,6 +70,7 @@ from acl.engine.transforms import (
     restore_text,
     strip_response_hygiene,
     transform_findings,
+    unaddressable_fields,
     vault_placeholders,
 )
 from acl.policy.models import Policy
@@ -81,8 +84,16 @@ log = logging.getLogger(__name__)
 
 _RULE_ID = re.compile(r"^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$")
 _UA = re.compile(r"([A-Za-z0-9._-]+)(?:/([\w.+-]+))?")
-_CHAT_BODY_KEYS = {"model", "messages", "tools", "stream", "stream_options", "user"}
 _MAX_SESSION_ID = 128
+
+
+def principal_namespace(principal: Principal) -> str:
+    """First 16 hex chars of sha256(principal.subject): the per-principal session namespace."""
+    return hashlib.sha256(principal.subject.encode("utf-8")).hexdigest()[:16]
+
+
+def session_key(principal: Principal, client_value: str) -> str:
+    return f"{principal_namespace(principal)}:{client_value}"
 
 
 def _rule(candidate: str | None, fallback: str = "SEC-MODEL-01") -> str:
@@ -160,7 +171,6 @@ class Parsed:
     payload: ChatPayload
     stream: bool
     include_usage: bool
-    passthrough: dict[str, Any]
 
 
 class BaseFlow:
@@ -219,10 +229,15 @@ class BaseFlow:
         )
 
     def _session_id(self, body: dict[str, Any]) -> str:
-        sid = self.request.headers.get("x-session-id") or body.get("user")
-        if isinstance(sid, str) and sid.strip():
-            return sid.strip()[:_MAX_SESSION_ID]
-        return f"sess-{uuid.uuid4().hex[:16]}"
+        """Session key for every session-scoped store (pseudonym vault, taint, budgets, loops).
+
+        The client value (`X-Session-Id` / `user`) is untrusted: it is namespaced by the principal, so two
+        principals that send the same value never share a session (CP1: cross-principal pseudonym restore).
+        The raw client value is kept nowhere else.
+        """
+        raw = self.request.headers.get("x-session-id") or body.get("user")
+        client = raw.strip()[:_MAX_SESSION_ID] if isinstance(raw, str) and raw.strip() else None
+        return session_key(self.principal, client or f"sess-{uuid.uuid4().hex[:16]}")
 
     async def _context(
         self, body: dict[str, Any], name: str, payload: Any, point: InspectionPoint, user_request: str | None
@@ -290,7 +305,7 @@ class BaseFlow:
         total_since: float | None = None,
         response_hash: str | None = None,
     ) -> AuditEvent:
-        redacted = redacted_text(ctx, decision.verdicts) if self.policy.global_.store_redacted_payloads else None
+        redacted = self._redacted(ctx, decision.verdicts) if self.policy.global_.store_redacted_payloads else None
         total = (time.perf_counter() - (total_since if total_since is not None else self.t0)) * 1000
         return await self.audit.record_decision(
             ctx,
@@ -301,6 +316,21 @@ class BaseFlow:
             redacted_payload=redacted,
             response_hash=response_hash,
         )
+
+    @staticmethod
+    def _redacted(ctx: InspectionContext, verdicts: list[Verdict]) -> str | None:
+        """Masked payload text for the audit record, or None when a detected span cannot be masked.
+
+        A finding inside a field whose path is not addressable (free-form JSON keys such as `my-key`)
+        would survive masking verbatim; the audit log must never store it (CLAUDE.md rule 2).
+        """
+        payload = ctx.attributes.get("payload", ctx.payload)
+        if getattr(payload, "kind", None) != ctx.payload.kind:
+            payload = ctx.payload
+        fields = {f.field for v in verdicts for f in v.findings if f.field}
+        if fields and fields & unaddressable_fields(payload):
+            return None
+        return redacted_text(ctx, verdicts)
 
     def _replay(self, ctx: InspectionContext, decision: Decision) -> None:
         if self.replay is not None:
@@ -389,24 +419,28 @@ class ChatFlow(BaseFlow):
             raise GatewayError(
                 400, "invalid_request_error", "'messages' must be a non-empty list", trace_id=self.trace_id
             )
-        if (body.get("n") or 1) != 1:
+        n = body.get("n")
+        if n is not None and (isinstance(n, bool) or n != 1):
             raise GatewayError(
                 400, "invalid_request_error", "n > 1 is not supported", code="n_unsupported", trace_id=self.trace_id
             )
         try:
-            messages = [ChatMessage.model_validate(m) for m in raw_messages]
+            # Fail closed: only allowlisted, inspectable fields are accepted (and forwarded).
+            clean_messages, tools, params = validate_chat_body(body)
+        except GatewayError as exc:
+            exc.trace_id = self.trace_id
+            raise
+        try:
+            messages = [ChatMessage.model_validate(m) for m in clean_messages]
         except ValidationError as exc:
             raise GatewayError(
                 400, "invalid_request_error", f"invalid message: {exc.errors()[0]['msg']}", trace_id=self.trace_id
             ) from exc
-        tools = body.get("tools")
-        if tools is not None and not isinstance(tools, list):
-            raise GatewayError(400, "invalid_request_error", "'tools' must be a list", trace_id=self.trace_id)
         stream = bool(body.get("stream"))
-        passthrough = {k: v for k, v in body.items() if k not in _CHAT_BODY_KEYS}
         so = body.get("stream_options")
-        payload = ChatPayload(messages=messages, tools=tools, params={**passthrough, "stream": stream})
-        return Parsed(name, payload, stream, bool(isinstance(so, dict) and so.get("include_usage")), passthrough)
+        # Everything forwarded upstream lives in the payload, so the pipeline inspects (and transforms) it.
+        payload = ChatPayload(messages=messages, tools=tools, params={**params, "stream": stream})
+        return Parsed(name, payload, stream, bool(isinstance(so, dict) and so.get("include_usage")))
 
     async def run(self, body: dict[str, Any]) -> Response:
         try:
@@ -444,6 +478,15 @@ class ChatFlow(BaseFlow):
         base = ctx.attributes.get("payload")
         base = base if isinstance(base, ChatPayload) else parsed.payload
         findings = transform_findings(self.engine, decision)
+        if findings and (unsafe := unaddressable_fields(base)) and any(f.field in unsafe for f in findings):
+            # a span inside a field that cannot be addressed unambiguously cannot be masked: never forward it
+            raise await self._block_after_engine(
+                ctx,
+                decision,
+                "ENG-REDACT-01",
+                "a sensitive span could not be located for redaction",
+                "ENG-REDACT-01",
+            )
         payload_out, skipped = apply_replacements(base, findings)
         bad = self._check_overlaps(findings, skipped) if skipped else None
         if bad is not None:
@@ -492,7 +535,7 @@ class ChatFlow(BaseFlow):
         await self.engine.commit(ctx, decision)
 
         # -- 6. upstream request
-        request = self._upstream_request(payload_out, route, parsed)
+        request = self._upstream_request(payload_out, route)
         ingress_action = decision.action
         if parsed.stream:
             return await self._stream(ctx, parsed, request, rr, ingress_action)
@@ -500,11 +543,13 @@ class ChatFlow(BaseFlow):
 
     # ------------------------------------------------------------ upstream
 
-    def _upstream_request(self, payload: ChatPayload, route: Route, parsed: Parsed) -> dict[str, Any]:
+    def _upstream_request(self, payload: ChatPayload, route: Route) -> dict[str, Any]:
+        """Built ONLY from the inspected (normalised + transformed) payload: nothing bypasses the pipeline."""
         messages = [message_dict(m) for m in payload.messages]
         if route.model.system_prompt:
             messages.insert(0, {"role": "system", "content": route.model.system_prompt})
-        req: dict[str, Any] = {**parsed.passthrough, "messages": messages}
+        params = {k: v for k, v in payload.params.items() if k != "stream"}
+        req: dict[str, Any] = {**copy.deepcopy(params), "messages": messages}
         if payload.tools:
             req["tools"] = payload.tools
         cap = self.policy.budgets.stream.max_output_tokens
@@ -985,6 +1030,11 @@ class EmbeddingsFlow(BaseFlow):
             raise self._error(500, "internal_error", "internal gateway error", "internal_error") from exc
 
     async def _run(self, body: dict[str, Any]) -> Response:
+        try:
+            forwarded = validate_embeddings_body(body)  # fail closed: allowlisted keys only
+        except GatewayError as exc:
+            exc.trace_id = self.trace_id
+            raise
         raw = body.get("input")
         inputs = [raw] if isinstance(raw, str) else raw
         if not isinstance(inputs, list) or not inputs or not all(isinstance(i, str) for i in inputs):
@@ -1059,7 +1109,7 @@ class EmbeddingsFlow(BaseFlow):
 
         t = time.perf_counter()
         try:
-            resp = await route.connector.embeddings(route.upstream_model, {"input": out.inputs})
+            resp = await route.connector.embeddings(route.upstream_model, {**forwarded, "input": out.inputs})
         except ConnectorError as exc:
             self.registry.record_error(route.info.connector, str(exc))
             await self._record(ctx, decision, route=route.info)

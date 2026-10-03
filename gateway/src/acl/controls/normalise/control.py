@@ -50,7 +50,10 @@ class NormaliseControl(Control):
     type = "normalise"
     phase = Phase.normalise
     Params = NormaliseParams
-    cacheable = True
+    # Never cached: the verdict publishes the request's own normalised payload in `outputs`, which the
+    # request flow forwards upstream. Replaying it for another request leaked data across users (CP1).
+    # Normalisation is sub-millisecond, so caching buys nothing.
+    cacheable = False
 
     async def inspect(self, ctx: InspectionContext) -> Verdict:
         p: NormaliseParams = self.params  # type: ignore[assignment]

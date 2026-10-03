@@ -1,7 +1,10 @@
 """Addressing text inside payloads (shared by controls and transforms).
 
 Field paths (also used in `Finding.field`):
-    chat:         messages[i].content | messages[i].content[j].text | messages[i].tool_calls[k].function.arguments
+    chat:         messages[i].content | messages[i].content[j].text | messages[i].name
+                  | messages[i].tool_calls[k].function.name | messages[i].tool_calls[k].function.arguments
+                  | tools[i].<key>[.<key>|[i]]...   (every string leaf of the tool definitions)
+                  | params.<key>[.<key>|[i]]...     (every string leaf of the forwarded sampling params)
     completion:   content | reasoning | tool_calls[k].function.arguments
     tool_call:    arguments.<key>[.<key>|[i]]...      (every string leaf)
     tool_result:  content
@@ -48,6 +51,8 @@ def iter_texts(payload: Payload) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     kind = payload.kind
     if kind == "chat":
+        # Everything forwarded upstream that can carry free text is inspected (CP1: tool definitions,
+        # message names and sampling params used to bypass every control).
         for i, m in enumerate(payload.messages):
             if isinstance(m.content, str):
                 out.append((f"messages[{i}].content", m.content))
@@ -55,8 +60,15 @@ def iter_texts(payload: Payload) -> list[tuple[str, str]]:
                 for j, part in enumerate(m.content):
                     if isinstance(part, dict) and isinstance(part.get("text"), str):
                         out.append((f"messages[{i}].content[{j}].text", part["text"]))
+            if isinstance(m.name, str) and m.name:
+                out.append((f"messages[{i}].name", m.name))
             for k, tc in enumerate(m.tool_calls or []):
+                if tc.function.name:
+                    out.append((f"messages[{i}].tool_calls[{k}].function.name", tc.function.name))
                 out.append((f"messages[{i}].tool_calls[{k}].function.arguments", tc.function.arguments))
+        for i, tool in enumerate(payload.tools or []):
+            out.extend(_leaves(tool, f"tools[{i}]"))
+        out.extend(_leaves(payload.params, "params"))
     elif kind == "completion":
         if payload.content:
             out.append(("content", payload.content))

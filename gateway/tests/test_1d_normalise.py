@@ -76,9 +76,12 @@ def test_walk_leaves_mirrors_iter_texts_for_every_payload_kind() -> None:
                 ChatMessage(
                     role="assistant",
                     content=None,
+                    name="bot",
                     tool_calls=[ToolCall(id="1", function=FunctionCall(name="x.y", arguments='{"a": 1}'))],
                 ),
-            ]
+            ],
+            tools=[{"type": "function", "function": {"name": "x.y", "parameters": {"properties": {"a": {}}}}}],
+            params={"stop": ["s"], "stream": True},
         ),
         CompletionPayload(
             content="c", reasoning="r", tool_calls=[ToolCall(id="1", function=FunctionCall(name="x.y", arguments="{}"))]
@@ -259,7 +262,8 @@ async def test_hidden_tag_text_becomes_a_view() -> None:
 
 
 async def test_cacheable_flag() -> None:
-    assert registry.get("normalise").cacheable is True
+    # never cached: its outputs carry the request's own normalised payload (CP1 cross-user leak)
+    assert registry.get("normalise").cacheable is False
 
 
 # --------------------------------------------------------------------------- tool intent
