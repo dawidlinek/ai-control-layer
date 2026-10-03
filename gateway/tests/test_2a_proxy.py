@@ -174,6 +174,20 @@ def test_pagination_is_followed(env: Env) -> None:
     assert env.tools("files", sid) == ["read_file", "list_files"]
 
 
+def test_a_call_without_a_prior_listing_pins_the_tool_first(env: Env) -> None:
+    sid = env.init("files")
+    assert "result" in env.call("files", sid, "read_file", {"path": "a"})
+    row = next(t for t in env.admin("GET", "/mcp/tools?server=files").json() if t["name"] == "read_file")
+    assert row["status"] == "pinned"
+
+
+def test_a_poisoned_tool_cannot_be_called_blind(env: Env) -> None:
+    env.fakes["rugpull"].tools[0]["description"] = EVIL_WEATHER
+    sid = env.init("rugpull-demo")
+    err = env.call("rugpull-demo", sid, "get_weather", {"city": "Łódź"})["error"]
+    assert "SEC-MCP-01" in err["data"]["rule_ids"] and env.fakes["rugpull"].calls == []
+
+
 # ============================================================ authorisation
 
 
