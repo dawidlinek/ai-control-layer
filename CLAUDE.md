@@ -66,6 +66,14 @@ docs/           CONCEPT.md, ux/, prompts/, checkpoints/
 - **Payload text** (`acl.engine.text`): `iter_texts(payload)` gives (field path, text); `apply_replacements`
   applies finding spans. Field paths are the `Finding.field` convention.
 - **Audit sink** (`acl.audit.sink.AuditSink`, at `app.state.audit`): `record_decision(...)`, `record_event(...)`.
+- **Sessions** (`acl.sessions`, `app.state.sessions`, control service `"sessions"`): `load(sid)`, `update(sid, fn)`;
+  session ids are principal-namespaced (`acl.engine.actions.session_key`). Labels only rise (`merge_labels`);
+  `compose_decision` raises `labels_after` from verdict `labels`/`data_class`; commits persist them.
+- **Evaluate a point outside chat** (`acl.engine.actions.evaluate_point`): builds ctx (session, preset), evaluates,
+  audits, commits (`commit_decision`: control commits + session labels/steps + flow hooks). Used by /v1/decide and MCP.
+- **Flow hooks** (`acl.engine.hooks`, `app.state.flow_hooks`): `on_commit(ctx, decision)`, `on_usage(ctx, decision,
+  route, usage)` — observation only (budgets ledger, loop counters, bypass detection), never enforcement.
+- **Compose fragments**: `deploy/compose.mcp.yml` (2A), `deploy/compose.clients.yml` (2C) are `include`d.
 - **Audit record**: `acl.contracts.audit.AuditEvent`; hash chain and canonical JSON in `acl.contracts.canonical`.
 
 ## Rules

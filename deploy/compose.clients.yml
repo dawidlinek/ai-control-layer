@@ -1,0 +1,2 @@
+# Compose fragment included by docker-compose.yml (owner: Phase 2C). Services join the default network.
+services: {}

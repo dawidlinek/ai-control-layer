@@ -3,6 +3,11 @@
 # The admin panel is out of scope for now (admin API only).
 name: acl
 
+# Fragments owned by other tasks (MCP demo servers, clients) are merged in here.
+include:
+  - compose.mcp.yml
+  - compose.clients.yml
+
 services:
   postgres:
     image: postgres:17-alpine

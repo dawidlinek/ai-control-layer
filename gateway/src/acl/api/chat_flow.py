@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import logging
 import re
@@ -58,6 +57,7 @@ from acl.contracts.inspection import (
     SessionState,
     ToolCall,
 )
+from acl.engine.actions import commit_decision, session_key
 from acl.engine.engine import Engine
 from acl.engine.hooks import run_hooks
 from acl.engine.replay import ReplayBuffer
@@ -80,22 +80,12 @@ from acl.routing.dev_access import PermissiveAccess
 from acl.routing.metering import compute_usage, estimate_tokens
 from acl.routing.registry import ConnectorRegistry, RoutingTable
 from acl.routing.router import Route, RouteError, Router, RouteRequest, max_data_class
-from acl.sessions.store import merge_labels
 
 log = logging.getLogger(__name__)
 
 _RULE_ID = re.compile(r"^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$")
 _UA = re.compile(r"([A-Za-z0-9._-]+)(?:/([\w.+-]+))?")
 _MAX_SESSION_ID = 128
-
-
-def principal_namespace(principal: Principal) -> str:
-    """First 16 hex chars of sha256(principal.subject): the per-principal session namespace."""
-    return hashlib.sha256(principal.subject.encode("utf-8")).hexdigest()[:16]
-
-
-def session_key(principal: Principal, client_value: str) -> str:
-    return f"{principal_namespace(principal)}:{client_value}"
 
 
 def _rule(candidate: str | None, fallback: str = "SEC-MODEL-01") -> str:
@@ -324,18 +314,8 @@ class BaseFlow:
         )
 
     async def _commit(self, ctx: InspectionContext, decision: Decision) -> None:
-        """Apply an enforced decision: control state, session labels (monotonic) + step counter, flow hooks."""
-        await self.engine.commit(ctx, decision)
-        sessions = getattr(self.app.state, "sessions", None)
-        if sessions is not None:
-            ingress = ctx.point == InspectionPoint.ingress
-
-            def apply(state: SessionState) -> SessionState:
-                labels = merge_labels(state.labels, decision.labels_after)
-                return state.model_copy(update={"labels": labels, "step": state.step + (1 if ingress else 0)})
-
-            await sessions.update(ctx.session_id, apply)
-        await run_hooks(self.app, "on_commit", ctx, decision)
+        """Apply an enforced decision (shared with /v1/decide and the MCP proxy)."""
+        await commit_decision(self.app, ctx, decision)
 
     @staticmethod
     def _redacted(ctx: InspectionContext, verdicts: list[Verdict]) -> str | None:

@@ -1,6 +1,6 @@
 """Session store seam (orchestrator-owned).
 
-Session ids are already namespaced by principal (`api.chat_flow.session_key`), so a store keyed by the
+Session ids are already namespaced by principal (`acl.engine.actions.session_key`), so a store keyed by the
 session id never mixes principals. Labels only ever rise here (monotonic): `merge_labels` is the single
 place that combines them. Phase 2 uses the in-memory store; a Postgres/Redis store can implement the same
 protocol for multi-replica deployments.

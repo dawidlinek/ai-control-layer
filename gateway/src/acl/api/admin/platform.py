@@ -11,71 +11,23 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 
-from acl.api.deps import ERROR_RESPONSES, Admin, Analyst, Viewer, not_implemented
+from acl.api.deps import ERROR_RESPONSES, Admin, Viewer, not_implemented
 from acl.audit.queries import spend_by_connector
 from acl.contracts.admin import (
-    Approval,
     ArtifactScanResult,
-    BreakerState,
-    BudgetTree,
     ConnectorStatus,
     FeedStatus,
     InsightCluster,
     KillSwitchRequest,
-    McpServerInfo,
-    McpToolApprovalRequest,
-    McpToolInfo,
     ModelInfo,
     PublishSkillRequest,
 )
 from acl.contracts.audit import EventType
-from acl.contracts.common import ApprovalStatus, Severity
-from acl.contracts.decide import ApprovalDecisionRequest
+from acl.contracts.common import Severity
 from acl.policy.models import Policy
 from acl.routing.registry import RoutingTable
 
 router = APIRouter(responses=ERROR_RESPONSES)
-
-# ---------------------------------------------------------------- approvals (2B)
-
-
-@router.get("/approvals", response_model=list[Approval], tags=["approvals"], operation_id="listApprovals")
-async def list_approvals(p: Viewer, status: ApprovalStatus | None = ApprovalStatus.pending) -> list[Approval]:
-    not_implemented("approvals")
-
-
-@router.get("/approvals/{approval_id}", response_model=Approval, tags=["approvals"], operation_id="getApprovalAdmin")
-async def get_approval(approval_id: str, p: Viewer) -> Approval:
-    not_implemented("approvals")
-
-
-@router.post(
-    "/approvals/{approval_id}/decision", response_model=Approval, tags=["approvals"], operation_id="decideApproval"
-)
-async def decide_approval(approval_id: str, body: ApprovalDecisionRequest, p: Analyst) -> Approval:
-    """Approve (optionally with time-boxed elevation) or deny. Audited."""
-    not_implemented("approvals")
-
-
-# ---------------------------------------------------------------- budgets (2D)
-
-
-@router.get("/budgets", response_model=BudgetTree, tags=["budgets"], operation_id="getBudgets")
-async def budgets(p: Viewer) -> BudgetTree:
-    not_implemented("budgets")
-
-
-@router.get("/budgets/breakers", response_model=list[BreakerState], tags=["budgets"], operation_id="listBreakers")
-async def breakers(p: Viewer) -> list[BreakerState]:
-    not_implemented("breakers")
-
-
-@router.post(
-    "/budgets/breakers/{breaker_id}/reset", response_model=BreakerState, tags=["budgets"], operation_id="resetBreaker"
-)
-async def reset_breaker(breaker_id: str, p: Admin) -> BreakerState:
-    not_implemented("breakers")
-
 
 # ---------------------------------------------------------------- models & connectors (1A / 3B)
 
@@ -190,32 +142,6 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
             )
         )
     return out
-
-
-# ---------------------------------------------------------------- MCP (2A)
-
-
-@router.get("/mcp/servers", response_model=list[McpServerInfo], tags=["mcp"], operation_id="listMcpServers")
-async def mcp_servers(p: Viewer) -> list[McpServerInfo]:
-    not_implemented("mcp")
-
-
-@router.get("/mcp/tools", response_model=list[McpToolInfo], tags=["mcp"], operation_id="listMcpTools")
-async def mcp_tools(p: Viewer, server: str | None = None) -> list[McpToolInfo]:
-    not_implemented("mcp")
-
-
-@router.post("/mcp/tools/{tool_id}/approve", response_model=McpToolInfo, tags=["mcp"], operation_id="approveMcpTool")
-async def approve_tool(tool_id: str, body: McpToolApprovalRequest, p: Admin) -> McpToolInfo:
-    """Re-pin a drifted/pending tool to its current hash."""
-    not_implemented("mcp")
-
-
-@router.post(
-    "/mcp/tools/{tool_id}/quarantine", response_model=McpToolInfo, tags=["mcp"], operation_id="quarantineMcpTool"
-)
-async def quarantine_tool(tool_id: str, body: McpToolApprovalRequest, p: Analyst) -> McpToolInfo:
-    not_implemented("mcp")
 
 
 # ---------------------------------------------------------------- feed (1D)

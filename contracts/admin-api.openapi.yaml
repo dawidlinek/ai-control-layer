@@ -1697,150 +1697,6 @@ paths:
           description: Not implemented yet
       security:
       - HTTPBearer: []
-  /admin/v1/mcp/servers:
-    get:
-      tags:
-      - mcp
-      summary: Mcp Servers
-      operationId: listMcpServers
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/McpServerInfo'
-                type: array
-                title: Response Listmcpservers
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-      security:
-      - HTTPBearer: []
-  /admin/v1/mcp/tools:
-    get:
-      tags:
-      - mcp
-      summary: Mcp Tools
-      operationId: listMcpTools
-      security:
-      - HTTPBearer: []
-      parameters:
-      - name: server
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Server
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/McpToolInfo'
-                title: Response Listmcptools
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /admin/v1/mcp/tools/{tool_id}/approve:
-    post:
-      tags:
-      - mcp
-      summary: Approve Tool
-      description: Re-pin a drifted/pending tool to its current hash.
-      operationId: approveMcpTool
-      security:
-      - HTTPBearer: []
-      parameters:
-      - name: tool_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Tool Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/McpToolApprovalRequest'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/McpToolInfo'
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /admin/v1/mcp/tools/{tool_id}/quarantine:
-    post:
-      tags:
-      - mcp
-      summary: Quarantine Tool
-      operationId: quarantineMcpTool
-      security:
-      - HTTPBearer: []
-      parameters:
-      - name: tool_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Tool Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/McpToolApprovalRequest'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/McpToolInfo'
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /admin/v1/feed:
     get:
       tags:
@@ -2007,6 +1863,150 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InsightCluster'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/mcp/servers:
+    get:
+      tags:
+      - mcp
+      summary: Mcp Servers
+      operationId: listMcpServers
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/McpServerInfo'
+                type: array
+                title: Response Listmcpservers
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/mcp/tools:
+    get:
+      tags:
+      - mcp
+      summary: Mcp Tools
+      operationId: listMcpTools
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: server
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/McpToolInfo'
+                title: Response Listmcptools
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/mcp/tools/{tool_id}/approve:
+    post:
+      tags:
+      - mcp
+      summary: Approve Tool
+      description: Re-pin a drifted/pending tool to its current hash.
+      operationId: approveMcpTool
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tool Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpToolApprovalRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolInfo'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/mcp/tools/{tool_id}/quarantine:
+    post:
+      tags:
+      - mcp
+      summary: Quarantine Tool
+      operationId: quarantineMcpTool
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tool Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpToolApprovalRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolInfo'
         '401':
           description: Missing or invalid credentials
         '403':
