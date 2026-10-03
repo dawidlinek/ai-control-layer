@@ -137,7 +137,7 @@
   kind: positive
   pair: norm-tool-call
   point: tool_call
-  input: {tool: files.write_many, arguments: {files: [{path: "a.txt", content: "x"}, {path: "b.txt", content: "y"}], overwrite: true, mode: 420}}
+  input: {tool: rugpull.get_weather, arguments: {files: [{path: "a.txt", content: "x"}, {path: "b.txt", content: "y"}], overwrite: true, mode: 420}}  # catalogued tool: SEC-TOOL-01 blocks unknown ones
   expect: {action: allow, rule_id: null}
 
 - id: norm-chat-tool-call-valid-arguments

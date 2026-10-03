@@ -312,7 +312,10 @@ async def test_store_swap_applies_to_the_next_inspection() -> None:
 @lru_cache(maxsize=1)
 def _engine() -> Engine:
     loaded = load_policy_dir(POLICY_DIR)
-    return Engine.build(loaded.policy, loaded.version, deps=ControlDeps())
+    # signature rules are tested in isolation from the Phase 2B tool/flow controls (SEC-TOOL-01 adds approvals / blocks)
+    controls = [c for c in loaded.policy.controls if c.id not in ("SEC-TOOL-01", "SEC-FLOW-01", "SEC-TAINT-01")]
+    policy = loaded.policy.model_copy(update={"controls": controls})
+    return Engine.build(policy, loaded.version, deps=ControlDeps())
 
 
 async def _decide(data, point=InspectionPoint.tool_call):

@@ -61,7 +61,7 @@
   kind: negative
   pair: pii-pesel
   point: tool_call
-  input: {tool: mail.send, arguments: {to: "anna@corp.example", subject: "Dane", body: "PESEL 44051401359"}}
+  input: {tool: mail.read, arguments: {to: "anna@corp.example", subject: "Dane", body: "PESEL 44051401359"}}  # allow-tier tool: isolates SEC-PII-01
   # Detected and reported, arguments untouched (`tool_call_action: monitor`); the session becomes confidential,
   # so Rule of Two / recipient checks govern where it may go.
   expect: {action: monitor, rule_id: SEC-PII-01}

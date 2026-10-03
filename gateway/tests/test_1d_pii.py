@@ -42,7 +42,10 @@ def _loaded():
 
 
 def _engine(**services) -> Engine:
-    return Engine.build(_loaded().policy, _loaded().version, deps=ControlDeps(**services))
+    # PII is tested in isolation from the Phase 2B tool/flow controls (SEC-TOOL-01 outranks pseudonymise on mail.send)
+    controls = [c for c in _loaded().policy.controls if c.id not in ("SEC-TOOL-01", "SEC-FLOW-01", "SEC-TAINT-01")]
+    policy = _loaded().policy.model_copy(update={"controls": controls})
+    return Engine.build(policy, _loaded().version, deps=ControlDeps(**services))
 
 
 def _pesel(first10: str) -> str:

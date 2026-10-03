@@ -31,8 +31,10 @@ mcp_servers:
 
 tools:
   # ---- OpenCode built-ins (checked via /v1/decide) ------------------------------------
+  # Repo content (README, issues, comments) is untrusted (concept §9), and a read may expose secrets: both labels raise
+  # the session labels when a read is allowed (SEC-TAINT-01). `access: write` marks write tools for `approval_on_writes`.
   opencode.read:
-    labels: [touches_sensitive]
+    labels: [reads_untrusted, touches_sensitive]
     capabilities: [filesystem]
     default_tier: allow
     checkers:
@@ -41,15 +43,17 @@ tools:
     capabilities: [filesystem]
     default_tier: allow
     checkers:
-      - {type: path, field: filePath, params: {workspace_only: true}}
+      - {type: path, field: filePath, params: {workspace_only: true, access: write}}
   opencode.edit:
     capabilities: [filesystem]
     default_tier: allow
     checkers:
-      - {type: path, field: filePath, params: {workspace_only: true}}
+      - {type: path, field: filePath, params: {workspace_only: true, access: write}}
+  # Tier is `allow` on purpose: the command checker decides per call (safe read-only commands / test runners pass,
+  # deny classes block, everything else requires approval). A `confirm` tier would ask for `git status` too.
   opencode.bash:
     capabilities: [exec, filesystem, network]
-    default_tier: confirm
+    default_tier: allow
     checkers:
       - {type: command, field: command}
   opencode.webfetch:
@@ -91,7 +95,7 @@ tools:
   # ---- MCP tools ----------------------------------------------------------------------
   files.read_file:
     server: files
-    labels: [touches_sensitive]
+    labels: [reads_untrusted, touches_sensitive]
     capabilities: [filesystem]
     default_tier: allow
     checkers:
