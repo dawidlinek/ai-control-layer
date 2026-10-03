@@ -40,6 +40,8 @@ Hook = Callable[[FastAPI], Awaitable[None]]
 INSTALLERS: list[str] = [
     "acl.audit.wiring:install",  # 1A: audit chain + index + SSE + /metrics (app.state.audit)
     "acl.api.wiring:install",  # 1A: connectors, replay buffer, /v1 chat/embeddings/models
+    "acl.identity.wiring:install",
+    "acl.policy.wiring:install",
 ]
 
 

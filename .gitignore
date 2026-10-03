@@ -35,3 +35,6 @@ training/**/outputs/
 *.safetensors
 *.gguf
 *.onnx
+
+# agent worktrees
+.claude/worktrees/

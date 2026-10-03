@@ -33,6 +33,8 @@ def install(app: FastAPI, settings: Settings) -> None:
     app.include_router(metrics_router)
 
     async def start(app: FastAPI) -> None:
+        if getattr(app.state, "audit", None) is not None:  # a test double (RecordingSink) was injected: keep it
+            return
         chain = AuditChain(settings.audit_path)
         chain.resume()
 

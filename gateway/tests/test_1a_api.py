@@ -30,6 +30,7 @@ from acl.settings import Settings
 
 REPO = Path(__file__).resolve().parents[2]
 EVENT_SCHEMA = json.loads((REPO / "contracts" / "event.schema.json").read_text(encoding="utf-8"))
+INSTALLERS_1A = ["acl.audit.wiring:install", "acl.api.wiring:install"]
 PESEL = "44051401359"
 PERSON = "Jan Kowalski"
 
@@ -184,10 +185,12 @@ def build_app(tmp: Path, *, budgets_stream: str | None = None, deny: set[str] | 
         deterministic=True,
         value_hash_salt="test-salt",  # type: ignore[arg-type]
     )
-    app = create_app(settings, allow_anonymous_dev=True)
+    # 1A in isolation: only the audit + gateway installers, with fake access / vault / controls
+    app = create_app(settings, allow_anonymous_dev=True, installers=INSTALLERS_1A)
     app.state.access = FakeAccess(lambda: app.state.engine.policy if app.state.engine else None, deny)
     app.state.vault = FakeVault()
     app.state.control_deps.register("vault", app.state.vault)
+    app.state.control_deps.register("access", app.state.access)  # SEC-MODEL-01 (enabled in the seed policy)
     return app, settings
 
 
@@ -361,7 +364,8 @@ def test_pseudonymise_roundtrip_restores_for_client(harness) -> None:  # type: i
     assert PESEL not in raw and PERSON not in raw  # nothing raw in the audit log
     ingress = audit_records(settings.audit_path)[0]
     assert "<PESEL_1>" in ingress["redacted_payload"] and ingress["decision"]["action"] == "pseudonymise"
-    assert ingress["verdicts"][0]["findings"][0]["value_hash"]
+    pseudo = next(v for v in ingress["verdicts"] if v["control_id"] == "T1A-PSEUDO-01")
+    assert pseudo["findings"][0]["value_hash"]
 
 
 def test_restore_is_limited_to_allow_listed_types_and_text(harness) -> None:  # type: ignore[no-untyped-def]

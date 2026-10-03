@@ -57,6 +57,7 @@ from acl.contracts.inspection import (
     ToolCall,
 )
 from acl.engine.engine import Engine
+from acl.engine.replay import ReplayBuffer
 from acl.engine.streaming import RepeatDetector, StreamGuard, is_blocking
 from acl.engine.text import apply_replacements, iter_texts
 from acl.engine.transforms import (
@@ -187,7 +188,9 @@ class BaseFlow:
         self.router = Router(self.policy, self.table)
         self.access = self._access()
         self.salt = self.app.state.settings.value_hash_salt.get_secret_value()
-        self.replay = getattr(self.app.state, "replay_buffer", None)
+        if getattr(self.app.state, "replay_buffer", None) is None:
+            self.app.state.replay_buffer = ReplayBuffer(maxlen=2000)
+        self.replay = self.app.state.replay_buffer
         self.vault = self.app.state.control_deps.get("vault")
         self.ctx: InspectionContext | None = None
         self.route: Route | None = None

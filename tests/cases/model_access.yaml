@@ -1,0 +1,108 @@
+# SEC-MODEL-01 (model_access): who may use which model.
+#
+# The in-process case runner always requests `auto` and builds the engine from `policy/` with default deps,
+# i.e. WITHOUT the identity wiring. SEC-MODEL-01 therefore runs here with `missing_service: policy_only`
+# (group policy + org locks from the loaded policy, no DB grants). DB grants, expiry, revocation, caps and the
+# fail-closed behaviour are covered by gateway/tests/test_1c_*.py with the real resolver.
+# Groups in policy/groups.yaml that hold `auto`: admins, security-analysts, credit-analysts, developers.
+
+- id: model-access-developers-may-use-auto
+  control: SEC-MODEL-01
+  kind: positive
+  pair: model-access-no-groups
+  principal: {username: anna, groups: [developers]}
+  input: "Napisz funkcję sortującą listę."
+  expect: {action: allow, rule_id: null}
+
+- id: model-access-no-groups-blocked
+  control: SEC-MODEL-01
+  kind: negative
+  pair: model-access-no-groups
+  principal: {username: mallory, groups: []}
+  input: "Napisz funkcję sortującą listę."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: model-access-credit-analyst-may-use-auto
+  control: SEC-MODEL-01
+  kind: positive
+  pair: model-access-unknown-group
+  principal: {username: jan, groups: [credit-analysts]}
+  input: "Podsumuj wniosek kredytowy klienta."
+  expect: {action: allow, rule_id: null}
+
+- id: model-access-unknown-group-blocked
+  control: SEC-MODEL-01
+  kind: negative
+  pair: model-access-unknown-group
+  principal: {username: carl, groups: [contractors]}
+  input: "Podsumuj wniosek kredytowy klienta."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: model-access-admin-may-use-auto
+  control: SEC-MODEL-01
+  kind: positive
+  pair: model-access-research-bot
+  principal: {username: adam, groups: [admins]}
+  input: "Show the current routing table."
+  expect: {action: allow, rule_id: null}
+
+- id: model-access-research-bot-has-no-auto
+  control: SEC-MODEL-01
+  kind: negative
+  pair: model-access-research-bot
+  principal: {username: service-account-agent-research-bot, groups: [agents/research-bot]}
+  input: "Show the current routing table."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: model-access-security-analyst-may-use-auto
+  control: SEC-MODEL-01
+  kind: positive
+  pair: model-access-parent-group
+  principal: {username: ola, groups: [security-analysts]}
+  input: "Summarise today's incidents."
+  expect: {action: allow, rule_id: null}
+
+- id: model-access-parent-group-has-no-policy
+  control: SEC-MODEL-01
+  kind: negative
+  pair: model-access-parent-group
+  principal: {username: ola, groups: [agents]}
+  input: "Summarise today's incidents."
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: model-access-union-of-groups-grants-auto
+  control: SEC-MODEL-01
+  kind: positive
+  pair: model-access-bot-plus-contractor
+  principal: {username: dual, groups: [agents/research-bot, developers]}
+  input: "Fetch the quarterly report."
+  expect: {action: allow, rule_id: null}
+
+- id: model-access-bot-plus-contractor-blocked
+  control: SEC-MODEL-01
+  kind: negative
+  pair: model-access-bot-plus-contractor
+  principal: {username: dual, groups: [agents/research-bot, contractors]}
+  input: "Fetch the quarterly report."
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: model-access-embeddings-developer-allowed
+  control: SEC-MODEL-01
+  kind: positive
+  pair: model-access-embeddings
+  point: embeddings
+  principal: {username: anna, groups: [developers]}
+  input: "index this paragraph"
+  expect: {action: allow, rule_id: null}
+
+- id: model-access-embeddings-no-groups-blocked
+  control: SEC-MODEL-01
+  kind: negative
+  pair: model-access-embeddings
+  point: embeddings
+  principal: {username: mallory, groups: []}
+  input: "index this paragraph"
+  expect: {action: block, rule_id: SEC-MODEL-01}

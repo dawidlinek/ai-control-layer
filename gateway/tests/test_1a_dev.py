@@ -35,8 +35,6 @@ def test_dev_principal_headers_only_in_dev_mode() -> None:
 
 
 async def test_mock_directive_arguments_may_contain_brackets() -> None:
-    out = await MockConnector().chat(
-        "m", {"messages": [{"role": "user", "content": '[[mock:tool x {"a": [1,2]}]]'}]}
-    )
+    out = await MockConnector().chat("m", {"messages": [{"role": "user", "content": '[[mock:tool x {"a": [1,2]}]]'}]})
     call = out.body["choices"][0]["message"]["tool_calls"][0]
     assert json.loads(call["function"]["arguments"]) == {"a": [1, 2]}
