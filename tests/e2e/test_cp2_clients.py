@@ -35,7 +35,8 @@ pytestmark = [pytest.mark.e2e, pytest.mark.timeout(300)]  # first OpenCode start
 LIBRECHAT_URL = "http://localhost:3080"
 OPENCODE_PORT = 4097
 CANARY = "ACL-CANARY-SSHKEY-9f2c71d4e8a3b605"
-RULE_ID_IN_MESSAGE = re.compile(r"\[[A-Z][A-Z0-9]*(?:-[A-Z0-9_.]+)+\]")
+_RULE = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9_.]+)+"
+RULE_ID_IN_MESSAGE = re.compile(rf"\[{_RULE}(?:, {_RULE})*\]")  # one or more rule ids, e.g. [SIG-..., SEC-TOOL-01]
 BROWSER_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 

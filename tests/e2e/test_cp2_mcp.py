@@ -97,7 +97,13 @@ def _bank_data() -> Any:
 def test_cp2_scenario_6_rug_pull_quarantine_and_incident(stack, sse) -> None:
     rows = [r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather"]
     if rows and rows[0]["status"] != "pinned":
-        pytest.skip("rugpull-demo is already rugged/quarantined from an earlier run; recreate the container")
+        # leftover from an earlier run: after `docker compose up -d --force-recreate mcp-rugpull` the server is clean
+        # again; let the gateway see the clean manifest, then re-pin it as an admin (re-approval is deliberately sticky)
+        McpClient(stack, "anna", "rugpull-demo").open().tools()
+        approved = stack.admin("POST", f"/mcp/tools/{rows[0]['id']}/approve", json={"reason": "e2e reset"})
+        rows = [r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather"]
+        if approved.status_code != 200 or not rows or rows[0]["status"] != "pinned":
+            pytest.skip("rugpull-demo is rugged from an earlier run: docker compose up -d --force-recreate mcp-rugpull")
 
     anna = McpClient(stack, "anna", "rugpull-demo").open()
     assert anna.tools() == ["get_weather"]  # first sight on an allowlisted server: pinned

@@ -134,5 +134,6 @@ def test_cp2_admin_revokes_bash_and_the_next_decide_is_blocked_with_the_rule_id(
         assert _decide(stack, "anna", session, "opencode.read", {"filePath": "src/app.py"})["action"] == "allow"
     finally:
         _revoke(stack, grant_id)
-    restored = _decide(stack, "anna", session, "opencode.bash", {"command": "git status"})
+    # fresh session: a third identical call within 60 s in one session is (correctly) a SEC-LOOP-01 repeat
+    restored = _decide(stack, "anna", f"{session}-restored", "opencode.bash", {"command": "git status"})
     assert restored["action"] == "allow", "revoking the deny grant should restore access on the next call"
