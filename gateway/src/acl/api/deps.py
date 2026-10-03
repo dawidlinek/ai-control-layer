@@ -29,6 +29,10 @@ async def current_principal(
     if authenticator is not None and (creds is not None or not dev):
         return await authenticator(request, creds)
     if dev:  # explicit unit-test switch (create_app(allow_anonymous_dev=True)); never driven by configuration
+        from acl.api.dev_principal import dev_principal_from_headers
+
+        if (override := dev_principal_from_headers(request)) is not None:
+            return override
         return Principal(
             subject="dev", kind=PrincipalKind.user, username="dev", roles=["acl-admin"], auth_method=AuthMethod.none
         )

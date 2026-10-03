@@ -68,7 +68,7 @@ controls:
     description: Model allowlist + data-class ceiling per model (forbidden → block, sensitive → route_local)
     stages: [ingress, embeddings]
     cost_tier: deterministic
-    timeout_ms: 50
+    timeout_ms: 250   # cold path loads DB grants; warm path is cached (fail closed on timeout)
     taxonomy: {owasp_llm: ["LLM06:2025"]}
     params:
       # Gateway wiring always registers the `access` service (DB grants + org locks). `policy_only` is the
