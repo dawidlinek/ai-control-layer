@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled_providers": ["company"],
+  "provider": {
+    "company": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Company AI Gateway",
+      "options": { "baseURL": "http://gateway:8000/v1" },
+      "models": {
+        "auto": { "name": "Auto (policy router)" },
+        "local-coder": { "name": "Local coder" },
+        "local": { "name": "Local general" },
+        "smart": { "name": "Smart (cloud, if granted)" }
+      }
+    }
+  },
+  "model": "company/auto",
+  "small_model": "company/auto",
+  "plugin": ["file:///opt/opencode-guard"],
+  "share": "disabled",
+  "autoupdate": false,
+  "permission": { "webfetch": "deny" },
+  "mcp": {
+    "governed-tools": { "type": "remote", "url": "http://gateway:8000/mcp/governed-tools", "enabled": true, "oauth": false },
+    "files": { "type": "remote", "url": "http://gateway:8000/mcp/files", "enabled": true, "oauth": false },
+    "mail": { "type": "remote", "url": "http://gateway:8000/mcp/mail", "enabled": true, "oauth": false },
+    "web": { "type": "remote", "url": "http://gateway:8000/mcp/web", "enabled": true, "oauth": false }
+  },
+  "lsp": false,
+  "formatter": false
+}
