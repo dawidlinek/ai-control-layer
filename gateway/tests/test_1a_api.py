@@ -252,7 +252,10 @@ def test_chat_roundtrip_headers_and_audit(harness) -> None:  # type: ignore[no-u
     records = assert_audit_valid(settings.audit_path)
     assert [x["point"] for x in records] == ["ingress", "egress"]
     assert {x["trace_id"] for x in records} == {trace}
-    assert records[0]["session_id"] == "sess-abc" and records[0]["client"]["app"] == "librechat"
+    # the client session id is namespaced by the principal (CP1: sessions never cross principals)
+    ns, _, client_sid = records[0]["session_id"].partition(":")
+    assert client_sid == "sess-abc" and re.fullmatch(r"[0-9a-f]{16}", ns)
+    assert records[0]["client"]["app"] == "librechat"
     assert records[1]["usage"]["input_tokens"] > 0 and records[1]["usage"]["output_tokens"] > 0
     assert records[1]["route"]["model"] == "local/general" and records[1]["latency"]["upstream_ms"] > 0
     assert records[0]["redacted_payload"] == "hello world"
@@ -485,14 +488,16 @@ def test_stream_reassembles_and_audits(harness) -> None:  # type: ignore[no-unty
 
 
 def test_stream_pseudonyms_restored_across_chunk_boundaries(harness) -> None:  # type: ignore[no-untyped-def]
-    client, app, _ = harness
+    client, app, settings = harness
     # 16-char mock chunks split the placeholder; the guard must hold it back until whole
     prefix = "x" * 11
     r = chat(
         client, f"[[mock:reply {prefix}<PERSON_1> and <PESEL_1> done]]", stream=True, headers={"X-Session-Id": "s4"}
     )
-    app.state.vault.add("s4", "<PERSON_1>", "PERSON", PERSON)
-    app.state.vault.add("s4", "<PESEL_1>", "PESEL", PESEL)
+    sid = audit_records(settings.audit_path)[-1]["session_id"]  # principal-namespaced "s4"
+    assert sid.endswith(":s4")
+    app.state.vault.add(sid, "<PERSON_1>", "PERSON", PERSON)
+    app.state.vault.add(sid, "<PESEL_1>", "PESEL", PESEL)
     r = chat(
         client, f"[[mock:reply {prefix}<PERSON_1> and <PESEL_1> done]]", stream=True, headers={"X-Session-Id": "s4"}
     )

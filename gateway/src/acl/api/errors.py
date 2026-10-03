@@ -1,6 +1,9 @@
 """OpenAI-style errors for the `/v1` gateway routes.
 
 {"error": {"message": ..., "type": "policy_violation", "code": "<rule id>", "trace_id": ...}}
+
+Request-validation errors also carry `param` (the offending request field), as OpenAI does:
+{"error": {"type": "invalid_request_error", "code": "unsupported_parameter", "param": "prediction", ...}}
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ class GatewayError(Exception):
         code: str | None = None,
         trace_id: str | None = None,
         headers: dict[str, str] | None = None,
+        param: str | None = None,
     ) -> None:
         super().__init__(message)
         self.status = status
@@ -29,13 +33,19 @@ class GatewayError(Exception):
         self.code = code
         self.trace_id = trace_id
         self.headers = headers or {}
+        self.param = param
 
     def body(self) -> dict[str, Any]:
-        return error_body(self.message, self.type, self.code, self.trace_id)
+        return error_body(self.message, self.type, self.code, self.trace_id, param=self.param)
 
 
-def error_body(message: str, type_: str, code: str | None, trace_id: str | None) -> dict[str, Any]:
-    return {"error": {"message": message, "type": type_, "code": code, "trace_id": trace_id}}
+def error_body(
+    message: str, type_: str, code: str | None, trace_id: str | None, *, param: str | None = None
+) -> dict[str, Any]:
+    err: dict[str, Any] = {"message": message, "type": type_, "code": code, "trace_id": trace_id}
+    if param is not None:
+        err["param"] = param
+    return {"error": err}
 
 
 async def _handle(_: Request, exc: Exception) -> JSONResponse:

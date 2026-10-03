@@ -13,7 +13,9 @@ from typing import Any
 
 from acl.contracts.common import Action
 from acl.contracts.decision import Decision, Finding, Verdict
+from acl.contracts.inspection import Payload
 from acl.engine.engine import Engine
+from acl.engine.text import get_at, iter_texts, parse_path
 from acl.policy.models import Policy
 
 TRANSFORM_ACTIONS = frozenset({Action.redact, Action.pseudonymise, Action.sanitize})
@@ -43,6 +45,32 @@ def transform_findings(engine: Engine, decision: Decision) -> list[Finding]:
         for f in v.findings
         if f.replacement is not None
     ]
+
+
+def unaddressable_fields(payload: Payload) -> set[str]:
+    """Inspected fields whose path does not address exactly their own text in `payload.model_dump()`.
+
+    Free-form JSON (tool schemas, params) may use keys such as `$ref`, `my-key` or `a.b` that
+    `parse_path` cannot express; such a field may resolve to nothing or, worse, to ANOTHER leaf. A
+    replacement aimed at it would then miss the real value, which would be forwarded raw. Callers must
+    fail closed when an enforced transform targets one of these fields.
+    """
+    data = payload.model_dump(mode="python")
+    owners: dict[tuple[str | int, ...], list[str]] = {}
+    bad: set[str] = set()
+    for field, text in iter_texts(payload):
+        path = tuple(parse_path(field))
+        owners.setdefault(path, []).append(field)
+        try:
+            ok = get_at(data, list(path)) == text
+        except (KeyError, IndexError, TypeError):
+            ok = False
+        if not ok:
+            bad.add(field)
+    for fields in owners.values():
+        if len(fields) > 1:
+            bad.update(fields)
+    return bad
 
 
 def obliges_local(engine: Engine, decision: Decision) -> bool:
