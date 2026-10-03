@@ -95,6 +95,8 @@ services:
       LOCAL_CODER_MODEL: ${LOCAL_CODER_MODEL:-}
       LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-}
       LOCAL_JUDGE_MODEL: ${LOCAL_JUDGE_MODEL:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach an SSH tunnel on the host (scripts/wcss.py tunnel)
     volumes:
       - ../policy:/policy            # single writer = the gateway's policy service
       - audit:/data/audit
