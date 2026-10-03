@@ -134,18 +134,31 @@ controls:
 
   - id: SEC-TOOL-01
     type: tool_policy
-    enabled: false
-    description: Tool tiers (deny/must/allow/confirm), pinned argument schemas, path/SQL/command/recipient checkers
+    enabled: true
+    description: Tool tiers (deny/must/allow/confirm), pinned argument schemas, path/SQL/command/url/recipient checkers, monotonic confinement
     stages: [tool_call]
     cost_tier: deterministic
-    timeout_ms: 15
+    timeout_ms: 250   # cold path loads DB grants (same budget as SEC-MODEL-01); fail closed on timeout
     taxonomy: {owasp_agentic: ["ASI02"]}
+    params:
+      # Gateway wiring always registers the `access` service (readyz fails otherwise); `policy_only` is the fallback for
+      # engines built without it (in-process harness and unit tests): group policy + org locks, no DB deny grants.
+      missing_service: policy_only
 
   - id: SEC-FLOW-01
     type: rule_of_two
-    enabled: false
-    description: Rule of Two / lethal trifecta (untrusted input + sensitive data + external egress)
+    enabled: true
+    description: Rule of Two / lethal trifecta (untrusted input + sensitive data + external egress); needs no semantic control
     stages: [tool_call]
+    cost_tier: deterministic
+    timeout_ms: 30
+    taxonomy: {owasp_llm: ["LLM01:2025"], owasp_agentic: ["ASI01"]}
+
+  - id: SEC-TAINT-01
+    type: taint_labels
+    enabled: true
+    description: Raise session IFC labels from tool traffic (untrusted / sensitive tool results, role:tool history, allowed labelled calls)
+    stages: [ingress, tool_result, tool_call]
     cost_tier: deterministic
     timeout_ms: 10
     taxonomy: {owasp_llm: ["LLM01:2025"], owasp_agentic: ["ASI01"]}

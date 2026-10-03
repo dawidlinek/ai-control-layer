@@ -61,7 +61,7 @@
   kind: negative
   pair: pii-pesel
   point: tool_call
-  input: {tool: mail.send, arguments: {to: "anna@corp.example", subject: "Dane", body: "PESEL 44051401359"}}
+  input: {tool: mail.read, arguments: {to: "anna@corp.example", subject: "Dane", body: "PESEL 44051401359"}}  # allow-tier tool: mail.send's confirm tier would outrank pseudonymise
   expect: {action: pseudonymise, rule_id: SEC-PII-01}
 
 - id: pii-pesel-in-tool-result

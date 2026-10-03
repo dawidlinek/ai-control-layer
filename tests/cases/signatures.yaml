@@ -130,7 +130,7 @@
   pair: sig-secret-paths
   point: tool_call
   input: {tool: opencode.bash, arguments: {command: "cat .env"}}
-  expect: {action: require_approval, rule_id: SIG-PATH-ENV-FILE-01}
+  expect: {action: block, rule_id: SIG-PATH-ENV-FILE-01}  # SEC-TOOL-01 denies .env outright; the feed rule still fires
 
 - id: sig-terraform-destroy-needs-approval
   control: SEC-SIG-01
@@ -138,7 +138,7 @@
   pair: sig-destructive
   point: tool_call
   input: {tool: opencode.bash, arguments: {command: "terraform destroy -auto-approve"}}
-  expect: {action: require_approval, rule_id: SIG-CMD-TERRAFORM-DESTROY-01}
+  expect: {action: block, rule_id: SIG-CMD-TERRAFORM-DESTROY-01}  # SEC-TOOL-01 treats terraform destroy as a deny class
 
 - id: sig-aws-delete-needs-approval
   control: SEC-SIG-01
@@ -146,7 +146,7 @@
   pair: sig-destructive
   point: tool_call
   input: {tool: opencode.bash, arguments: {command: "aws ec2 terminate-instances --instance-ids i-0abc123"}}
-  expect: {action: require_approval, rule_id: SIG-CMD-AWS-DELETE-01}
+  expect: {action: block, rule_id: SIG-CMD-AWS-DELETE-01}  # SEC-TOOL-01 treats `aws … delete/terminate` as a deny class
 
 - id: sig-python-exec-in-code-tool
   control: SEC-SIG-01
@@ -195,7 +195,7 @@
   pair: sig-rm
   point: tool_call
   input: {tool: opencode.bash, arguments: {command: "rm -rf /tmp/build ./node_modules"}}
-  expect: {action: allow, rule_id: null}
+  expect: {action: require_approval, rule_id: [SEC-TOOL-01]}  # no feed rule fires; a delete is not on SEC-TOOL-01's safe list
 
 - id: sig-curl-to-file
   control: SEC-SIG-01
@@ -203,14 +203,14 @@
   pair: sig-curl
   point: tool_call
   input: {tool: opencode.bash, arguments: {command: "curl -sS https://api.example.org/v1/items | jq '.items[0]'"}}
-  expect: {action: allow, rule_id: null}
+  expect: {action: require_approval, rule_id: [SEC-TOOL-01]}  # no feed rule fires; curl is not on SEC-TOOL-01's safe list
 
 - id: sig-safe-python
   control: SEC-SIG-01
   kind: positive
   pair: sig-code
   point: tool_call
-  input: {tool: python.run, arguments: {code: "import math\nprint(sum(math.sqrt(i) for i in range(10)))"}}
+  input: {tool: opencode.write, arguments: {filePath: "calc.py", code: "import math\nprint(sum(math.sqrt(i) for i in range(10)))"}}  # catalogued tool (unknown ones are blocked by SEC-TOOL-01)
   expect: {action: allow, rule_id: null}
 
 - id: sig-source-file-mentions-exec-but-is-not-executed
@@ -218,7 +218,7 @@
   kind: positive
   pair: sig-code
   point: tool_call
-  input: {tool: files.write, arguments: {path: "notes.py", content: "import os\nos.system('echo hi')  # example for the tutorial"}}
+  input: {tool: opencode.write, arguments: {filePath: "notes.py", content: "import os\nos.system('echo hi')  # example for the tutorial"}}  # catalogued tool
   expect: {action: allow, rule_id: null}
 
 - id: sig-env-example-and-public-key
