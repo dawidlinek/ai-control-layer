@@ -58,25 +58,28 @@ Reviewer subagent on SEC-TOOL-01 checkers, taint/Rule of Two, approvals/decide/r
 
 | # | Sev | Finding | Status |
 |---|---|---|---|
-| 1 | high | MCP path set approver scope `user` when SEC-TOOL-01 was `decided_by` even with a SEC-FLOW-01 co-hold → user self-approved a Rule-of-Two hold | fixing |
-| 2 | high | safe-listed test runners (`pytest`, `npm test`, …) execute repo code an untrusted session just wrote → exfil allowed | fixing |
-| 3 | high | `opencode.patch` had no checkers (writes to `~/.bashrc`, git hooks, `/etc/profile.d`) | fixing |
-| 4 | high | safe-listed commands that execute/write via glued/prefixed flags (`rg --pre=`, `sort --compress-program=`, `git grep -O`, `sort -o…`) | fixing |
-| 5 | high | MCP IFC sessions per upstream server / per request → cross-server trifecta invisible | fixing |
-| 6 | med | shell egress detection misses (`git -C . push`, busybox, `node -e`, `python3 x.py`) → admin hold became user-approvable | fixing |
-| 7 | med | approve-once double spend on the MCP `?wait=` path | fixing |
-| 8 | med | SQL column scope bypass through joins (unqualified column) | fixing |
-| 9 | med | recipient lists with an unparseable address passed | fixing |
-| 10 | med | Windows filename aliases (`.env.`, `.env::$DATA`) defeat protected paths | fixing |
-| 11 | low | privileged requester can approve their own admin-scope hold | fixing |
-| 12 | low | elevation waives every SEC-TOOL-01 hold incl. inline-code/persistence in tainted sessions | fixing |
-| a | plaus. | base64 MCP resource blobs not decoded before scanning | verify + fix |
-| b | plaus. | MCP tool annotations not pinned (flip after pinning undetected) | verify + fix |
+| 1 | high | MCP path set approver scope `user` when SEC-TOOL-01 was `decided_by` even with a SEC-FLOW-01 co-hold → user self-approved a Rule-of-Two hold | fixed |
+| 2 | high | safe-listed test runners (`pytest`, `npm test`, …) execute repo code an untrusted session just wrote → exfil allowed | fixed |
+| 3 | high | `opencode.patch` had no checkers (writes to `~/.bashrc`, git hooks, `/etc/profile.d`) | fixed |
+| 4 | high | safe-listed commands that execute/write via glued/prefixed flags (`rg --pre=`, `sort --compress-program=`, `git grep -O`, `sort -o…`) | fixed |
+| 5 | high | MCP IFC sessions per upstream server / per request → cross-server trifecta invisible | fixed |
+| 6 | med | shell egress detection misses (`git -C . push`, busybox, `node -e`, `python3 x.py`) → admin hold became user-approvable | fixed |
+| 7 | med | approve-once double spend on the MCP `?wait=` path | fixed |
+| 8 | med | SQL column scope bypass through joins (unqualified column) | fixed |
+| 9 | med | recipient lists with an unparseable address passed | fixed |
+| 10 | med | Windows filename aliases (`.env.`, `.env::$DATA`) defeat protected paths | fixed |
+| 11 | low | privileged requester can approve their own admin-scope hold | fixed |
+| 12 | low | elevation waives every SEC-TOOL-01 hold incl. inline-code/persistence in tainted sessions | fixed |
+| a | plaus. | base64 MCP resource blobs not decoded before scanning | real; fixed |
+| b | plaus. | MCP tool annotations not pinned (flip after pinning undetected) | real; fixed |
 
 Sound (checked): `/v1/decide` fails closed; deterministic controls fail closed; final blocks never relaxed; `redeem` binding
 and atomic consumption; user-scope decision rules; principal-namespaced sessions; URL checker (userinfo, `#@`, metadata IPs,
 octal hosts); SQL stacked/write/file/sleep functions; path `..`/`%2e`/`~`/drive case; `curl|sh` + decode-to-shell pipes;
 hidden MCP tools can't be called; sampling refused; drift covers name/description/schema; budget/loop `inspect()` read-only.
+
+All findings fixed with regression tests that failed before the fix (merged 2026-10-03). **Full-suite + e2e re-run after
+the last merge is still pending** (fix branches each passed `dev.py test` + `lint` on their own).
 
 ## Decisions recorded
 
