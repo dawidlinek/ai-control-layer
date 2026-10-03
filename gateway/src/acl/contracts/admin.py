@@ -428,6 +428,10 @@ class ArtifactFinding(StrictModel):
     rule_id: str
     severity: Severity
     message: str
+    detail: str | None = Field(
+        default=None, description="Technical detail: opcode listing excerpt, header dump (never raw file content)."
+    )
+    cve: list[str] = Field(default_factory=list, description="Related advisories (verified ids only).")
 
 
 class ArtifactScanResult(StrictModel):
@@ -439,6 +443,11 @@ class ArtifactScanResult(StrictModel):
     verdict: Literal["safe", "malicious", "blocked_format", "suspicious"]
     findings: list[ArtifactFinding] = Field(default_factory=list)
     scanned_at: datetime
+    source: str | None = Field(default=None, examples=["upload", "hf:org/repo@<40-hex revision sha>"])
+    exception: str | None = Field(default=None, description="Policy exception that admitted a blocked format.")
+    model_ids: list[str] = Field(default_factory=list, description="Registered models whose artifact ref is this file.")
+    decision_id: str | None = Field(default=None, description="Decision of the `artifact_load` inspection.")
+    scanned_by: str | None = None
 
 
 # ---------------------------------------------------------------- insights
@@ -477,6 +486,38 @@ class RateWithCI(StrictModel):
     n: int
 
 
+class MutantResult(StrictModel):
+    control_id: str
+    enabled: bool = Field(description="Enabled in policy; disabled controls cannot be mutated (reported, not scored).")
+    killed: bool = Field(description="At least one test failed with this control switched off.")
+    failing_cells: int = 0
+    failing_examples: list[str] = Field(default_factory=list)
+
+
+class MutationCoverage(StrictModel):
+    """Mutation testing: every enabled control is switched off in turn; the suite must notice."""
+
+    generated_at: datetime
+    suite: str
+    controls_mutated: int
+    controls_killed: int
+    score: float = Field(ge=0, le=1)
+    survivors: list[str] = Field(default_factory=list)
+    results: list[MutantResult] = Field(default_factory=list)
+
+
+class AdaptiveTierSummary(StrictModel):
+    """Detection of deterministic variants (paraphrase, encodings, Polish, split) of the attack cases."""
+
+    generated_at: datetime
+    variants: int
+    detection: RateWithCI | None = None
+    by_technique: dict[str, RateWithCI] = Field(default_factory=dict)
+    by_control: dict[str, RateWithCI] = Field(default_factory=dict)
+    by_preset: dict[str, RateWithCI] = Field(default_factory=dict)
+    layer_attribution: dict[str, int] = Field(default_factory=dict)
+
+
 class ControlQuality(StrictModel):
     control_id: str
     tp: int = 0
@@ -500,6 +541,8 @@ class GuardQualitySummary(StrictModel):
     leak_rate_by_channel: dict[str, float] = Field(default_factory=dict)
     judge_kappa: dict[str, float] = Field(default_factory=dict)
     shadow_miss_rate: float | None = None
+    mutation: MutationCoverage | None = None
+    adaptive: AdaptiveTierSummary | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
