@@ -23,6 +23,7 @@ from acl.contracts.canonical import value_hash
 from acl.contracts.common import Action
 from acl.contracts.decision import Finding
 from acl.controls.base import Control, register_control
+from acl.controls.pii.vault import Planned, PseudonymVault
 from acl.engine.text import iter_texts
 from acl.main import create_app
 from acl.routing.dev_access import DevAccessCheck, PermissiveAccess
@@ -109,23 +110,19 @@ class T1aKeyword(Control):
         return self.verdict()
 
 
-class FakeVault:
+class FakeVault(PseudonymVault):
+    """The real vault plus test helpers: `add()` seeds a mapping, `restored` records restore calls."""
+
     def __init__(self) -> None:
-        self.maps: dict[str, dict[str, tuple[str, str]]] = {}
+        super().__init__()
         self.restored: list[tuple[str, set[str]]] = []
 
     def add(self, session_id: str, placeholder: str, entity_type: str, value: str) -> None:
-        self.maps.setdefault(session_id, {})[placeholder] = (entity_type, value)
+        self.register(session_id, [Planned(entity_type, value, value, placeholder)])
 
-    def placeholders(self, session_id: str) -> set[str]:
-        return set(self.maps.get(session_id, {}))
-
-    async def restore(self, session_id: str, text: str, *, allowed_entity_types: set[str]) -> str:
+    def restore(self, session_id: str, text: str, *, allowed_entity_types: set[str]) -> str:
         self.restored.append((session_id, set(allowed_entity_types)))
-        for ph, (etype, value) in self.maps.get(session_id, {}).items():
-            if etype in allowed_entity_types:
-                text = text.replace(ph, value)
-        return text
+        return super().restore(session_id, text, allowed_entity_types=allowed_entity_types)
 
 
 class FakeAccess(PermissiveAccess):

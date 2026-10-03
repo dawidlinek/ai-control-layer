@@ -221,14 +221,26 @@ async def quarantine_tool(tool_id: str, body: McpToolApprovalRequest, p: Analyst
 # ---------------------------------------------------------------- feed (1D)
 
 
+
+
 @router.get("/feed", response_model=FeedStatus, tags=["feed"], operation_id="getFeedStatus")
-async def feed_status(p: Viewer) -> FeedStatus:
-    not_implemented("feed")
+async def feed_status(request: Request, p: Viewer) -> FeedStatus:
+    # Status of the active signature bundle (version, entries, last sync / error). No docstring on purpose:
+    # it would change the generated OpenAPI contract.
+    store = getattr(request.app.state, "feed_store", None)
+    if store is None:
+        not_implemented("feed")
+    return store.status()
 
 
 @router.post("/feed/sync", response_model=FeedStatus, tags=["feed"], operation_id="syncFeed")
-async def feed_sync(p: Admin) -> FeedStatus:
-    not_implemented("feed")
+async def feed_sync(request: Request, p: Admin) -> FeedStatus:
+    # Immediate fetch → verify → swap (demo: add a rule to the feed, sync, next request is blocked).
+    sync = getattr(request.app.state, "feed_sync", None)
+    if sync is None:
+        not_implemented("feed")
+    await sync.sync_once()
+    return sync.store.status()
 
 
 # ---------------------------------------------------------------- artifacts (4A)

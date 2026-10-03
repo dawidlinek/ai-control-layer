@@ -184,7 +184,9 @@ async def stack(tmp_path: Path) -> AsyncIterator[Stack]:
 
 def _enable_secret_control(texts: dict[str, str]) -> None:
     old = "  - id: SEC-SECRET-01\n    type: secrets\n    enabled: false\n"
-    assert old in texts["controls.yaml"]
+    if old not in texts["controls.yaml"]:  # already enabled in the shipped policy
+        assert "id: SEC-SECRET-01" in texts["controls.yaml"]
+        return
     texts["controls.yaml"] = texts["controls.yaml"].replace(old, old.replace("enabled: false", "enabled: true"))
 
 

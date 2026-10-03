@@ -55,7 +55,7 @@ controls:
   # ---- stage 0: normalise --------------------------------------------------------------
   - id: SEC-NORM-01
     type: normalise
-    enabled: false
+    enabled: true
     description: NFKC, zero-width/tag stripping, decode b64/hex/url and rescan, strip chat-template tokens, typed tool-call intent
     stages: [ingress, egress, tool_call, tool_result, embeddings, mcp_tools_list]
     cost_tier: deterministic
@@ -78,7 +78,7 @@ controls:
 
   - id: SEC-PII-01
     type: pii
-    enabled: false
+    enabled: true
     description: PII tier T0 – regex + validators (PESEL, NIP, REGON, PL ID card, IBAN mod-97, Luhn, email, phone)
     stages: [ingress, egress, tool_call, tool_result, embeddings]
     cost_tier: deterministic
@@ -89,7 +89,7 @@ controls:
 
   - id: SEC-SECRET-01
     type: secrets
-    enabled: false
+    enabled: true
     locked: true
     description: Secrets and credentials (gitleaks-style rules, key prefixes, entropy) never leave
     stages: [ingress, egress, tool_call, tool_result, embeddings]
@@ -100,7 +100,7 @@ controls:
 
   - id: SEC-EXFIL-01
     type: url_egress
-    enabled: false
+    enabled: true
     description: Markdown-image / link exfiltration, high-entropy query strings, domain allowlist
     stages: [egress, tool_call]
     cost_tier: deterministic
@@ -113,7 +113,7 @@ controls:
 
   - id: SEC-SIG-01
     type: signatures
-    enabled: false
+    enabled: true
     description: Signature feed matching (regex/yara, url paths, package versions, IOC domains, hashes)
     stages: [ingress, tool_call, tool_result, mcp_initialize, mcp_tools_list, artifact_load]
     cost_tier: deterministic
@@ -121,12 +121,16 @@ controls:
 
   - id: SEC-HYG-01
     type: egress_hygiene
-    enabled: false
+    enabled: true
     description: Strip logprobs/reasoning, system-prompt canary check, hallucinated placeholder check
     stages: [egress]
     cost_tier: deterministic
     timeout_ms: 10
     taxonomy: {owasp_llm: ["LLM07:2025"]}
+    params:
+      # Static demo canary. The gateway plants a per-session canary in system prompts (acl.controls.hygiene.canary_token)
+      # and passes it as ctx.attributes["canaries"]; entries here are checked on every response in addition.
+      canaries: ["ACL-CANARY-DEMO-7F3A91C2D4E65B08"]
 
   - id: SEC-TOOL-01
     type: tool_policy
@@ -256,6 +260,243 @@ signatures:
     poll_s: 30
     verify: sha256
     on_fail: keep_last_good
+  # Offline baseline: identical to feed-server/bundles/0001-seed.json (a test keeps them in sync). The live feed
+  # can add to or override these (same id wins); they keep protecting the gateway when the feed is unreachable.
+  local_rules:
+    - id: SIG-PKG-LITELLM-01
+      type: package_version
+      pattern: 'pypi:litellm'
+      severity: critical
+      action: block
+      description: 'Backdoored LiteLLM 1.82.7 / 1.82.8 on PyPI (Mar 2026). No CVE id recorded: verify against the advisory.'
+      atlas_technique: ['AML.T0010']
+      owasp: ['LLM03:2025']
+      source: osv
+      metadata: {"versions": ["1.82.7", "1.82.8"]}
+    - id: SIG-FILE-LITELLM-PTH-01
+      type: regex
+      pattern: '(?i)litellm_init\.pth'
+      severity: critical
+      action: block
+      stages: [tool_call, tool_result]
+      description: 'litellm_init.pth: persistence file dropped by the backdoored LiteLLM releases.'
+      atlas_technique: ['AML.T0010']
+      owasp: ['LLM03:2025']
+      source: osv
+    - id: SIG-IOC-LITELLM-C2-01
+      type: ioc_domain
+      pattern: 'litellm-c2.invalid'
+      severity: critical
+      action: block
+      stages: [tool_call, tool_result]
+      description: 'PLACEHOLDER IOC domain for the LiteLLM compromise (reserved .invalid TLD): replace with the domain from the advisory.'
+      atlas_technique: ['AML.T0010']
+      owasp: ['LLM03:2025']
+      source: osv
+    - id: SIG-URL-LANGFLOW-VALIDATE-01
+      type: url_path
+      pattern: '(?i)/api/v1/validate/code'
+      severity: critical
+      action: block
+      stages: [tool_call]
+      description: 'Langflow unauthenticated code-validation endpoint (exec() RCE, CISA KEV).'
+      owasp: ['LLM06:2025']
+      cve: ['CVE-2025-3248']
+      source: cisa-kev
+    - id: SIG-ARG-HTTP-PYEXEC-01
+      type: arg_pattern
+      pattern: '(?s)(?:__import__\s*\(|\bexec\s*\(|\beval\s*\(|\bos\s*\.\s*system\s*\(|\bsubprocess\b)'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Python-exec payload inside an HTTP/fetch tool call (Langflow-style exploit bodies).'
+      owasp: ['LLM06:2025']
+      source: internal
+      metadata: {"tools": ["*http*", "*fetch*", "*request*", "*curl*", "*post*"]}
+    - id: SIG-URL-RAY-JOBS-01
+      type: url_path
+      pattern: '(?i)^/api/jobs(?:/|\?|$)'
+      severity: critical
+      action: block
+      stages: [tool_call]
+      description: 'Ray Jobs API (ShadowRay): unauthenticated job submission.'
+      owasp: ['LLM06:2025']
+      cve: ['CVE-2023-48022']
+      source: cisa-kev
+    - id: SIG-URL-RAY-DASHBOARD-01
+      type: url_path
+      pattern: '(?i):8265(?:/|$)'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Ray dashboard port: agents must not talk to it.'
+      owasp: ['LLM06:2025']
+      cve: ['CVE-2023-48022']
+      source: internal
+    - id: SIG-URL-OLLAMA-ADMIN-01
+      type: url_path
+      pattern: '(?i):11434/api/(?:pull|push|create|delete|copy|blobs)'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Ollama management API (Probllama path traversal class); reachable only through the gateway.'
+      owasp: ['LLM06:2025']
+      cve: ['CVE-2024-37032']
+      source: internal
+    - id: SIG-ARG-DOTDOT-DEEP-01
+      type: arg_pattern
+      pattern: '(?i)(?:\.\.[\\/]){2,}|%2e%2e(?:%2f|%5c|/|\\)|\.\.%2f|\.\.%5c'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Deep or encoded path traversal in tool arguments (MLflow-style LFI).'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-ARG-DOTDOT-01
+      type: arg_pattern
+      pattern: '(?:^|[\s\"''=:\\/])\.\.[\\/]'
+      severity: low
+      action: monitor
+      stages: [tool_call]
+      description: 'Single parent-directory step in tool arguments (recorded only; workspace escapes are caught by the tool policy).'
+      source: internal
+    - id: SIG-ARG-FILE-URI-01
+      type: arg_pattern
+      pattern: '(?i)\bfile://'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'file:// URI in tool arguments (local file disclosure).'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-CODE-PY-EXEC-01
+      type: arg_pattern
+      pattern: '(?s)(?:__import__\s*\(|\bos\s*\.\s*(?:system|popen)\s*\(|\bsubprocess\s*\.\s*(?:run|Popen|call|check_output|check_call)\s*\(|\beval\s*\(|\bexec\s*\()'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Code-execution primitives in generated code headed for execution (LLMMathChain/PALChain RCE class).'
+      owasp: ['LLM05:2025']
+      source: internal
+      metadata: {"fields": ["code", "script", "python", "source", "expression", "snippet", "program"]}
+    - id: SIG-CMD-RM-RF-ROOT-01
+      type: arg_pattern
+      pattern: '(?i)\brm\s+(?:-{1,2}[a-z-]+\s+)+(?:--no-preserve-root\s+)?(?:/\*?|~/?|\$HOME/?|\$\{HOME\}/?|/home/?|/etc/?|/usr/?|/var/?|/bin/?|/boot/?)(?:\s|$|;|&|\|)'
+      severity: critical
+      action: block
+      stages: [tool_call]
+      description: 'Recursive delete of a system or home directory.'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-CMD-DISK-WIPE-01
+      type: arg_pattern
+      pattern: '(?i)(?:\bmkfs(?:\.\w+)?\s+/dev/|\bdd\s+[^\n;|&]*of=/dev/(?:sd|nvme|hd|vd)|\bformat\s+[a-z]:|\b(?:rd|rmdir)\s+/s\s+(?:/q\s+)?[a-z]:\\?(?:\s|$))'
+      severity: critical
+      action: block
+      stages: [tool_call]
+      description: 'Disk wipe / format commands.'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-CMD-CURL-PIPE-SH-01
+      type: arg_pattern
+      pattern: '(?i)(?:\b(?:curl|wget)\b[^|;&\n]*\|\s*(?:sudo\s+)?(?:(?:ba|z|da|k)?sh|python[\d.]*|perl|ruby|node)\b|\b(?:ba|z)?sh\s+<\(\s*(?:curl|wget)\b|\b(?:ba|z)?sh\s+-c\s+[\"'']?\$\(\s*(?:curl|wget)\b|\b(?:iwr|invoke-webrequest|irm|invoke-restmethod)\b[^|\n]*\|\s*iex\b)'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Remote script piped into a shell or interpreter.'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-CMD-TERRAFORM-DESTROY-01
+      type: arg_pattern
+      pattern: '(?i)\b(?:terraform|tofu|terragrunt)\s+(?:-chdir=\S+\s+)?(?:destroy|apply\s+(?:[^\n;|&]*\s)?-destroy)\b'
+      severity: high
+      action: require_approval
+      stages: [tool_call]
+      description: 'Infrastructure teardown.'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-CMD-AWS-DELETE-01
+      type: arg_pattern
+      pattern: '(?i)\baws\b[^\n;|&]*?\b(?:(?:delete|terminate|remove|deregister|destroy)-[a-z0-9-]+|s3\s+rb\b|s3\s+rm\b[^\n;|&]*--recursive)'
+      severity: high
+      action: require_approval
+      stages: [tool_call]
+      description: 'Destructive AWS CLI operation.'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-FLAG-SKIP-PERMS-01
+      type: arg_pattern
+      pattern: '(?i)(?:--dangerously-skip-permissions|--allow-dangerously-skip-permissions|--dangerously-bypass-approvals-and-sandbox|--permission-mode[= ]+bypasspermissions|--yolo\b|--trust-all-tools)'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Flags that disable the permission checks of AI CLIs (Nx s1ngularity-style abuse).'
+      owasp: ['LLM06:2025']
+      source: internal
+    - id: SIG-PATH-SSH-KEYS-01
+      type: arg_pattern
+      pattern: '(?i)(?:(?:~|\$home|\$\{home\}|/home/[^/\s\"'']+|/root|/users/[^/\s\"'']+|[a-z]:[\\/]users[\\/][^\\/\s\"'']+)[\\/]\.ssh\b|\bid_(?:rsa|ed25519|ecdsa|dsa)(?:$|[^.\w-]|\.(?:[^p]|p[^u]|pu[^b])))'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'SSH private key material.'
+      owasp: ['LLM02:2025']
+      source: internal
+    - id: SIG-PATH-ENV-FILE-01
+      type: arg_pattern
+      pattern: '(?i)(?:^|[\s\"''=:/\\])\.env(?:\.(?:local|production|prod|development|dev|staging|stage|test|secret|secrets))?(?:$|[\s\"''])'
+      severity: medium
+      action: require_approval
+      stages: [tool_call]
+      description: 'Environment file with credentials.'
+      owasp: ['LLM02:2025']
+      source: internal
+    - id: SIG-PATH-CLOUD-CREDS-01
+      type: arg_pattern
+      pattern: '(?i)(?:\.aws[\\/]credentials|\.git-credentials|\.npmrc\b|\.pypirc\b|\.netrc\b|\.docker[\\/]config\.json|\.kube[\\/]config\b|\.config[\\/]gcloud[\\/](?:credentials|application_default)|\.azure[\\/]|\.pgpass\b|/etc/shadow\b|\.gnupg[\\/]private-keys)'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Cloud / package-registry credential files.'
+      owasp: ['LLM02:2025']
+      source: internal
+    - id: SIG-PATH-CRYPTO-WALLET-01
+      type: arg_pattern
+      pattern: '(?i)(?:wallet\.dat\b|\.bitcoin[\\/]|\.ethereum[\\/]keystore|keystore[\\/]utc--|\.electrum[\\/]|\.config[\\/]solana[\\/]id\.json|\.exodus[\\/])'
+      severity: high
+      action: block
+      stages: [tool_call]
+      description: 'Crypto wallet files (infostealer targets).'
+      owasp: ['LLM02:2025']
+      source: internal
+    - id: SIG-MD-IMG-EXFIL-01
+      type: regex
+      pattern: '(?i)!\[[^\]]{0,200}\]\(https?://[^)\s]{0,200}[?&](?:d|data|q|secret|payload|content|c|k)=[^)\s]{16,}\)'
+      severity: medium
+      action: monitor
+      stages: [tool_result, ingress]
+      description: 'Markdown image whose URL carries a long data parameter (EchoLeak-style template in untrusted content).'
+      atlas_technique: ['AML.T0057']
+      owasp: ['LLM01:2025']
+      source: internal
+    - id: SIG-SKILL-FAKE-PREREQ-01
+      type: regex
+      pattern: '(?is)(?:prerequisite|required\s+dependency|before\s+(?:using|you\s+(?:begin|start)))[^\n]{0,120}\b(?:curl|wget|iwr|invoke-webrequest)\b[^\n]{0,120}(?:\|\s*(?:ba|z)?sh\b|\|\s*iex\b|-enc\b|base64\s+-d)'
+      severity: medium
+      action: monitor
+      stages: [tool_result, mcp_tools_list]
+      description: '''Fake prerequisite'' install command in a skill / tool description (ClawHavoc pattern).'
+      owasp: ['LLM01:2025']
+      source: internal
+    - id: SIG-INJ-FACTORY-RESET-01
+      type: regex
+      pattern: '(?i)clean\s+(?:a\s+|the\s+)?system\s+to\s+(?:a\s+)?(?:near[- ])?factory'
+      severity: high
+      action: block
+      stages: [ingress, tool_result]
+      description: 'Destructive ''return the system to factory state'' instruction (coding-assistant wiper prompt wording).'
+      owasp: ['LLM01:2025']
+      source: internal
 
 reporting:
   audit_log:

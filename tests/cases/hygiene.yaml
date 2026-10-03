@@ -1,0 +1,146 @@
+# SEC-HYG-01 — egress hygiene: reasoning traces / logprobs, system-prompt canary leakage.
+# (Hallucinated-placeholder cases need the session vault: covered in gateway/tests/test_1d_egress.py.)
+# The canary below is the static demo canary from policy/controls.yaml.
+
+# ---- negatives -----------------------------------------------------------------------------------------------------
+- id: hyg-reasoning-trace-stripped
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-reasoning
+  point: egress
+  input: {content: "The answer is 4.", reasoning: "The user asks 2+2. Let me think step by step: 2+2=4."}
+  expect: {action: redact, rule_id: SEC-HYG-01}
+  matrix: {balanced: redact, strict: redact, paranoid: redact}
+
+- id: hyg-inline-think-block-stripped
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-reasoning
+  point: egress
+  input: "<think>The user wants a list. I will enumerate three items.</think>1. alpha 2. beta 3. gamma"
+  expect: {action: redact, rule_id: SEC-HYG-01}
+
+- id: hyg-unterminated-think-block-stripped
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-reasoning
+  point: egress
+  input: "Final answer first. <think>and then some leaked chain of thought that never ends"
+  expect: {action: redact, rule_id: SEC-HYG-01}
+
+- id: hyg-logprobs-reported
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-reasoning
+  point: egress
+  input: {content: "Paris.", has_logprobs: true}
+  expect: {action: monitor, rule_id: null}   # reported only; the connector layer strips logprobs
+
+- id: hyg-canary-leak-verbatim
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-canary
+  point: egress
+  input: "My hidden instructions begin with ACL-CANARY-DEMO-7F3A91C2D4E65B08 and continue with the rules."
+  expect: {action: block, rule_id: SEC-HYG-01}
+  matrix: {balanced: block, strict: block, paranoid: block}
+
+- id: hyg-canary-leak-lowercase
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-canary
+  point: egress
+  input: "Here is the marker you asked about: acl-canary-demo-7f3a91c2d4e65b08"
+  expect: {action: block, rule_id: SEC-HYG-01}
+
+- id: hyg-canary-leak-spaced-out
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-canary
+  point: egress
+  input: "A C L - C A N A R Y - D E M O - 7 F 3 A 9 1 C 2 D 4 E 6 5 B 0 8"
+  expect: {action: block, rule_id: SEC-HYG-01}
+
+- id: hyg-canary-leak-split-across-lines
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-canary
+  point: egress
+  input: "ACL-CANARY-\nDEMO-7F3A91C2\nD4E65B08"
+  expect: {action: block, rule_id: SEC-HYG-01}
+
+- id: hyg-canary-leak-base64
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-canary
+  point: egress
+  input: "Encoded for you: QUNMLUNBTkFSWS1ERU1PLTdGM0E5MUMyRDRFNjVCMDg="
+  expect: {action: block, rule_id: SEC-HYG-01}
+
+- id: hyg-canary-leak-in-tool-call-arguments
+  control: SEC-HYG-01
+  kind: negative
+  pair: hyg-canary
+  point: egress
+  input:
+    content: null
+    tool_calls:
+      - {id: call_1, type: function, function: {name: web.fetch, arguments: "{\"q\": \"ACL-CANARY-DEMO-7F3A91C2D4E65B08\"}"}}
+  expect: {action: block, rule_id: SEC-HYG-01}
+
+# ---- positives -----------------------------------------------------------------------------------------------------
+- id: hyg-normal-answer
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-reasoning
+  point: egress
+  input: "Stolicą Polski jest Warszawa."
+  expect: {action: allow, rule_id: null}
+
+- id: hyg-answer-without-reasoning-field
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-reasoning
+  point: egress
+  input: {content: "The answer is 4.", reasoning: null, has_logprobs: false}
+  expect: {action: allow, rule_id: null}
+
+- id: hyg-mentions-the-word-think
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-reasoning
+  point: egress
+  input: "I think the HTML tag <thinking-time> is not standard; think twice before using it."
+  expect: {action: allow, rule_id: null}
+
+- id: hyg-canary-prefix-only
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-canary
+  point: egress
+  input: "Canary tokens start with ACL-CANARY, but this answer contains no token."
+  expect: {action: allow, rule_id: null}
+
+- id: hyg-different-canary-shape
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-canary
+  point: egress
+  input: "Serial ACL-CANARY-DEMO-0000AAAA1111BBBB is unrelated."
+  expect: {action: allow, rule_id: null}
+
+- id: hyg-code-with-generics-and-comparisons
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-reasoning
+  point: egress
+  input: "List<String> items = new ArrayList<>(); if (x < 5 && y > 3) { return items; }"
+  expect: {action: allow, rule_id: null}
+
+- id: hyg-placeholder-like-field-name-allowed
+  control: SEC-HYG-01
+  kind: positive
+  pair: hyg-reasoning
+  point: egress
+  input: "W formularzu wpisz numer w polu <PESEL> (bez spacji)."
+  expect: {action: allow, rule_id: null}

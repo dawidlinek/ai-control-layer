@@ -52,6 +52,7 @@ def stack(tmp_path: Path) -> Iterator[Stack]:
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'api.db'}",
         oidc_issuer=ISSUER,
         oidc_audience="gateway",
+        deterministic=True,  # no background feed polling (respx would reject the unmocked request)
     )
     app = create_app(settings)
     audit = RecordingSink()
@@ -230,6 +231,7 @@ def test_anonymous_dev_flag_never_bypasses_presented_credentials(tmp_path: Path)
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'dev.db'}",
         oidc_issuer=ISSUER,
         oidc_audience="gateway",
+        deterministic=True,  # no background feed polling (respx would reject the unmocked request)
     )
     router = respx.mock(assert_all_called=False)
     router.get(JWKS_URL).respond(json=jwks_document(TestKey("k1")))

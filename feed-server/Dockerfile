@@ -1,8 +1,11 @@
 FROM python:3.12-slim-bookworm
-RUN useradd --system --uid 10002 feed
+RUN useradd --system --uid 10002 feed \
+ && mkdir -p /srv/state \
+ && chown feed /srv/state
 WORKDIR /srv
-COPY server.py ./
+COPY server.py ed25519.py ./
 COPY bundles ./bundles
+ENV STATE_DIR=/srv/state
 USER feed
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --retries=6 \
