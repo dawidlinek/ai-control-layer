@@ -1,8 +1,9 @@
 """Shared FastAPI dependencies. Phase 1C (identity) owns the implementation of auth.
 
-Phase 0: `current_principal` rejects every request (fail closed) unless the app was built with
-`allow_anonymous_dev=True` (unit tests only). The OpenAPI security scheme is declared here so
-generated clients know to send a bearer token.
+`current_principal` delegates to `app.state.authenticator` (Keycloak JWT / personal API key, installed by
+`acl.identity.wiring`). With no authenticator it rejects every request (fail closed). Apps built with
+`allow_anonymous_dev=True` (unit tests only) get a dev admin principal when NO credentials are sent; presented
+credentials are always verified. The OpenAPI security scheme is declared here so generated clients send a token.
 """
 
 from __future__ import annotations
@@ -24,9 +25,10 @@ async def current_principal(
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> Principal:
     authenticator = getattr(request.app.state, "authenticator", None)
-    if authenticator is not None:
+    dev = getattr(request.app.state, "allow_anonymous_dev", False)
+    if authenticator is not None and (creds is not None or not dev):
         return await authenticator(request, creds)
-    if getattr(request.app.state, "allow_anonymous_dev", False):
+    if dev:  # explicit unit-test switch (create_app(allow_anonymous_dev=True)); never driven by configuration
         return Principal(
             subject="dev", kind=PrincipalKind.user, username="dev", roles=["acl-admin"], auth_method=AuthMethod.none
         )

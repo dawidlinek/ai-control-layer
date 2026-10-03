@@ -23,7 +23,8 @@ POLICY_DIR = Path(__file__).resolve().parents[2] / "policy"
 
 async def test_zero_controls_allows() -> None:
     loaded = load_policy_dir(POLICY_DIR)
-    engine = Engine.build(loaded.policy, loaded.version)
+    policy = loaded.policy.model_copy(update={"controls": []})
+    engine = Engine.build(policy, loaded.version)
     d = await engine.evaluate(make_context("hello"))
     assert d.action == Action.allow
     assert d.verdicts == []

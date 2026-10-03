@@ -38,6 +38,7 @@ Hook = Callable[[FastAPI], Awaitable[None]]
 
 # "module:function" installers, applied in order. Each phase adds its own line here.
 INSTALLERS: list[str] = [
+    "acl.identity.wiring:install",
     "acl.policy.wiring:install",
 ]
 

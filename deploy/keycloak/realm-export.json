@@ -149,6 +149,22 @@
       ]
     },
     {
+      "clientId": "acl-e2e",
+      "name": "E2E / demo test client (password grant)",
+      "description": "DEMO/TEST ONLY: public client with direct access grants so automated tests can obtain user tokens by password. Never enable in production.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocolMappers": [
+        {"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+         "config": {"full.path": "true", "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true", "claim.name": "groups"}},
+        {"name": "aud-gateway", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+         "config": {"included.client.audience": "gateway", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
+    },
+    {
       "clientId": "agent-research-bot",
       "name": "Agent: research-bot (client credentials)",
       "enabled": true,
