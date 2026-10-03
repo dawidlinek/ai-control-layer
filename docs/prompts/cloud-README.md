@@ -8,6 +8,7 @@ session (the "integrator") keeps WCSS, secrets, the full docker stack, final e2e
 | **A — Backend deltas + Rogatka Dashboard** | `cloud-a-panel.md` | `feat/panel` (+ `feat/panel-backend` for step 1) | `contracts/` (admin API), panel-facing backend changes, `panel/` | **Step 1 (backend + contract) first**, as its own PR |
 | **B — Automation Insights** | `cloud-b-insights.md` | `feat/insights` | `gateway/src/acl/insights/`, insights admin routes, seed data | after A step 1 (rebase on it) |
 | **C — Model-file scanner + evidence suite** | `cloud-c-scanner-evidence.md` | `feat/scanner-evidence` | `gateway/src/acl/artifacts/`, artifacts admin routes, `tests/{mutation,perf,redteam}/` | independent |
+| **D — Semantic layer** | `cloud-d-semantic.md` | `feat/semantic` | `gateway/src/acl/semantic/`, semantic controls, risk scoring in `engine/decide.py`, complexity routing | **start after A step 1 is merged**; live calibration later, locally, over the WCSS model link |
 
 ## Rules for every cloud session
 
