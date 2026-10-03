@@ -6,8 +6,8 @@ Mechanics (concept §6.2):
   * a final (deterministic) block exits early;
   * `Verdict.outputs` of a phase are merged into `ctx.attributes` before the next phase.
 
-Phase 0 skeleton: no content-hash cache, no L2 escalation band, no risk scoring
-(Phase 1A / 2B / 3A extend this module and `acl.engine.decide`).
+Verdicts of controls with `cacheable = True` are cached by content hash (`acl.engine.cache`).
+No L2 escalation band and no risk scoring yet (Phase 2B / 3A extend this module and `acl.engine.decide`).
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from acl.contracts.common import PHASE_ORDER, Action, CostTier, FailMode, Preset
 from acl.contracts.decision import Decision, Verdict
 from acl.contracts.inspection import InspectionContext
 from acl.controls.base import Control
+from acl.engine.cache import VerdictCache, payload_digest
 from acl.engine.decide import compose_decision
 from acl.policy.models import GlobalSettings, PresetSettings
 
@@ -39,10 +40,15 @@ class Pipeline:
         controls: Iterable[Control],
         settings: GlobalSettings,
         presets: Mapping[Preset, PresetSettings] | None = None,
+        *,
+        policy_version: str = "",
+        cache: VerdictCache | None = None,
     ) -> None:
         self.controls = list(controls)
         self.settings = settings
         self.presets = dict(presets or {})
+        self.policy_version = policy_version
+        self.cache = cache
 
     def applicable(self, ctx: InspectionContext) -> list[Control]:
         return [c for c in self.controls if c.applies(ctx)]
@@ -51,11 +57,13 @@ class Pipeline:
         started = time.perf_counter()
         verdicts: list[Verdict] = []
         applicable = self.applicable(ctx)
+        digest: list[str] = []  # computed lazily per phase (a normaliser may rewrite the payload)
         for phase in PHASE_ORDER:
             group = [c for c in applicable if c.phase == phase]
             if not group:
                 continue
-            results = await asyncio.gather(*(self._run_one(c, ctx) for c in group))
+            digest.clear()
+            results = await asyncio.gather(*(self._run_cached(c, ctx, digest) for c in group))
             verdicts.extend(results)
             for v in results:
                 if v.outputs:
@@ -70,6 +78,19 @@ class Pipeline:
             shadow_controls=frozenset(c.id for c in applicable if c.shadow),
             never_block=bool((ps := self.presets.get(ctx.preset)) and ps.never_block),
         )
+
+    async def _run_cached(self, control: Control, ctx: InspectionContext, digest: list[str]) -> Verdict:
+        if self.cache is None or not control.cacheable:
+            return await self._run_one(control, ctx)
+        if not digest:
+            digest.append(payload_digest(ctx))
+        key = VerdictCache.key(control.id, self.policy_version, ctx, digest[0])
+        hit = self.cache.get(key)
+        if hit is not None:
+            return hit
+        verdict = await self._run_one(control, ctx)
+        self.cache.put(key, verdict)
+        return verdict
 
     async def _run_one(self, control: Control, ctx: InspectionContext) -> Verdict:
         t0 = time.perf_counter()

@@ -24,7 +24,7 @@ from typing import Any
 
 from acl.routing.connectors.base import Connector, ConnectorError, UpstreamChunk, UpstreamResponse, UpstreamUsage
 
-_DIRECTIVE = re.compile(r"\[\[mock:(?P<cmd>[a-z]+)(?:\s+(?P<arg>[^\]]*))?\]\]")
+_DIRECTIVE = re.compile(r"\[\[mock:(?P<cmd>[a-z]+)(?:\s+(?P<arg>.*?))?\]\]", re.S)
 CHUNK_CHARS = 16
 
 
