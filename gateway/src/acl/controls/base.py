@@ -78,6 +78,9 @@ class Control(ABC):
     type: ClassVar[str]
     phase: ClassVar[Phase] = Phase.deterministic
     Params: ClassVar[type[BaseModel]] = EmptyParams
+    # True only if the verdict depends solely on (payload text, config, policy version, preset):
+    # the pipeline may then cache it by content hash. Session-/state-dependent controls: False.
+    cacheable: ClassVar[bool] = False
 
     def __init__(self, config: ControlConfig, params: BaseModel, deps: ControlDeps) -> None:
         self.config = config
