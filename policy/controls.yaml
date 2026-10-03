@@ -64,12 +64,17 @@ controls:
   # ---- stage 1: deterministic ----------------------------------------------------------
   - id: SEC-MODEL-01
     type: model_access
-    enabled: false
+    enabled: true
     description: Model allowlist + data-class ceiling per model (forbidden → block, sensitive → route_local)
     stages: [ingress, embeddings]
     cost_tier: deterministic
     timeout_ms: 10
     taxonomy: {owasp_llm: ["LLM06:2025"]}
+    params:
+      # Gateway wiring always registers the `access` service (DB grants + org locks). `policy_only` is the
+      # fallback for engines built without it (in-process case harness): group policy + org locks, no DB grants.
+      # Use `block` to fail closed when the service is missing.
+      missing_service: policy_only
 
   - id: SEC-PII-01
     type: pii
