@@ -15,7 +15,9 @@ value is found, any window of `min_substring` (default 8) consecutive canary cha
 
 Limits (documented, not hidden): homoglyph swaps (Cyrillic "a"), compression or encryption, and
 semantic paraphrase are not detected; canaries must be high-entropy (>= 6 chars; windows with fewer than
-4 distinct characters are ignored) or ordinary text will collide with them. A constant prefix of >= 8 characters
+4 distinct characters are ignored) or ordinary text will collide with them. Windows made only of digits must be
+>= 14 characters (random digits in logs, e.g. float latencies, would otherwise collide with numeric canaries).
+A constant prefix of >= 8 characters
 shared with ordinary text counts as a substring leak, so generate canaries with `new_canary()` (random end to end).
 """
 
@@ -36,6 +38,9 @@ from urllib.parse import unquote, unquote_plus
 
 MIN_CANARY_LEN = 6
 DEFAULT_MIN_SUBSTRING = 8
+# Digit-only windows need more characters: logs are full of random digits (floats like 0.08600000001024455), so an
+# 8-digit window of a numeric canary (IBAN, PESEL, account no.) collides by chance; 14 digits do not (~1e-14/position).
+DIGIT_MIN_SUBSTRING = 14
 MAX_VIEWS = 3000
 MAX_DEPTH = 2
 MAX_TOKENS_PER_VIEW = 50_000
@@ -278,6 +283,10 @@ def _match_one(name: str, value: str, views: list[_Prepared], min_substring: int
                     window = form[i : i + min_substring]
                     if len(set(window)) < 4:
                         continue
+                    if window.isdigit():
+                        window = form[i : i + max(min_substring, DIGIT_MIN_SUBSTRING)]
+                        if len(window) < DIGIT_MIN_SUBSTRING or not window.isdigit():
+                            continue
                     j = hay.find(window)
                     if j >= 0:
                         n = _extend(form, hay, i, j, min_substring)

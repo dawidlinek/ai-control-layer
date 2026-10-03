@@ -263,3 +263,14 @@ def test_encoded_canary_buried_in_a_large_noisy_blob() -> None:
     assert _leaks(noise) == []
     assert _leaks(noise + " " + b64(("zz" + CANARY).encode()))
     assert _leaks(noise + " " + CANARY.encode().hex() + " " + noise[:2000])
+
+
+def test_float_noise_does_not_match_numeric_canary_windows() -> None:
+    iban = "PL61109010140000071219812874"
+    noise = {"latency_ms": [0.0861090101400008, 12.12198128740001, 3.000007121981]}
+    assert scan(json.dumps(noise), {"iban": iban}) == []
+
+
+def test_long_digit_run_of_numeric_canary_still_leaks() -> None:
+    iban = "PL61109010140000071219812874"
+    assert scan("acct 10901014000007121 end", {"iban": iban})  # 17 consecutive canary digits
