@@ -37,7 +37,9 @@ log = logging.getLogger("acl")
 Hook = Callable[[FastAPI], Awaitable[None]]
 
 # "module:function" installers, applied in order. Each phase adds its own line here.
-INSTALLERS: list[str] = []
+INSTALLERS: list[str] = [
+    "acl.policy.wiring:install",
+]
 
 
 def _load(spec: str) -> Callable[[FastAPI, Settings], None]:
