@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from acl.contracts.decision import Decision
 from acl.contracts.inspection import InspectionContext
 from acl.controls.base import ControlDeps, ControlRegistry, load_builtin_controls, registry
+from acl.engine.cache import VerdictCache
 from acl.engine.pipeline import Pipeline
 from acl.policy.models import Policy
 
@@ -37,7 +38,11 @@ class Engine:
             load_builtin_controls()
         deps = (deps or ControlDeps()).child(policy=policy, policy_version=policy_version)
         controls = [control_registry.build(c, deps) for c in policy.controls if c.enabled]
-        pipeline = Pipeline(controls, policy.global_, presets=policy.presets)
+        cache_cfg = policy.budgets.cache
+        cache = VerdictCache(ttl_s=cache_cfg.ttl_s) if cache_cfg.enabled and cache_cfg.ttl_s > 0 else None
+        pipeline = Pipeline(
+            controls, policy.global_, presets=policy.presets, policy_version=policy_version, cache=cache
+        )
         return cls(policy=policy, policy_version=policy_version, pipeline=pipeline, deps=deps)
 
     async def evaluate(self, ctx: InspectionContext) -> Decision:
