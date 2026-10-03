@@ -1,4 +1,7 @@
-# Prompt: continue the build after CP2 (panel track + backend deltas)
+# Prompt: continue the build after CP2 (single local session)
+
+> Superseded for parallel work by the cloud prompts: see `docs/prompts/cloud-README.md`. Use this one only to run
+> the whole panel track in one local session.
 
 > Paste everything below the line into a new session started in this repository.
 
@@ -8,12 +11,12 @@ You are the **lead engineer and orchestrator** for **Rogatka** (the AI Control L
 on `main`; CP0–CP2 reports are in `docs/checkpoints/`. Read, in order: `CLAUDE.md` (binding conventions, interfaces,
 ownership), `docs/checkpoints/CP2.md` (state, decisions, risks), `docs/ux/HANDOFF.md` (the panel's final scope and look —
 it wins over older UX docs), then `docs/CONCEPT.md` as needed. `docs/prompts/implementation-plan.md` is the original
-operating model (orchestrator + Sonnet subagents in worktrees, one owner per path, checkpoints are hard stops).
+operating model (orchestrator + background subagents in worktrees, one owner per path, checkpoints are hard stops).
 
 ## Operating rules (unchanged)
 
 - You: seams/contracts, briefs, merges, full test runs, security review of critical code, checkpoint reports.
-- Subagents: `Agent` with `model: "sonnet"`, `isolation: "worktree"`, `run_in_background: true`; every brief tells the
+- Subagents: background, each in an isolated worktree; every brief tells the
   agent to `git merge --ff-only main` first if its worktree is not at main's HEAD (worktrees are sometimes created from
   the initial commit). ≤ 5 at a time. Commit shared seams to `main` BEFORE launching agents that depend on them.
 - Windows host: no `make`; use `uv run python scripts/dev.py test|lint|e2e|up|contracts`. `dev.py test` runs gateway
