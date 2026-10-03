@@ -73,14 +73,21 @@ def _strings(value: Any) -> list[str]:
     return []
 
 
-def call_is_sink(tool: ToolDef | None, payload: ToolCallPayload) -> tuple[bool, str]:
-    """Is this concrete call an external-egress sink? (label, unknown tool, or a shell command that sends/publishes)"""
+def call_is_sink(tool: ToolDef | None, payload: ToolCallPayload, *, untrusted: bool = False) -> tuple[bool, str]:
+    """Is this concrete call an external-egress sink? (label, unknown tool, or a shell command that sends/publishes)
+
+    `untrusted`: the session already holds untrusted input. Then a shell command that executes repository / workspace
+    code or inline code (`pytest`, `make`, `npm test`, `python x.py`, `node -e …`, `./run.sh`) is a sink as well: that
+    code may have been planted by the untrusted content and can open its own connections, so a safe-listed test runner
+    must not be a way around the Rule of Two."""
     if tool is None:
         return True, "tool is not in the catalogue (treated as a sink)"
     if is_sink_tool(tool):
         return True, "tool is labelled external_egress"
     for command in command_values(tool, payload):
-        analysis = analyze_command(command, cwd=payload.cwd, root=payload.workspace_root)
+        analysis = analyze_command(command, cwd=payload.cwd, root=payload.workspace_root, untrusted=untrusted)
         if analysis.egress:
             return True, "shell command sends data out or publishes"
+        if untrusted and analysis.runs_code:
+            return True, "shell command runs workspace / inline code in an untrusted session (egress-capable)"
     return False, ""

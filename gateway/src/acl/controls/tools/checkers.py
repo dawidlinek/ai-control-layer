@@ -99,9 +99,17 @@ def _link_local(host: str) -> bool:
 # ---------------------------------------------------------------- recipients
 
 _EMAIL = re.compile(r"[A-Za-z0-9._%+'-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)")
+# Strict address grammar: dot-atom local part (no quoted local parts, no comments), a domain name (no IP literal, no
+# bare host), IDN domains converted to punycode before any comparison.
+_ATOM = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
+_LOCAL = re.compile(rf"^{_ATOM}(?:\.{_ATOM})*$")
+_LABEL = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+_NAMED = re.compile(r'^(?:"[^"\\]*"|[^<>"@,;:\\]*)\s*<([^<>\s]+)>$')
+MAX_RECIPIENTS = 200
 
 
 def extract_recipients(values: Iterable[str]) -> list[str]:
+    """Loose extraction (logging / intent only). Authorisation uses `parse_recipients`."""
     out: list[str] = []
     for v in values:
         for m in _EMAIL.finditer(v):
@@ -111,24 +119,105 @@ def extract_recipients(values: Iterable[str]) -> list[str]:
     return out
 
 
+def normalise_domain(domain: str) -> str | None:
+    """IDNA (punycode), lower-case, every label a valid host label, at least two labels, non-numeric TLD."""
+    d = domain.strip().rstrip(".")
+    if not d or d.startswith("[") or any(c.isspace() for c in d):
+        return None
+    try:
+        d = d.encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        return None
+    labels = d.split(".")
+    if len(labels) < 2 or not all(_LABEL.match(lb) for lb in labels) or labels[-1].isdigit():
+        return None  # bare host (`localhost`), IPv4 literal (`10.0.0.1`), empty label
+    return d
+
+
+def normalise_address(addr: str) -> str | None:
+    local, at, domain = addr.strip().rpartition("@")
+    if not at or not _LOCAL.match(local) or len(local) > 64:
+        return None
+    dom = normalise_domain(domain)
+    return f"{local.lower()}@{dom}" if dom else None
+
+
+def _split_list(value: str) -> list[str] | None:
+    """Split a recipient list on `,` / `;` outside quotes and angle brackets (None: unbalanced quoting)."""
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = angle = False
+    for ch in value:
+        if ch == '"' and not angle:
+            quote = not quote
+        elif ch == "<" and not quote:
+            if angle:
+                return None
+            angle = True
+        elif ch == ">" and not quote:
+            if not angle:
+                return None
+            angle = False
+        elif ch in ",;" and not quote and not angle:
+            parts.append("".join(buf))
+            buf = []
+            continue
+        buf.append(ch)
+    if quote or angle:
+        return None
+    parts.append("".join(buf))
+    return [p.strip() for p in parts if p.strip()]
+
+
+def parse_recipients(value: str) -> tuple[list[str], list[str]]:
+    """(valid normalised addresses, rejected parts) of one recipient field value. Each `,`/`;` separated part must be
+    exactly one address (`a@x.tld` or `Name <a@x.tld>`), confirmed by `email.utils.getaddresses`."""
+    from email.utils import getaddresses
+
+    parts = _split_list(value)
+    if parts is None:
+        return [], [value]
+    good: list[str] = []
+    bad: list[str] = []
+    for part in parts[:MAX_RECIPIENTS]:
+        m = _NAMED.match(part)
+        addr = m.group(1) if m else part
+        norm = normalise_address(addr) if (m or not any(c.isspace() for c in part)) else None
+        parsed = [a for _, a in getaddresses([part]) if a]
+        if norm is None or len(parsed) != 1 or normalise_address(parsed[0]) != norm:
+            bad.append(part)
+        elif norm not in good:
+            good.append(norm)
+    bad.extend(parts[MAX_RECIPIENTS:])
+    return good, bad
+
+
 def recipient_allowed(addr: str, allow: Sequence[str]) -> bool:
-    """`@corp.example` matches exactly that domain; `corp.example` also its subdomains; full addresses match exactly."""
-    addr = addr.lower()
-    domain = addr.rsplit("@", 1)[-1]
+    """`@corp.example` matches exactly that domain; `corp.example` also its subdomains; full addresses match exactly.
+    Domains on both sides are compared in their IDNA (punycode) form."""
+    norm = normalise_address(addr)
+    if norm is None:
+        return False
+    domain = norm.rsplit("@", 1)[-1]
     for entry in allow:
         e = entry.strip().lower()
         if not e:
             continue
         if "@" in e and not e.startswith("@"):
-            if addr == e:
+            if norm == normalise_address(e):
                 return True
-        elif e.startswith("@"):
-            if domain == e[1:]:
+            continue
+        bare = e.lstrip("@.")
+        dom = normalise_domain(bare)
+        if dom is None:
+            continue
+        if e.startswith("@"):
+            if domain == dom:
                 return True
         elif e.startswith("."):
-            if domain.endswith(e):
+            if domain.endswith("." + dom):
                 return True
-        elif domain == e or domain.endswith("." + e):
+        elif domain == dom or domain.endswith("." + dom):
             return True
     return False
 
@@ -136,19 +225,26 @@ def recipient_allowed(addr: str, allow: Sequence[str]) -> bool:
 def check_recipients(
     values: Sequence[str], addresses: Sequence[str], *, allow: Sequence[str], require_allowlist: bool, field: str = ""
 ) -> list[Violation]:
+    """Every part of every recipient value must parse as one plain address AND be on the allowlist (when one is set).
+    `values` are raw argument strings (lists already flattened); `addresses` are extra addresses found elsewhere."""
     out: list[Violation] = []
-    nonempty = [v for v in values if v.strip()]
-    if nonempty and not addresses:
-        out.append(
-            Violation("RECIPIENT_MALFORMED", "recipient field contains no parseable address", field, nonempty[0])
-        )
+    valid: list[str] = []
+    for v in [*values, *addresses]:
+        if not v.strip():
+            continue
+        good, bad = parse_recipients(v)
+        for b in bad:
+            out.append(Violation("RECIPIENT_MALFORMED", "recipient is not a single valid e-mail address", field, b))
+        if not good and not bad:
+            out.append(Violation("RECIPIENT_MALFORMED", "recipient field contains no parseable address", field, v))
+        valid.extend(a for a in good if a not in valid)
     if require_allowlist and not allow:
         out.append(
             Violation("RECIPIENT_NO_ALLOWLIST", "no recipient allowlist is configured for this principal", field)
         )
         return out
     if allow:
-        for addr in addresses:
+        for addr in valid:
             if not recipient_allowed(addr, allow):
                 out.append(Violation("RECIPIENT", "recipient is not on the allowlist", field, addr))
     return out
@@ -329,16 +425,22 @@ def check_sql(
         return out
 
     ctes = {c.alias_or_name.lower() for c in tree.find_all(exp.CTE)}
-    alias_names = {a.alias.lower() for a in tree.find_all(exp.Alias) if a.alias}
     derived = {s.alias.lower() for s in tree.find_all(exp.Subquery) if s.alias} | ctes
-    base: dict[str, str] = {}  # qualifier (alias or name) → table name
-    for t in tree.find_all(exp.Table):
+
+    def is_base(t: exp.Table) -> bool:
         name = t.name.lower()
-        if not name or (name in ctes and not t.args.get("db")):
+        return bool(name) and not (name in ctes and not t.args.get("db"))
+
+    # qualifier (alias or table name) → every base table it may denote: an alias that shadows a table name, or a name
+    # used twice, maps to all candidates and a column must be allowed in each of them
+    base: dict[str, set[str]] = {}
+    for t in tree.find_all(exp.Table):
+        if not is_base(t):
             continue
-        base[(t.alias or t.name).lower()] = name
-        base.setdefault(name, name)
-    tables = set(base.values())
+        name = t.name.lower()
+        base.setdefault((t.alias or t.name).lower(), set()).add(name)
+        base.setdefault(name, set()).add(name)
+    tables = set().union(*base.values()) if base else set()
 
     if scope.tables is not None:
         for name in sorted(tables):
@@ -350,6 +452,35 @@ def check_sql(
     def allowed_cols(table: str) -> frozenset[str] | None:
         return scope.tables[table] if scope.tables is not None else None
 
+    def column_allowed(table: str, column: str) -> bool:
+        cols = allowed_cols(table)
+        return cols is None or column in cols
+
+    def local_tables(select: exp.Expression) -> set[str]:
+        """Base tables in the FROM / JOIN list of exactly this SELECT."""
+        return {
+            t.name.lower() for t in select.find_all(exp.Table) if is_base(t) and t.find_ancestor(exp.Select) is select
+        }
+
+    def candidate_tables(col: exp.Column) -> set[str]:
+        """Every base table an unqualified column may resolve to: the tables of its own SELECT plus, for a correlated
+        (expression / LATERAL) subquery, the tables of every enclosing SELECT it can see."""
+        out_tables: set[str] = set()
+        select = col.find_ancestor(exp.Select)
+        while select is not None:
+            out_tables |= local_tables(select)
+            node, source, lateral = select.parent, False, False
+            while node is not None and not isinstance(node, exp.Select):
+                if isinstance(node, exp.Lateral):
+                    lateral = True
+                elif isinstance(node, (exp.From, exp.Join, exp.CTE, exp.With)):
+                    source = True  # a derived table / CTE body cannot see the outer FROM list (unless LATERAL)
+                node = node.parent
+            if node is None or (source and not lateral):
+                break
+            select = node
+        return out_tables
+
     # SELECT * / t.* : must not expand to forbidden columns
     for star in tree.find_all(exp.Star):
         if isinstance(star.parent, exp.Count):
@@ -357,13 +488,9 @@ def check_sql(
         qual = star.parent.table.lower() if isinstance(star.parent, exp.Column) and star.parent.table else ""
         select = star.find_ancestor(exp.Select)
         if qual:
-            targets = {base[qual]} if qual in base else set()
+            targets = set(base.get(qual, set()))
         elif select is not None:
-            targets = {
-                base[(t.alias or t.name).lower()]
-                for t in select.find_all(exp.Table)
-                if t.find_ancestor(exp.Select) is select and (t.alias or t.name).lower() in base
-            }
+            targets = local_tables(select)
         else:
             targets = set(tables)
         for table in sorted(targets):
@@ -385,16 +512,24 @@ def check_sql(
             continue
         if qual:
             if qual in base:
-                cols = allowed_cols(base[qual])
-                if cols is not None and name not in cols:
+                if not all(column_allowed(t, name) for t in base[qual]):
                     out.append(Violation("SQL_COLUMN", "column is not allowed for this principal", value=name))
             elif qual not in derived:
                 out.append(Violation("SQL_TABLE", "column references an unknown table", value=qual))
             continue
-        if any(allowed_cols(t) is None or name in (allowed_cols(t) or frozenset()) for t in tables):
+        # Unqualified: the column may belong to ANY table in scope, so it must be allowed in EVERY one of them
+        # (`SELECT email FROM clients JOIN loans` must not pass because `loans` is `*`). With no base table in scope
+        # it can only come from a derived table / CTE, whose own columns are checked where they are defined.
+        if all(column_allowed(t, name) for t in candidate_tables(col)):
             continue
+        select = col.find_ancestor(exp.Select)
         in_order = col.find_ancestor(exp.Order, exp.Group, exp.Having) is not None
-        if name in alias_names and (in_order or derived):
-            continue
+        own_aliases = (
+            {e.alias.lower() for e in select.expressions if isinstance(e, exp.Alias) and e.alias}
+            if select is not None
+            else set()
+        )
+        if in_order and name in own_aliases:
+            continue  # `ORDER BY total` names the SELECT's own output column
         out.append(Violation("SQL_COLUMN", "column is not allowed for this principal", value=name))
     return out

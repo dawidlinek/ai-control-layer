@@ -78,9 +78,13 @@ tools:
     default_tier: allow
     checkers:
       - {type: path, field: path, params: {workspace_only: true}}
+  # Every target of the patch (`*** Add/Update/Delete File:`, `*** Move to:`, `---`/`+++` headers) gets the write
+  # checks of opencode.write; a patch whose targets cannot be parsed is blocked (`format: patch`, fail closed).
   opencode.patch:
     capabilities: [filesystem]
     default_tier: allow
+    checkers:
+      - {type: path, field: patchText, params: {workspace_only: true, access: write, format: patch}}
   opencode.todowrite:
     default_tier: allow
   opencode.todoread:

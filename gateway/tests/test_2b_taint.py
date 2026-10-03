@@ -234,7 +234,8 @@ async def test_near_miss_sensitive_data_answered_locally_is_allowed() -> None:
     await f.chat(_history("read", "payroll.csv rows"))  # sensitive + (read tools are untrusted too)
     d = await f.call("opencode.read", {"filePath": "src/other.py"})  # keeps working on local files
     assert d.action == Action.allow
-    e = await f.call("opencode.bash", {"command": "pytest -q"})  # local, not a sink
+    # local, not a sink (a test runner is: it runs workspace code the untrusted input may have planted, CP2 review #2)
+    e = await f.call("opencode.bash", {"command": "ruff check src"})
     assert e.action == Action.allow
     g = await f.call("opencode.write", {"filePath": "src/notes.md", "content": "summary"})
     assert g.action == Action.allow

@@ -16,8 +16,11 @@ Deterministic and fail closed. Evaluation order (the first failing step that blo
   8. preset `approval_on_writes` (paranoid): irreversible / filesystem-write tools → require_approval
 
 Blocks are `final`. Approval reasons from this control (confirm tier, unlisted shell command, writes) are cleared by an
-active elevation; deny classes, protected paths and every block are never relaxed. Raw argument values never go into
-verdicts: findings carry salted hashes only.
+active elevation; deny classes, protected paths and every block are never relaxed. While the session is untrusted
+(integrity untrusted or taint `untrusted`), holds for code execution and persistence (`CMD_UNTRUSTED_EXEC`,
+`CMD_INLINE_CODE`, `CMD_PIPE_TO_INTERPRETER`, `CMD_EXEC_OPTION`, `CMD_EXEC_ENV`, `PATH_PERSISTENCE`,
+`CMD_WRITE_PERSISTENCE`) are not waived by an elevation either: they are exactly what an injected instruction would
+use. Raw argument values never go into verdicts: findings carry salted hashes only.
 """
 
 from __future__ import annotations
@@ -29,11 +32,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from acl.contracts.common import Action, ToolTier
+from acl.contracts.common import Action, Integrity, TaintFlag, ToolTier
 from acl.contracts.decision import Decision, Finding, Verdict
-from acl.contracts.inspection import InspectionContext, ToolCallPayload, ToolIntent
+from acl.contracts.inspection import InspectionContext, SessionLabels, ToolCallPayload, ToolIntent
 from acl.controls.base import Control, ControlDeps, register_control
-from acl.controls.normalise.intent import COMMAND_KEYS, build_intent
+from acl.controls.normalise.intent import COMMAND_KEYS, RECIPIENT_KEYS, build_intent
 from acl.controls.normalise.scan import hash_value, value_salt
 from acl.controls.tools import checkers as chk
 from acl.controls.tools.catalogue import (
@@ -43,6 +46,7 @@ from acl.controls.tools.catalogue import (
     is_write_tool,
 )
 from acl.controls.tools.commands import analyze_command
+from acl.controls.tools.patch import patch_targets
 from acl.controls.tools.paths import (
     canonical,
     check_path,
@@ -122,6 +126,27 @@ def _command_values(arguments: dict[str, Any], dotted: str) -> list[str]:
         if cmd not in out:
             out.append(cmd)
     return out
+
+
+# Holds an elevation never waives while the session is untrusted (code execution, persistence).
+_UNTRUSTED_NON_WAIVABLE = frozenset(
+    {
+        "CMD_UNTRUSTED_EXEC",
+        "CMD_INLINE_CODE",
+        "CMD_PIPE_TO_INTERPRETER",
+        "CMD_EXEC_OPTION",
+        "CMD_EXEC_ENV",
+        "PATH_PERSISTENCE",
+        "CMD_WRITE_PERSISTENCE",
+    }
+)
+
+
+def session_untrusted(ctx: InspectionContext) -> bool:
+    """Session labels joined with everything detected earlier in this request (`labels_so_far`), as SEC-FLOW-01."""
+    running = ctx.attributes.get("labels_so_far")
+    labels = running if isinstance(running, SessionLabels) else ctx.session.labels
+    return labels.integrity == Integrity.untrusted or TaintFlag.untrusted in labels.taint
 
 
 def _lookup(arguments: dict[str, Any], dotted: str) -> list[str]:
@@ -237,8 +262,9 @@ class ToolPolicyControl(Control):
             out.block("INTENT", "tool call could not be normalised (failing closed)")
             return self._compose(out, None)
 
+        untrusted = session_untrusted(ctx)
         for checker in tool.checkers:
-            self._run_checker(checker, payload, intent, grant, ctx, policy, out)
+            self._run_checker(checker, payload, intent, grant, ctx, policy, out, untrusted)
         # The client runs the ORIGINAL arguments, the normaliser may have rewritten them (NFKC, hidden characters,
         # template tokens): check what will really execute as well, so a rewrite can only ever add findings.
         raw = ctx.payload
@@ -249,7 +275,7 @@ class ToolPolicyControl(Control):
                 out.block("INTENT", "tool call could not be normalised (failing closed)")
                 return self._compose(out, None)
             for checker in tool.checkers:
-                self._run_checker(checker, raw, raw_intent, grant, ctx, policy, out)
+                self._run_checker(checker, raw, raw_intent, grant, ctx, policy, out, untrusted)
 
         if settings is not None and settings.approval_on_writes and is_write_tool(tool):
             out.approve("WRITE_APPROVAL", "preset requires approval for writes / irreversible tools")
@@ -258,8 +284,13 @@ class ToolPolicyControl(Control):
         if "intent" not in ctx.attributes:
             outputs["intent"] = intent  # packages/paths for later phases when the normaliser did not publish one
         if out.approvals and not out.blocks and await self._elevated(ctx, tool_id):
-            out.approvals.clear()
-            out.notes.append("approval waived by an active time-boxed elevation")
+            kept = [h for h in out.approvals if untrusted and h.code in _UNTRUSTED_NON_WAIVABLE]
+            out.approvals[:] = kept
+            out.notes.append(
+                "elevation does not cover code execution / persistence while the session is untrusted"
+                if kept
+                else "approval waived by an active time-boxed elevation"
+            )
         return self._compose(out, outputs)
 
     # ------------------------------------------------------------ steps
@@ -303,6 +334,7 @@ class ToolPolicyControl(Control):
         ctx: InspectionContext,
         policy: Policy,
         out: _Outcome,
+        untrusted: bool = False,
     ) -> None:
         values = _lookup(payload.arguments, checker.field)
         # The workspace comes from the client's trusted context only. A model-supplied `workdir` may move the working
@@ -311,19 +343,47 @@ class ToolPolicyControl(Control):
         workdir = _lookup(payload.arguments, "workdir")
         cwd_s = canonical(workdir[0], payload.cwd, payload.workspace_root) if workdir else payload.cwd
         kind = checker.type
-        if kind == "path":
+        if kind == "path" and str(checker.params.get("format", "")).lower() == "patch":
+            # a patch names its targets inside the text: every one of them gets the path / write checks
+            fld = f"arguments.{checker.field}"
+            targets: list[str] = []
+            texts = _nodes(payload.arguments, checker.field)
+            if not texts:
+                out.block("PATCH_UNPARSEABLE", "patch text is missing (failing closed)", fld)
+            for text in texts:
+                parsed = patch_targets(text)
+                if parsed is None:
+                    out.block("PATCH_UNPARSEABLE", "patch targets could not be determined (failing closed)", fld)
+                else:
+                    targets.extend(t for t in parsed if t not in targets)
+            self._check_paths(checker, targets, intent, payload, cwd_s, ws, grant, out)
+        elif kind == "path":
             self._check_paths(checker, values, intent, payload, cwd_s, ws, grant, out)
         elif kind == "command":
             self._check_commands(
-                checker, _command_values(payload.arguments, checker.field), payload, cwd_s, ws, grant, out
+                checker, _command_values(payload.arguments, checker.field), payload, cwd_s, ws, grant, out, untrusted
             )
         elif kind == "url":
             self._check_urls(checker, values, intent, grant, ctx, policy, out)
         elif kind == "recipient":
-            recips = chk.extract_recipients([*values, *intent.recipients])
+            # every recipient-like argument (`to`, `cc`, `bcc`, …), not only the declared field: each part of each
+            # value must parse as one plain address AND be on the allowlist
+            raw_values = list(values)
+            keys = [
+                checker.field,
+                *(k for k in payload.arguments if k.lower() in RECIPIENT_KEYS and k != checker.field),
+            ]
+            for key in keys:
+                for node in _nodes(payload.arguments, key):
+                    if not (
+                        isinstance(node, str) or (isinstance(node, list) and all(isinstance(x, str) for x in node))
+                    ):
+                        out.block("RECIPIENT_MALFORMED", "recipient argument is not a string or list of strings", key)
+                if key != checker.field:
+                    raw_values.extend(v for v in _lookup(payload.arguments, key) if v not in raw_values)
             for v in chk.check_recipients(
-                values,
-                recips,
+                raw_values,
+                intent.recipients,
                 allow=grant.recipients_allow,
                 require_allowlist=bool(checker.params.get("require_allowlist", False)),
                 field=f"arguments.{checker.field}",
@@ -375,6 +435,7 @@ class ToolPolicyControl(Control):
         ws: str | None,
         grant: EffectiveGrant,
         out: _Outcome,
+        untrusted: bool = False,
     ) -> None:
         p: ToolPolicyParams = self.params  # type: ignore[assignment]
         extra = (*p.safe_commands, *[str(c) for c in checker.params.get("safe_commands", [])])
@@ -386,7 +447,9 @@ class ToolPolicyControl(Control):
             elif ws is None or not within(cwd, ws):
                 out.approve("CMD_OUTSIDE_WORKSPACE", "working directory is outside the workspace", fld, cwd)
         for raw in values:
-            a = analyze_command(raw, cwd=cwd, root=payload.workspace_root, extra_safe=extra, workspace=ws)
+            a = analyze_command(
+                raw, cwd=cwd, root=payload.workspace_root, extra_safe=extra, workspace=ws, untrusted=untrusted
+            )
             for d in a.deny:
                 out.block(f"CMD_{d.code}", d.reason, fld, raw)
             if grant.path_deny:
@@ -395,8 +458,16 @@ class ToolPolicyControl(Control):
                     if any(glob_match(g, cp, ws) for g in grant.path_deny):
                         out.block("CMD_PATH_DENIED", "command touches a path denied for this group", fld, raw)
                         break
-            for code in a.approval[:4]:
-                out.approve(f"CMD_{code}", "shell command is not on the safe list: approval required", fld, raw)
+            # the codes that an elevation may not waive in an untrusted session are always reported (never cut off)
+            codes = [c for c in a.approval if f"CMD_{c}" in _UNTRUSTED_NON_WAIVABLE]
+            codes += [c for c in a.approval if c not in codes][: max(0, 4 - len(codes))]
+            for code in codes:
+                reason = (
+                    "shell command runs workspace / inline code in an untrusted session: approval required"
+                    if code == "UNTRUSTED_EXEC"
+                    else "shell command is not on the safe list: approval required"
+                )
+                out.approve(f"CMD_{code}", reason, fld, raw)
 
     def _check_urls(
         self,

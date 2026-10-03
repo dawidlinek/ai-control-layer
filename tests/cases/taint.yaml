@@ -125,13 +125,15 @@
   matrix: {balanced: allow, strict: allow, paranoid: allow}
   expect: {rule_id: null}
 
-- id: flow-local-test-run-in-toxic-session
+# A local lint run is not a sink. A test runner is (it executes workspace code the untrusted input may have planted;
+# CP2 review #2): see tools.yaml `tool-bash-script-in-untrusted-sensitive-session`.
+- id: flow-local-lint-run-in-toxic-session
   control: SEC-FLOW-01
   kind: positive
   pair: flow-bash
   point: tool_call
   session: untrusted_sensitive
-  input: {tool: opencode.bash, arguments: {command: "pytest -q"}, workspace_root: /work/proj, cwd: /work/proj}
+  input: {tool: opencode.bash, arguments: {command: "ruff check src"}, workspace_root: /work/proj, cwd: /work/proj}
   matrix: {balanced: allow, strict: allow, paranoid: allow}
   expect: {rule_id: null}
 
