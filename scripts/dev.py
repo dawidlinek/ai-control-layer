@@ -81,11 +81,20 @@ def task_ps(args: list[str]) -> int:
 
 
 def task_test(args: list[str]) -> int:
-    """Deterministic suite (unit + YAML cases + harness self-tests); writes reports/{junit.xml,summary.json}."""
-    return run(
-        ["uv", "run", "pytest", "-m", "not live and not e2e", *args],
-        env={"ACL_TEST_MODE": "deterministic", "ACL_DETERMINISTIC": "1"},
-    )
+    """Deterministic suite; writes reports/{junit.xml,summary.json}.
+
+    Gateway unit tests run in parallel (pytest-xdist); system cases + harness self-tests run in one
+    process because the metrics plugin aggregates results in-process. With args, runs a single pytest.
+    """
+    env = {"ACL_TEST_MODE": "deterministic", "ACL_DETERMINISTIC": "1"}
+    marker = ["-m", "not live and not e2e"]
+    if args:
+        return run(["uv", "run", "pytest", *marker, *args], env=env)
+    workers = str(min(4, os.cpu_count() or 1))
+    serial = "gateway/tests/test_1b_policy_service.py"  # real file watching + timing budgets: keep off the pool
+    rc = run(["uv", "run", "pytest", "gateway/tests", f"--ignore={serial}", *marker, "-n", workers, "-q"], env=env)
+    rc |= run(["uv", "run", "pytest", serial, *marker, "-q"], env={**env, "ACL_NO_JUNIT": "1"})
+    return rc | run(["uv", "run", "pytest", "tests", *marker, "-q"], env=env)
 
 
 def task_test_live(args: list[str]) -> int:

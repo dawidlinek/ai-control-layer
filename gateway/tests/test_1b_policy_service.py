@@ -240,6 +240,9 @@ async def test_hot_reload_swaps_engine_within_two_seconds(
     async with running(make_policy_dir(tmp_path), tmp_path) as s:
         old = s.engine
         assert old.policy.global_.default_preset.value == "balanced"
+        # Let the watcher arm (a poller takes its first snapshot one poll cycle after start); edits made
+        # before that are only caught by the periodic rescan, which is outside this test's 2 s budget.
+        await asyncio.sleep(1.5)
         s.write(
             "controls.yaml", s.read("controls.yaml").replace("default_preset: balanced", "default_preset: strict", 1)
         )
@@ -255,7 +258,8 @@ async def test_hot_reload_swaps_engine_within_two_seconds(
         await wait_for(lambda: s.engine.policy_version != v1)
         assert s.engine.policy.groups["admins"].preset.value == "strict"
         # the replaced engine is still usable by in-flight requests, and gets closed after the grace period
-        assert (await old.evaluate(make_context("hello"))).action == Action.allow
+        d_old = await old.evaluate(make_context("hello"))
+        assert d_old.action == Action.allow, [(v.control_id, v.status, v.reason, v.latency_ms) for v in d_old.verdicts]
 
 
 async def test_invalid_edit_keeps_last_good_alerts_once_and_recovers(stack: Stack) -> None:

@@ -210,7 +210,7 @@ def test_near_miss_canary_is_not_flagged() -> None:
 
 
 def test_unrelated_base64_and_hex_are_not_flagged() -> None:
-    other = new_canary()
+    other = new_canary(prefix="UNRELATED")  # a shared "CANARY-x" prefix would be a legitimate 8-char match
     assert _leaks(b64(other.encode())) == []
     assert _leaks(other.encode().hex()) == []
     assert _leaks(quote(other, safe="")) == []
