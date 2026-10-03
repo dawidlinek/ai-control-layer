@@ -9,7 +9,8 @@
 
 Scope rules (`approver_scope`):
   * `user`  – confirm-tier decisions on the user's own tools: the requesting user may decide; admins / analysts too;
-  * `admin` – everything else (Rule of Two, signature feed holds, ...): analysts / admins only (admin API).
+  * `admin` – everything else (Rule of Two, signature feed holds, ...): analysts / admins only (admin API), and never
+    the requester themselves (four eyes: a privileged requester may deny but not approve their own hold).
 An API-key principal never counts as admin/analyst (admin roles need a fresh Keycloak sign-in, see `api/deps.py`).
 Elevation (approve + `elevation_minutes`) is bound to `(session, tool)`, capped at 240 min for admins and 60 min for
 users, and only waives SEC-TOOL-01's own approval reasons; it never relaxes a block or the Rule of Two.
@@ -292,6 +293,10 @@ class ApprovalService:
             raise ApprovalForbidden(
                 "this approval can only be decided by its requester (user scope) or an administrator"
             )
+        if approve and row.approver_scope == "admin" and row.requester_subject == actor.subject:
+            # four eyes: an admin-scope hold (Rule of Two, feed holds, ...) needs someone other than the requester,
+            # even when the requester is an analyst/admin. Denying one's own request is always allowed.
+            raise ApprovalForbidden("you cannot approve your own admin-scope request; another administrator must")
         if row.status != ApprovalStatus.pending.value:
             raise ApprovalConflict(f"approval is already {row.status}")
         now = self._now()

@@ -17,6 +17,11 @@ overrides):
 
 Clients speak 2025-11-25 sessions (`Mcp-Session-Id`, issued by the gateway and bound to the principal); requests
 without a session (2026-07-28 stateless clients) get an ephemeral upstream session per request.
+
+Information-flow session (labels, Rule of Two, loop counters): the client's `X-Session-Id` when given (the id the
+OpenCode plugin also sends for chat and `/v1/decide`), else ONE principal-wide MCP session (`DEFAULT_IFC_SESSION`)
+shared by every MCP server and request of that principal. It is never keyed on the per-server `Mcp-Session-Id` or a
+random id: a read on one server followed by a send on another must meet in one session (CP2 finding 5).
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ from urllib.parse import urlsplit
 from fastapi import Request
 from fastapi.responses import JSONResponse, Response
 
+from acl.approvals.service import approver_scope_for
 from acl.contracts.audit import EventType
 from acl.contracts.common import Action, ApprovalStatus, InspectionPoint, Severity
 from acl.contracts.decision import Decision
@@ -46,6 +52,7 @@ from acl.contracts.inspection import (
     ToolResultPayload,
 )
 from acl.controls.mcp import rules
+from acl.controls.mcp.canon import tool_hints
 from acl.controls.mcp.catalog import catalog_for
 from acl.controls.mcp.pinning import McpPinningParams
 from acl.controls.mcp.protocol import McpProtocolParams
@@ -74,8 +81,8 @@ MAX_TOOL_PAGES = 20
 MAX_TOOLS = 1000
 MAX_WAIT_S = 120.0
 _CLIENT_SESSION_MAX = 128
+DEFAULT_IFC_SESSION = "mcp-default"  # namespaced by principal in `evaluate_point`
 _TOOL_INDEX = re.compile(r"^tools\[(\d+)\]")
-_HINTS = ("readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint")
 
 
 class Withheld(Exception):
@@ -142,11 +149,12 @@ class McpProxy:
         return self._params("mcp_protocol", McpProtocolParams)
 
     @staticmethod
-    def _client_session(request: Request, sess: GatewaySession | None) -> str:
+    def _client_session(request: Request, sess: GatewaySession | None = None) -> str:
+        """IFC session of a request: `X-Session-Id`, else the principal-wide MCP session (never per server)."""
         raw = request.headers.get("x-session-id")
         if raw and raw.strip():
             return raw.strip()[:_CLIENT_SESSION_MAX]
-        return sess.id if sess is not None else f"mcp-{secrets.token_hex(8)}"
+        return DEFAULT_IFC_SESSION
 
     def _reply(
         self, rid: Any, value: dict[str, Any], *, session_id: str | None = None, status: int = 200
@@ -628,9 +636,7 @@ class McpProxy:
             name=raw["name"],
             description=raw.get("description") if isinstance(raw.get("description"), str) else None,
             input_schema=raw.get("inputSchema") if isinstance(raw.get("inputSchema"), dict) else {},
-            annotations={k: v for k, v in ann.items() if k in _HINTS and isinstance(v, bool)}
-            if isinstance(ann, dict)
-            else None,
+            annotations=tool_hints(ann) if isinstance(ann, dict) else None,
         )
 
     async def list_and_pin(
@@ -659,6 +665,7 @@ class McpProxy:
             tools.append(raw)
         catalog = catalog_for(self.engine.policy)
         async with self.store.lock(server):
+            await self.store.upgrade_legacy_pins(server, tools)  # v1 pins -> v2 (annotations) without drift
             rows = await self.store.tools_for(server)
             pins = {n: {"pinned_hash": r.pinned_hash, "status": r.status} for n, r in rows.items()}
             payload = McpPayload(
@@ -723,15 +730,12 @@ class McpProxy:
 
     @staticmethod
     def _client_tool(raw: dict[str, Any]) -> dict[str, Any]:
-        """Only the fields covered by the pin (plus boolean hints) leave the gateway."""
+        """Only the fields covered by the pin (name, description, inputSchema, boolean hints) leave the gateway."""
         out: dict[str, Any] = {"name": raw["name"], "inputSchema": raw.get("inputSchema") or {"type": "object"}}
         if isinstance(raw.get("description"), str):
             out["description"] = raw["description"]
-        ann = raw.get("annotations")
-        if isinstance(ann, dict):
-            hints = {k: v for k, v in ann.items() if k in _HINTS and isinstance(v, bool)}
-            if hints:
-                out["annotations"] = hints
+        if hints := tool_hints(raw.get("annotations")):
+            out["annotations"] = hints
         return out
 
     async def _tools_list(self, request: Request, sess: GatewaySession, principal: Principal, rid: Any) -> Response:
@@ -852,6 +856,32 @@ class McpProxy:
             waited = await self._approval(request, principal, ctx, decision, rid)
             if isinstance(waited, Response):
                 return waited
+            # Approved while waiting: re-evaluate the same call so the approval is redeemed through the one atomic
+            # path (`ApprovalService.redeem`, consumed on first use) and the call that runs gets its own decision
+            # record. If it cannot be redeemed (spent concurrently, rules changed) the call stays held (CP2 finding 7).
+            ctx, decision = await run_point(
+                self.app,
+                principal,
+                point=InspectionPoint.tool_call,
+                payload=payload,
+                client_session=client_session,
+                attributes=attributes,
+                trace_id=ctx.trace_id,
+            )
+            if decision.action == Action.block:
+                return self._blocked(rid, decision)
+            if decision.action == Action.require_approval:
+                return self._fail(
+                    rid,
+                    jsonrpc.APPROVAL_REQUIRED,
+                    "approval required (the approval was already used or no longer covers this call)",
+                    {
+                        "approval_id": waited,
+                        "status": "consumed",
+                        "rule_ids": list(decision.rule_ids),
+                        "decision_id": decision.decision_id,
+                    },
+                )
 
         out_args = self._outbound_args(ctx, decision, payload)
         if out_args is None:
@@ -908,8 +938,11 @@ class McpProxy:
 
     async def _approval(
         self, request: Request, principal: Principal, ctx: InspectionContext, decision: Decision, rid: Any
-    ) -> Response | None:
-        """require_approval: create the approval, answer with its id; optionally wait (`?wait=<seconds>`)."""
+    ) -> Response | str:
+        """require_approval: create the approval, answer with its id; optionally wait (`?wait=<seconds>`).
+
+        Returns the error response to send, or the approval id when it was approved while waiting (the caller then
+        redeems it by re-evaluating the call; approval here never lets a call through by itself)."""
         approvals = getattr(self.app.state, "approvals", None)
         if approvals is None:
             return self._fail(
@@ -921,7 +954,9 @@ class McpProxy:
         from acl.audit.builder import redacted_text
 
         preview = redacted_text(ctx, decision.verdicts)[:2000]
-        scope = "user" if decision.decided_by == "SEC-TOOL-01" else "admin"
+        # single source of truth with /v1/decide: `user` only when every enforced hold is SEC-TOOL-01's own (a Rule of
+        # Two co-hold on a confirm-tier tool is admin scope even though SEC-TOOL-01 wins `decided_by`; CP2 finding 1)
+        scope = approver_scope_for(self.engine, decision)
         ref = await approvals.create(ctx, decision, approver_scope=scope, preview=preview)
         wait = 0.0
         with contextlib.suppress(ValueError):
@@ -930,7 +965,7 @@ class McpProxy:
         if wait > 0:
             status = await approvals.wait(ref.approval_id, wait)
         if status == ApprovalStatus.approved:
-            return None
+            return ref.approval_id
         data = {
             "approval_id": ref.approval_id,
             "status": str(getattr(status, "value", status)),

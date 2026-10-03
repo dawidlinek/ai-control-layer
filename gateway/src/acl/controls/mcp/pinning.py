@@ -3,8 +3,10 @@
 Evaluated at `mcp_tools_list` on an `McpPayload` whose `tools` are the (raw) tool descriptors a server
 announced. Per tool the control flags
 
-    drift         `sha256(name, description, inputSchema)` differs from the pin (`ctx.attributes["mcp_pins"]`,
-                  supplied by the proxy from its database) -> rug pull
+    drift         the v2 manifest pin `canon.manifest_hash(name, description, inputSchema, annotation hints)` differs
+                  from the pin (`ctx.attributes["mcp_pins"]`, supplied by the proxy from its database) -> rug pull.
+                  A stored legacy v1 pin (`canon.tool_hash`, no annotations) equal to the announced tool is not drift;
+                  the proxy upgrades such pins to v2 before it evaluates the listing.
     schema_pin    the policy's `tools.<id>.schema_pin` does not match the announced tool
     poisoned      hidden/imperative instructions, steering to other tools, credential paths, exfil instructions,
                   invisible characters, Base64 blobs, HTML comments, oversized text, odd names (see `scan.py`)
@@ -29,7 +31,7 @@ from acl.contracts.common import Action, InspectionPoint, Phase
 from acl.contracts.decision import Finding, Verdict
 from acl.contracts.inspection import InspectionContext, McpPayload
 from acl.controls.base import Control, register_control
-from acl.controls.mcp.canon import normalise_name, tool_hash
+from acl.controls.mcp.canon import manifest_hash, normalise_name, tool_hash
 from acl.controls.mcp.catalog import catalog_for
 from acl.controls.mcp.scan import scan_tool
 
@@ -99,10 +101,12 @@ class McpPinningControl(Control):
                 )
 
         for i, tool in enumerate(payload.tools):
-            h = tool_hash(tool.name, tool.description, tool.input_schema)
+            h = tool_hash(tool.name, tool.description, tool.input_schema)  # content hash (policy schema_pin, v1 pin)
+            m = manifest_hash(tool.name, tool.description, tool.input_schema, tool.annotations)
             norm = normalise_name(tool.name)
             pin = pins.get(tool.name)
-            pinned_ok = bool(pin and pin.get("status") == "pinned" and pin.get("pinned_hash") == h)
+            pin_matches = bool(pin and pin.get("pinned_hash") in (m, h))
+            pinned_ok = bool(pin_matches and pin and pin.get("status") == "pinned")
 
             if norm in seen or tool.name in duplicates:
                 flag(i, tool.name, "collision", "duplicate_name_in_list")
@@ -111,7 +115,7 @@ class McpPinningControl(Control):
             declared = catalog.resolve(payload.server, tool.name) if catalog is not None else None
             if declared is not None and declared[1].schema_pin and declared[1].schema_pin != h:
                 flag(i, tool.name, "schema_pin", "policy_schema_pin_mismatch")
-            if pin and pin.get("pinned_hash") and pin.get("pinned_hash") != h:
+            if pin and pin.get("pinned_hash") and not pin_matches:
                 flag(i, tool.name, "drift", "manifest_hash_changed")
             if pinned_ok:
                 continue

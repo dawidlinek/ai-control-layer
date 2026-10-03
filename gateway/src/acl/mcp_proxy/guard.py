@@ -10,11 +10,20 @@ text, resource-link names, every string leaf of `structuredContent`) becomes one
 joined with a separator, inspected as one `ToolResultPayload`, and written back after the engine's
 redact/pseudonymise/sanitize replacements. Only whitelisted fields of the result are forwarded (`_meta`,
 annotations, unknown block types are dropped), so nothing escapes inspection.
+
+Base64 `blob`s (embedded resources, `resources/read` contents) are decoded before inspection: a blob that decodes
+to UTF-8 text is inspected as that text and re-encoded after the replacements; a blob that is not valid base64 is
+inspected as the string it is; a blob that decodes to real binary (not UTF-8) or exceeds `MAX_BLOB_SCAN` cannot be
+inspected and is replaced by a placeholder (fail closed). Canary values are matched case-insensitively and across
+whitespace / zero-width characters (and, for long canaries, any punctuation) before inspection.
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import copy
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -27,6 +36,9 @@ from acl.engine.actions import GatewayUnavailable, commit_decision, evaluate_poi
 SEP = "\n␞\n"  # SYMBOL FOR RECORD SEPARATOR: joins segments; a segment containing it is refused
 CANARY_MASK = "[REDACTED:CANARY]"
 MAX_BLOB_SCAN = 65_536
+BINARY_OMITTED = "[binary resource omitted by the gateway]"
+_CANARY_COMPACT_MIN = 12  # canaries with at least this many letters/digits also match when split by punctuation
+_ZW = "\u200b\u200c\u200d\u2060\ufeff"  # zero-width characters
 
 
 class ResultRefused(Exception):
@@ -89,6 +101,7 @@ async def run_point(
     force_block: ForceBlock | None = None,
     record_when: Callable[[Decision], bool] | None = None,
     commit: bool = True,
+    trace_id: str | None = None,
 ) -> tuple[InspectionContext, Decision]:
     ctx, decision = await evaluate_point(
         app,
@@ -98,6 +111,7 @@ async def run_point(
         client_session=client_session,
         client=client,
         attributes=attributes,
+        trace_id=trace_id,
         commit=False,
         record=False,
     )
@@ -126,6 +140,13 @@ class Segments:
         self.texts.append(value)
         self._setters.append(lambda new, c=container, k=key: c.__setitem__(k, new))
 
+    def add_blob(self, container: Any, key: Any, decoded: str) -> None:
+        """A base64 blob inspected as its decoded text; replacements are written back re-encoded."""
+        self.texts.append(decoded)
+        self._setters.append(
+            lambda new, c=container, k=key: c.__setitem__(k, base64.b64encode(new.encode("utf-8")).decode("ascii"))
+        )
+
     def joined(self) -> str:
         if any(SEP in t for t in self.texts):
             raise ResultRefused("MCP_RESULT_FRAMING", "result contains the gateway's framing character")
@@ -141,17 +162,57 @@ class Segments:
 
     def redact_canaries(self, canaries: list[str]) -> int:
         """Mask canary values in place (before inspection); returns how many were masked."""
+        patterns = [p for p in (canary_pattern(c) for c in canaries) if p is not None]
         hits = 0
         for i, text in enumerate(self.texts):
             new = text
-            for canary in canaries:
-                if canary and canary in new:
-                    hits += new.count(canary)
-                    new = new.replace(canary, CANARY_MASK)
+            for pattern in patterns:
+                new, n = pattern.subn(CANARY_MASK, new)
+                hits += n
             if new != text:
                 self.texts[i] = new
                 self._setters[i](new)
         return hits
+
+
+def canary_pattern(canary: str) -> re.Pattern[str] | None:
+    """Case-insensitive pattern of a canary that tolerates whitespace / zero-width characters between its characters
+    (and any non-alphanumeric separator for canaries with >= 12 letters/digits, like SEC-HYG-01's compact match)."""
+    chars = [c for c in canary if not c.isspace()]
+    if not chars:
+        return None
+    alnum = [c for c in chars if c.isalnum()]
+    if len(alnum) >= _CANARY_COMPACT_MIN:
+        chars, sep = alnum, r"[\W_]*"
+    else:
+        sep = rf"[\s{_ZW}]*"
+    return re.compile(sep.join(re.escape(c) for c in chars), re.IGNORECASE)
+
+
+def decode_blob(blob: str) -> tuple[str, str | None]:
+    """('text', decoded) for base64 of UTF-8 text, ('raw', None) when not base64, ('binary', None) otherwise."""
+    if len(blob) > MAX_BLOB_SCAN:
+        return "binary", None
+    try:
+        raw = base64.b64decode("".join(blob.split()), validate=True)
+    except (binascii.Error, ValueError):
+        return "raw", None
+    try:
+        return "text", raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return "binary", None
+
+
+def _add_blob(node: dict[str, Any], key: str, seg: Segments) -> bool:
+    """Register a base64 blob for inspection; False when it cannot be inspected (the caller omits it)."""
+    kind, text = decode_blob(node[key])
+    if kind == "binary":
+        return False
+    if kind == "text":
+        seg.add_blob(node, key, text or "")
+    else:
+        seg.add(node, key)
+    return True
 
 
 def _walk_strings(node: Any, seg: Segments, depth: int = 0) -> None:
@@ -159,7 +220,12 @@ def _walk_strings(node: Any, seg: Segments, depth: int = 0) -> None:
         raise ResultRefused("MCP_RESULT_DEPTH", "structured result is nested too deeply")
     if isinstance(node, dict):
         for k in list(node):
-            if isinstance(node[k], str):
+            if k == "blob" and isinstance(node[k], str):
+                if not _add_blob(node, k, seg):
+                    del node[k]  # binary that cannot be inspected never leaves the gateway
+                    node["text"] = BINARY_OMITTED
+                    seg.add(node, "text")
+            elif isinstance(node[k], str):
                 seg.add(node, k)
             else:
                 _walk_strings(node[k], seg, depth + 1)
@@ -195,15 +261,19 @@ def build_segments(result: dict[str, Any], *, max_bytes: int) -> Segments:
             if isinstance(res.get("text"), str):
                 nres["text"] = res["text"]
             elif isinstance(res.get("blob"), str):
-                if len(res["blob"]) > MAX_BLOB_SCAN:
-                    out["content"].append({"type": "text", "text": "[binary resource omitted by the gateway]"})
+                if decode_blob(res["blob"])[0] == "binary":  # too large or not text: cannot be inspected
+                    nb = {"type": "text", "text": BINARY_OMITTED}
+                    out["content"].append(nb)
+                    seg.add(nb, "text")
                     continue
                 nres["blob"] = res["blob"]
             nb = {"type": "resource", "resource": nres}
             out["content"].append(nb)
-            for key in ("uri", "text", "blob"):
+            for key in ("uri", "text"):
                 if key in nres:
                     seg.add(nres, key)
+            if "blob" in nres:
+                _add_blob(nres, "blob", seg)
         elif btype == "resource_link" and isinstance(block.get("uri"), str):
             nb = {
                 "type": "resource_link",

@@ -25,7 +25,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from acl.controls.mcp.canon import description_diff, normalise_name, schema_changed, tool_hash_of
+from acl.controls.mcp.canon import (
+    description_diff,
+    manifest_hash_of,
+    normalise_name,
+    schema_changed,
+    tool_hash_of,
+)
 from acl.controls.mcp.catalog import ToolCatalog
 from acl.controls.mcp.pinning import HARD_KINDS
 from acl.mcp_proxy.db_models import McpServerRow, McpToolRow
@@ -175,7 +181,7 @@ class McpStore:
             }
             for raw in tools:
                 name = raw["name"]
-                h = tool_hash_of(raw)
+                h = manifest_hash_of(raw)
                 desc = raw.get("description") if isinstance(raw.get("description"), str) else None
                 schema = raw.get("inputSchema") if isinstance(raw.get("inputSchema"), dict) else {}
                 entries = flags.get(name, [])
@@ -265,6 +271,33 @@ class McpStore:
             await s.commit()
         return ListingOutcome(out, events)
 
+    async def upgrade_legacy_pins(self, server: str, tools: list[dict[str, Any]]) -> int:
+        """Re-pin legacy (v1, pre-annotation) pins to the v2 manifest pin without raising drift.
+
+        A stored hash equal to the v1 content hash of the announced tool means the pinned name/description/schema are
+        unchanged; the v2 pin then also covers the annotation hints announced now (v1 never covered them). Hashes that
+        match neither are left alone: that is drift. Caller holds `lock(server)`. Returns the rows upgraded."""
+        by_name = {t["name"]: t for t in tools}
+        n = 0
+        async with self._sessions()() as s:
+            rows = (await s.execute(select(McpToolRow).where(McpToolRow.server_id == server))).scalars().all()
+            for row in rows:
+                raw = by_name.get(row.name)
+                if raw is None:
+                    continue
+                legacy, v2 = tool_hash_of(raw), manifest_hash_of(raw)
+                touched = False
+                if row.pinned_hash == legacy:
+                    row.pinned_hash = v2
+                    touched = True
+                if row.current_hash == legacy:
+                    row.current_hash = v2
+                    touched = True
+                n += touched
+            if n:
+                await s.commit()
+        return n
+
     @staticmethod
     def _flagged_status(hard: bool, enforce: bool) -> str:
         if not enforce:
@@ -280,6 +313,8 @@ class McpStore:
         text = description_diff(row.pinned_description, desc)
         if schema_changed(row.pinned_schema, schema):
             text += "\n(inputSchema changed)"
+        elif row.pinned_description == desc:
+            text += "\n(annotations changed: readOnlyHint / destructiveHint / idempotentHint / openWorldHint)"
         return text
 
     # ------------------------------------------------------------------ admin decisions
