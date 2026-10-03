@@ -76,7 +76,15 @@ class Secrets(Control):
 
 
 def make_registry() -> ControlRegistry:
+    """Real built-in control types (so the real policy compiles) with test doubles on top."""
+    from acl.controls.base import load_builtin_controls
+    from acl.controls.base import registry as builtin_registry
+
+    load_builtin_controls()
     reg = ControlRegistry()
+    for name in builtin_registry.types():
+        if name not in (Keyword.type, Secrets.type):
+            reg.register(builtin_registry.get(name))
     reg.register(Keyword)
     reg.register(Secrets)
     return reg
