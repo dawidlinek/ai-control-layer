@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +25,72 @@ from acl.contracts.audit import GENESIS_HASH, AuditEvent
 from acl.contracts.canonical import audit_record_hash, canonical_json
 
 log = logging.getLogger(__name__)
+
+
+class AuditLogLocked(RuntimeError):
+    """Another process already writes this audit log (the chain needs exactly one writer)."""
+
+
+def _scrub(obj: Any) -> Any:
+    """Replace lone UTF-16 surrogates (unencodable in UTF-8) with U+FFFD so a hostile string can never
+    prevent a decision from being recorded."""
+    if isinstance(obj, str):
+        try:
+            obj.encode("utf-8")
+            return obj
+        except UnicodeEncodeError:
+            return obj.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
+    if isinstance(obj, dict):
+        return {_scrub(k): _scrub(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_scrub(v) for v in obj]
+    return obj
+
+
+class _WriterLock:
+    """Exclusive OS-level lock on `<log>.lock`, held for the writer's lifetime (single writer per file,
+    across processes and containers sharing the volume)."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._fh: Any = None
+
+    def acquire(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        fh = self.path.open("a+b")
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                fh.seek(0)
+                msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            fh.close()
+            raise AuditLogLocked(f"audit log {self.path.with_suffix('')} is locked by another writer") from exc
+        self._fh = fh
+
+    def release(self) -> None:
+        if self._fh is None:
+            return
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                self._fh.seek(0)
+                msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        finally:
+            self._fh.close()
+            self._fh = None
 
 
 def _last_line(path: Path) -> str | None:
@@ -57,6 +124,10 @@ class AuditChain:
         self._prev = GENESIS_HASH
         self._needs_newline = False
         self.resumed = False
+        self._writer_lock = _WriterLock(self.path.with_name(self.path.name + ".lock"))
+
+    def close(self) -> None:
+        self._writer_lock.release()
 
     @property
     def lock(self) -> asyncio.Lock:
@@ -67,8 +138,13 @@ class AuditChain:
         return (self._seq - 1 if self._seq else None, self._prev)
 
     def resume(self) -> None:
-        """Continue the chain from the last parseable line (call once, before the first append)."""
+        """Take the single-writer lock, then continue the chain from the last parseable line.
+
+        Call once, before the first append. Raises `AuditLogLocked` if another process owns the file.
+        """
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self._writer_lock._fh is None:
+            self._writer_lock.acquire()
         if not self.path.exists() or self.path.stat().st_size == 0:
             return
         with self.path.open("rb") as f:
@@ -93,7 +169,7 @@ class AuditChain:
 
     def append_locked(self, event: AuditEvent) -> AuditEvent:
         """Assign seq/prev_hash/hash and write the line. The caller MUST hold `lock`."""
-        draft = event.model_dump(mode="json")
+        draft = _scrub(event.model_dump(mode="json"))
         draft["seq"] = self._seq
         draft["prev_hash"] = self._prev
         draft["hash"] = GENESIS_HASH  # placeholder, replaced below (excluded from the hash)
@@ -101,12 +177,16 @@ class AuditChain:
         draft["hash"] = digest
         final = AuditEvent.model_validate(draft)
         line = canonical_json(draft) + "\n"
-        with self.path.open("ab") as f:
-            if self._needs_newline:
-                f.write(b"\n")
-                self._needs_newline = False
-            f.write(line.encode("utf-8"))
-            f.flush()
+        try:
+            with self.path.open("ab") as f:
+                if self._needs_newline:
+                    f.write(b"\n")
+                    self._needs_newline = False
+                f.write(line.encode("utf-8"))
+                f.flush()
+        except BaseException:
+            self._needs_newline = True  # a torn partial line must never be glued to the next record
+            raise
         self._seq += 1
         self._prev = digest
         return final

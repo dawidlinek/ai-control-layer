@@ -52,5 +52,12 @@ def install(app: FastAPI, settings: Settings) -> None:
         )
         head_seq, _ = chain.head
         log.info("audit log %s ready (head seq %s)", settings.audit_path, head_seq)
+        app.state.audit_chain = chain
+
+    async def stop(app: FastAPI) -> None:
+        chain = getattr(app.state, "audit_chain", None)
+        if chain is not None:
+            chain.close()
 
     app.state.on_startup.append(start)
+    app.state.on_shutdown.append(stop)

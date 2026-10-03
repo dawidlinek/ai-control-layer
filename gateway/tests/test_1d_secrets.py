@@ -142,8 +142,8 @@ async def test_block_is_final_and_restricted() -> None:
 
 
 async def test_preset_secret_action() -> None:
-    assert (await _run(f"k {AWS}", preset=Preset.monitor)).action == Action.monitor
-    for p in (Preset.balanced, Preset.strict, Preset.paranoid):
+    # SEC-SECRET-01 is locked (LOCK-02 "secrets never leave"): even the monitor preset cannot relax it.
+    for p in (Preset.monitor, Preset.balanced, Preset.strict, Preset.paranoid):
         assert (await _run(f"k {AWS}", preset=p)).action == Action.block
 
 

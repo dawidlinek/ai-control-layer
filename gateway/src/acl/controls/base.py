@@ -138,9 +138,26 @@ class Control(ABC):
         kwargs.setdefault("cost_tier", self.config.cost_tier)
         kwargs.setdefault("taxonomy", self.config.taxonomy)
         action = kwargs.get("action", Action.allow)
+        if self.locked and action == Action.monitor:
+            # Locked controls (org lock / `locked: true`) are never relaxed to shadow by a preset: a hit is a hit.
+            action = self.config.action or Action.block
+            kwargs["action"] = action
         if self.config.action is not None and action not in (Action.allow, Action.monitor):
             kwargs["action"] = self.config.action
+        if self.locked and kwargs.get("action") == Action.block:
+            kwargs["final"] = True
         return Verdict(**kwargs)
+
+    @property
+    def locked(self) -> bool:
+        """`locked: true` in the control config, or named by a `control_locked` org lock."""
+        cached = self.__dict__.get("_locked")
+        if cached is None:
+            policy = self.deps.get("policy")
+            ids = getattr(policy, "locked_control_ids", None)
+            cached = bool(self.config.locked or (callable(ids) and self.id in ids()))
+            self.__dict__["_locked"] = cached  # the engine's policy never changes for this instance
+        return cached
 
 
 class UnknownControlType(KeyError):

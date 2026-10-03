@@ -193,3 +193,51 @@ async def test_engine_controls_see_their_policy() -> None:
     loaded = load_policy_dir(POLICY_DIR)
     engine = Engine.build(loaded.policy, loaded.version)
     assert engine.deps.get("policy") is loaded.policy
+
+
+# ---------------------------------------------------------------- locked controls (LOCK-02: secrets never leave)
+
+
+def _locked_cfg(cid: str, **params) -> ControlConfig:
+    cfg = _cfg(cid, **params)
+    return cfg.model_copy(update={"locked": True})
+
+
+async def test_locked_control_enforced_under_never_block_preset() -> None:
+    from acl.contracts.common import Preset
+    from acl.policy.models import PresetSettings
+
+    r = _registry()
+    deps = ControlDeps()
+    p = Pipeline(
+        [r.build(_locked_cfg("T-LOCK-01", action="block"), deps), r.build(_cfg("T-OTHER-01", action="redact"), deps)],
+        GlobalSettings(),
+        presets={Preset.monitor: PresetSettings(injection_threshold=0.8, never_block=True)},
+    )
+    d = await p.run(make_context("x", preset=Preset.monitor))
+    assert d.action == Action.block and d.final
+    assert d.applied == [Action.block]  # the unlocked redact stays shadowed
+
+
+async def test_locked_control_preset_monitor_hit_becomes_block() -> None:
+    r = _registry()
+    d = await Pipeline([r.build(_locked_cfg("T-LOCK-01", action="monitor"), ControlDeps())], GlobalSettings()).run(
+        make_context("x")
+    )
+    assert d.action == Action.block and d.final
+
+
+async def test_locked_control_not_shadowed_and_monitor_mode_still_enforces_it() -> None:
+    r = _registry()
+    cfg = _locked_cfg("T-LOCK-01", action="block", mode=PolicyMode.monitor)
+    d = await Pipeline([r.build(cfg, ControlDeps())], GlobalSettings(mode=PolicyMode.monitor)).run(make_context("x"))
+    assert d.action == Action.block
+
+
+async def test_real_secrets_control_blocks_under_monitor_preset() -> None:
+    from acl.contracts.common import Preset
+
+    loaded = load_policy_dir(POLICY_DIR)
+    engine = Engine.build(loaded.policy, loaded.version)
+    d = await engine.evaluate(make_context("key AKIAIOSFODNN7EXAMPLQ please", preset=Preset.monitor))
+    assert d.action == Action.block and "SEC-SECRET-01" in d.rule_ids

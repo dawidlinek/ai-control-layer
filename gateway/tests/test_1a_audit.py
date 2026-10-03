@@ -155,6 +155,7 @@ async def test_deleted_first_line_and_garbage_line(service: AuditService) -> Non
 async def test_resume_after_restart_continues_the_chain(service: AuditService, tmp_path: Path) -> None:
     await fill(service, 3)
     head_hash = json.loads(lines(service)[-1])["hash"]
+    service.chain.close()  # the old process is gone: it released the single-writer lock
     restarted = AuditChain(service.chain.path)
     restarted.resume()
     assert restarted.resumed and restarted.head == (2, head_hash)
@@ -169,6 +170,7 @@ async def test_resume_survives_a_torn_tail(service: AuditService) -> None:
     await fill(service, 3)
     with service.chain.path.open("ab") as f:
         f.write(b'{"seq": 3, "hash": "trunc')  # crash mid-write: partial line, no newline
+    service.chain.close()
     chain = AuditChain(service.chain.path)
     chain.resume()
     assert chain.head[0] == 2  # continues from the last intact record

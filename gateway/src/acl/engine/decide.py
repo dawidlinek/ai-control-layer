@@ -5,9 +5,10 @@ Invariants (tested in gateway/tests/test_engine_decide.py):
   2. AI-tier verdicts (similarity/l1/l2) can only make the outcome stricter, never relax a
      deterministic verdict.
   3. Shadow controls (mode: monitor), monitor-mode policy and `never_block` presets (`monitor`)
-     never change the enforced action;
-     the would-be action is recorded in `would_action`.
-  4. No verdicts → allow.
+     never change the enforced action; the would-be action is recorded in `would_action`.
+  4. EXCEPT locked controls (`locked_controls`: `locked: true` or a `control_locked` org lock, e.g. LOCK-02
+     "secrets never leave"): their verdicts are always enforced, whatever the mode, preset or shadow flag.
+  5. No verdicts → allow.
 
 Phase 0: primary action = most severe verdict action. Graded risk scoring (§6.5) is added in
 Phase 2B/3A as a separate factor-composition step feeding the same invariants.
@@ -22,6 +23,7 @@ from acl.contracts.decision import Decision, Verdict
 from acl.contracts.inspection import InspectionContext
 from acl.policy.models import GlobalSettings
 
+_QUIET = (Action.allow, Action.monitor)
 _TRANSFORMS = {Action.redact, Action.pseudonymise, Action.sanitize, Action.route_local, Action.downgrade}
 
 
@@ -46,7 +48,9 @@ def compose_decision(
     latency_ms: float = 0.0,
     shadow_controls: frozenset[str] = frozenset(),
     never_block: bool = False,
+    locked_controls: frozenset[str] = frozenset(),
 ) -> Decision:
+    shadow_controls = shadow_controls - locked_controls
     enforced = [v for v in verdicts if v.control_id not in shadow_controls]
 
     primary: Verdict | None = None
@@ -79,9 +83,21 @@ def compose_decision(
     would_action: Action | None = None
     monitor_mode = settings.mode == PolicyMode.monitor or ctx.mode == PolicyMode.monitor or never_block
     if monitor_mode and action not in (Action.allow, Action.monitor):
-        would_action = action
-        action = Action.monitor
-        applied = []
+        locked_hits = [v for v in enforced if v.control_id in locked_controls and v.action not in _QUIET]
+        if locked_hits:
+            # Only locked controls stay enforced; everything else is recorded as would_action.
+            would_action = action
+            primary = max(locked_hits, key=lambda v: (ACTION_SEVERITY[v.action], v.final))
+            action = primary.action
+            applied = [a for a in applied if any(v.action == a for v in locked_hits)]
+            if action not in (Action.allow, Action.monitor) and action not in applied:
+                applied.append(action)
+            final_block = primary if primary.final and primary.action == Action.block else None
+            monitor_mode = False
+        else:
+            would_action = action
+            action = Action.monitor
+            applied = []
 
     return Decision(
         decision_id=str(uuid.uuid4()),

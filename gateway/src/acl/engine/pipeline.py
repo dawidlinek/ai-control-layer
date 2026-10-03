@@ -77,6 +77,7 @@ class Pipeline:
             latency_ms=(time.perf_counter() - started) * 1000,
             shadow_controls=frozenset(c.id for c in applicable if c.shadow),
             never_block=bool((ps := self.presets.get(ctx.preset)) and ps.never_block),
+            locked_controls=frozenset(c.id for c in applicable if c.locked),
         )
 
     async def _run_cached(self, control: Control, ctx: InspectionContext, digest: list[str]) -> Verdict:
