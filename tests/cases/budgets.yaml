@@ -1,0 +1,255 @@
+# SEC-BUDGET-01 (budget) and SEC-LOOP-01 (loop_detector): budgets, rate limits, tool-call and loop limits.
+#
+# The case runner only calls `Engine.evaluate` (never commit), so the ledger and the loop history stay empty and
+# every case here is a *stateless* trigger:
+#   * pre-dispatch estimate vs a limit: tokens = input + requested `max_tokens`, GPU-seconds from the model's
+#     `gpu_seconds_per_1k_tokens` (model `auto` is priced as the local target, 0.5 s per 1k tokens);
+#   * `session: {step, tool_depth}` carries the counters the session store would hold (tool_depth is the
+#     tool-call count of the session, step the number of model calls).
+# Tiny limits come from two fixtures in policy/budgets.yaml that no real principal can match:
+#   agent `ci-budget-probe`   tokens_session 400, gpu_seconds_session 0.1, tool_calls_session 2
+#   user  `budget-probe-user` tokens_session 400
+# Stateful behaviour (repeats, rate limit, spend spike, breaker, degrade) is covered by gateway/tests/test_2d_*.py.
+
+# ------------------------------------------------------------------ SEC-BUDGET-01
+
+- id: budget-token-overrun-blocked
+  control: SEC-BUDGET-01
+  kind: negative
+  pair: budget-token-overrun
+  principal: {username: probe, groups: [developers], agent_id: ci-budget-probe}
+  input:
+    messages: [{role: user, content: "Summarise the attached report."}]
+    params: {max_tokens: 500}
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-BUDGET-01}
+
+- id: budget-token-under-cap-allowed
+  control: SEC-BUDGET-01
+  kind: positive
+  pair: budget-token-overrun
+  principal: {username: probe, groups: [developers], agent_id: ci-budget-probe}
+  input:
+    messages: [{role: user, content: "Summarise the attached report."}]
+    params: {max_tokens: 20}
+  expect: {action: allow, rule_id: null}
+
+- id: budget-gpu-second-overrun-blocked
+  control: SEC-BUDGET-01
+  kind: negative
+  pair: budget-gpu-overrun
+  principal: {username: probe, groups: [developers], agent_id: ci-budget-probe}
+  # 305 tokens fit the 400-token session cap, but 305/1000 * 0.5 = 0.15 GPU-seconds exceed the 0.1 cap
+  input:
+    messages: [{role: user, content: "Translate this."}]
+    params: {max_tokens: 300}
+  expect: {action: block, rule_id: SEC-BUDGET-01}
+
+- id: budget-gpu-second-under-cap-allowed
+  control: SEC-BUDGET-01
+  kind: positive
+  pair: budget-gpu-overrun
+  principal: {username: probe, groups: [developers], agent_id: ci-budget-probe}
+  input:
+    messages: [{role: user, content: "Translate this."}]
+    params: {max_tokens: 100}
+  expect: {action: allow, rule_id: null}
+
+- id: budget-tool-calls-per-session-exceeded
+  control: SEC-BUDGET-01
+  kind: negative
+  pair: budget-tool-calls
+  point: tool_call
+  principal: {username: probe, groups: [developers], agent_id: ci-budget-probe}
+  session: {tool_depth: 2}
+  input: {tool: opencode.bash, arguments: {command: "ls"}}
+  expect: {action: block, rule_id: SEC-BUDGET-01}
+
+- id: budget-tool-calls-within-session-cap-allowed
+  control: SEC-BUDGET-01
+  kind: positive
+  pair: budget-tool-calls
+  point: tool_call
+  principal: {username: probe, groups: [developers], agent_id: ci-budget-probe}
+  session: {tool_depth: 1}
+  input: {tool: opencode.bash, arguments: {command: "ls"}}
+  expect: {action: allow, rule_id: null}
+
+- id: budget-user-limit-exceeded
+  control: SEC-BUDGET-01
+  kind: negative
+  pair: budget-user-limit
+  principal: {username: budget-probe-user, groups: [developers]}
+  input:
+    messages: [{role: user, content: "Explain the build failure."}]
+    params: {max_tokens: 500}
+  expect: {action: block, rule_id: SEC-BUDGET-01}
+
+- id: budget-user-soft-limit-still-allowed
+  control: SEC-BUDGET-01
+  kind: positive
+  pair: budget-user-limit
+  principal: {username: budget-probe-user, groups: [developers]}
+  # ~355 of 400 tokens: above the 80 % soft threshold, below the hard limit → allowed (a budget_breach event
+  # is raised by the commit hook, not asserted here)
+  input:
+    messages: [{role: user, content: "Explain the build failure."}]
+    params: {max_tokens: 350}
+  expect: {action: allow, rule_id: null}
+
+- id: budget-embeddings-overrun-blocked
+  control: SEC-BUDGET-01
+  kind: negative
+  pair: budget-embeddings
+  point: embeddings
+  principal: {username: budget-probe-user, groups: [developers]}
+  input:
+    kind: embeddings
+    inputs:
+      - >-
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+        Quarterly credit exposure summary for the retail banking portfolio, covering mortgage and consumer loans.
+  expect: {action: block, rule_id: SEC-BUDGET-01}
+
+- id: budget-embeddings-small-input-allowed
+  control: SEC-BUDGET-01
+  kind: positive
+  pair: budget-embeddings
+  point: embeddings
+  principal: {username: budget-probe-user, groups: [developers]}
+  input: {kind: embeddings, inputs: ["credit exposure summary"]}
+  expect: {action: allow, rule_id: null}
+
+- id: budget-ordinary-developer-prompt-allowed
+  control: SEC-BUDGET-01
+  kind: positive
+  pair: budget-ordinary
+  principal: {username: anna, groups: [developers]}
+  input: "Napisz funkcję sortującą listę."
+  expect: {action: allow, rule_id: null}
+
+# ------------------------------------------------------------------ SEC-LOOP-01
+
+- id: loop-step-limit-exceeded
+  control: SEC-LOOP-01
+  kind: negative
+  pair: loop-steps
+  principal: {username: anna, groups: [developers]}
+  session: {step: 50}
+  input: "Try the same fix again."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-LOOP-01}
+
+- id: loop-step-within-limit-allowed
+  control: SEC-LOOP-01
+  kind: positive
+  pair: loop-steps
+  principal: {username: anna, groups: [developers]}
+  session: {step: 49}
+  input: "Try the same fix again."
+  expect: {action: allow, rule_id: null}
+
+- id: loop-tool-depth-limit-exceeded
+  control: SEC-LOOP-01
+  kind: negative
+  pair: loop-depth
+  point: tool_call
+  principal: {username: anna, groups: [developers]}
+  session: {tool_depth: 8}
+  input: {tool: opencode.bash, arguments: {command: "ls"}}
+  expect: {action: block, rule_id: SEC-LOOP-01}
+
+- id: loop-tool-depth-within-limit-allowed
+  control: SEC-LOOP-01
+  kind: positive
+  pair: loop-depth
+  point: tool_call
+  principal: {username: anna, groups: [developers]}
+  session: {tool_depth: 7}
+  input: {tool: opencode.bash, arguments: {command: "ls"}}
+  expect: {action: allow, rule_id: null}
+
+- id: loop-group-step-override-exceeded
+  control: SEC-LOOP-01
+  kind: negative
+  pair: loop-group-steps
+  # groups.yaml: agents/research-bot limits.max_steps = 25 (global default 50)
+  principal: {username: service-account-agent-research-bot, groups: [agents/research-bot], agent_id: research-bot}
+  model_requested: local
+  session: {step: 25}
+  input: "Fetch the next page."
+  expect: {action: block, rule_id: SEC-LOOP-01}
+
+- id: loop-group-step-override-within-limit-allowed
+  control: SEC-LOOP-01
+  kind: positive
+  pair: loop-group-steps
+  principal: {username: service-account-agent-research-bot, groups: [agents/research-bot], agent_id: research-bot}
+  model_requested: local
+  session: {step: 24}
+  input: "Fetch the next page."
+  expect: {action: allow, rule_id: null}
+
+- id: loop-group-depth-override-exceeded
+  control: SEC-LOOP-01
+  kind: negative
+  pair: loop-group-depth
+  point: tool_call
+  # groups.yaml: agents/research-bot limits.max_tool_depth = 5 (global default 8)
+  principal: {username: service-account-agent-research-bot, groups: [agents/research-bot], agent_id: research-bot}
+  session: {tool_depth: 5}
+  input: {tool: files.read_file, arguments: {path: /data/report.txt}}
+  expect: {action: block, rule_id: SEC-LOOP-01}
+
+- id: loop-group-depth-override-within-limit-allowed
+  control: SEC-LOOP-01
+  kind: positive
+  pair: loop-group-depth
+  point: tool_call
+  principal: {username: service-account-agent-research-bot, groups: [agents/research-bot], agent_id: research-bot}
+  session: {tool_depth: 4}
+  input: {tool: files.read_file, arguments: {path: /data/report.txt}}
+  expect: {action: allow, rule_id: null}
+
+- id: loop-tool-call-after-too-many-steps
+  control: SEC-LOOP-01
+  kind: negative
+  pair: loop-tool-steps
+  point: tool_call
+  principal: {username: anna, groups: [developers]}
+  session: {step: 51, tool_depth: 1}
+  input: {tool: opencode.bash, arguments: {command: "ls"}}
+  expect: {action: block, rule_id: SEC-LOOP-01}
+
+- id: loop-tool-call-at-the-step-limit-allowed
+  control: SEC-LOOP-01
+  kind: positive
+  pair: loop-tool-steps
+  point: tool_call
+  principal: {username: anna, groups: [developers]}
+  session: {step: 50, tool_depth: 1}
+  input: {tool: opencode.bash, arguments: {command: "ls"}}
+  expect: {action: allow, rule_id: null}
+
+- id: loop-long-running-agent-within-limits-allowed
+  control: SEC-LOOP-01
+  kind: positive
+  pair: loop-deep-agent
+  principal: {username: anna, groups: [developers]}
+  session: deep_agent
+  input: "Continue with the next file."
+  expect: {action: allow, rule_id: null}

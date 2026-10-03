@@ -44,6 +44,7 @@ INSTALLERS: list[str] = [
     "acl.sessions.wiring:install",  # orchestrator: session store (labels, steps) + flow hooks list
     "acl.controls.pii.wiring:install",  # 1D: pseudonymisation vault (control service "vault")
     "acl.feed.wiring:install",  # 1D: signature store + feed sync (control service "signatures")
+    "acl.budgets.wiring:install",  # 2D: budget ledger, breakers, loop tracker, flow hooks (service "budgets")
     "acl.policy.wiring:install",  # 1B: policy service builds/swaps the engine; keep last
 ]
 
