@@ -250,16 +250,20 @@ class SseListener:
 
 
 def add_feed_rule(stack: Stack, entry: dict[str, Any]) -> bool:
-    """Publish a signature entry through the feed server's admin endpoint.
+    """Publish a signature entry through the feed server's admin endpoint (`feed-server/server.py`).
 
-    ASSUMED interface (Phase 1D extends the stand-in feed server): `POST {feed}/admin/rules` with a
-    `SignatureEntry` JSON body publishes a new bundle version containing it; `DELETE {feed}/admin/rules/{id}`
-    removes it again. Returns False when the feed server offers no such endpoint (the test then skips).
+    `POST {feed}/entries` (bearer `FEED_ADMIN_TOKEN`) upserts the entry and publishes a new bundle version;
+    `DELETE {feed}/entries/{id}` removes it again. Returns False when editing is unavailable (the test skips).
     """
-    r = stack.http.post(f"{stack.cfg.feed}/admin/rules", json=entry)
+    r = stack.http.post(f"{stack.cfg.feed}/entries", json=entry, headers=_feed_auth())
     return r.status_code in (200, 201, 202, 204)
+
+
+def _feed_auth() -> dict[str, str]:
+    token = env_value("FEED_ADMIN_TOKEN")
+    return {"Authorization": f"Bearer {token}"} if token else {}
 
 
 def remove_feed_rule(stack: Stack, rule_id: str) -> None:
     with contextlib.suppress(httpx.HTTPError):
-        stack.http.delete(f"{stack.cfg.feed}/admin/rules/{rule_id}")
+        stack.http.delete(f"{stack.cfg.feed}/entries/{rule_id}", headers=_feed_auth())

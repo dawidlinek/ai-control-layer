@@ -253,8 +253,8 @@ async def test_presets_map_to_actions() -> None:
     expected = {
         Preset.monitor: Action.monitor,
         Preset.balanced: Action.pseudonymise,
-        Preset.strict: Action.route_local,
-        Preset.paranoid: Action.route_local,
+        Preset.strict: Action.pseudonymise,
+        Preset.paranoid: Action.pseudonymise,
     }
     for preset, action in expected.items():
         _, d = await _run(eng, f"PESEL {PESEL}", preset=preset)

@@ -34,7 +34,7 @@ presets:
     injection_threshold: 0.50
     judge_band: [0.2, 0.9]
     judge_on: outbound
-    pii_action: route_local
+    pii_action: pseudonymise   # + routing keeps confidential data local (sensitivity high → local_only, LOCK-01)
     secret_action: block
     tool_mode: allowlist
     rule_of_two_action: block
@@ -43,7 +43,7 @@ presets:
     injection_threshold: 0.30
     judge_band: [0.1, 0.95]
     judge_on: all
-    pii_action: route_local
+    pii_action: pseudonymise
     secret_action: block
     tool_mode: allowlist
     taint_mode: full

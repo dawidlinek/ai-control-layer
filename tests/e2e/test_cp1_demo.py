@@ -85,7 +85,7 @@ def test_cp1_feed_rule_blocks_next_matching_request(stack, sse) -> None:
         "source": "internal",
     }
     if not add_feed_rule(stack, entry):
-        pytest.skip("feed server has no rule-publishing endpoint (POST /admin/rules); Phase 1D to provide")
+        pytest.skip("feed server rule publishing unavailable (POST /entries; FEED_ADMIN_TOKEN set?)")
     try:
         synced = stack.admin("POST", "/feed/sync")
         assert synced.status_code == 200, f"feed sync failed: HTTP {synced.status_code} {synced.text[:200]}"
@@ -129,7 +129,7 @@ def test_cp1_policy_hot_reload_changes_next_request_within_2s(stack, sse) -> Non
         )
     original = groups_file.read_bytes()
     text = original.decode("utf-8")
-    new_text, n = re.subn(r"(credit-analysts:\s*\n(?:[^\n]*\n)*?\s+preset:\s*)strict", r"\1balanced", text, count=1)
+    new_text, n = re.subn(r"(credit-analysts:\s*\n(?:[^\n]*\n)*?\s+preset:\s*)strict", r"\1monitor", text, count=1)
     assert n == 1, "could not find `preset: strict` under credit-analysts in groups.yaml"
 
     prompt = f"Mój PESEL to {PESEL_EXAMPLE}."
@@ -149,7 +149,7 @@ def test_cp1_policy_hot_reload_changes_next_request_within_2s(stack, sse) -> Non
                 break
             time.sleep(0.1)
         assert version1 != version0, f"policy version unchanged {HOT_RELOAD_DEADLINE_S}s after the edit"
-        if action0 not in ("allow", "monitor"):  # the PII control is live: strict vs balanced must differ
+        if action0 not in ("allow", "monitor"):  # the PII control is live: strict vs monitor must differ
             assert action1 != action0, f"preset change did not change the decision (still {action0})"
     finally:
         groups_file.write_bytes(original)  # never leave policy/ modified

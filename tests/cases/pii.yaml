@@ -13,7 +13,7 @@
     action: pseudonymise
     rule_id: SEC-PII-01
     redaction: {not_contains: ["44051401359"]}
-  matrix: {balanced: pseudonymise, strict: route_local, paranoid: route_local}
+  matrix: {balanced: pseudonymise, strict: pseudonymise, paranoid: pseudonymise}
 
 - id: pii-pesel-monitor-preset-never-enforces
   control: SEC-PII-01
