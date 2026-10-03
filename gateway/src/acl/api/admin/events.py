@@ -20,12 +20,14 @@ from acl.audit.incidents import incident_from_row
 from acl.contracts.admin import (
     ChainVerifyResult,
     EventSummary,
+    EventTrace,
     GuardQualitySummary,
     Incident,
     IncidentNote,
     IncidentPatch,
     OverviewSummary,
     PerformanceSummary,
+    SessionTranscript,
 )
 from acl.contracts.audit import AuditEvent, EventType
 from acl.contracts.common import Action, InspectionPoint, Severity
@@ -114,6 +116,16 @@ async def get_event(request: Request, event_id: str, p: Viewer) -> AuditEvent:
     if event is None:
         raise HTTPException(404, detail="event not found")
     return event
+
+
+@router.get("/events/{event_id}/trace", response_model=EventTrace, operation_id="getEventTrace")
+async def get_event_trace(request: Request, event_id: str, p: Viewer) -> EventTrace:
+    not_implemented("event trace")
+
+
+@router.get("/sessions/{session_id}/transcript", response_model=SessionTranscript, operation_id="getSessionTranscript")
+async def get_session_transcript(request: Request, session_id: str, p: Analyst, limit: int = 500) -> SessionTranscript:
+    not_implemented("session transcript")
 
 
 @router.get("/incidents", response_model=list[Incident], operation_id="listIncidents")

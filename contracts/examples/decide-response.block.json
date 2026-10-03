@@ -13,7 +13,8 @@
     "integrity": "trusted",
     "confidentiality": "public",
     "taint": [],
-    "sources": []
+    "sources": [],
+    "since": null
   },
   "policy_version": "f2ea2e81c6b4"
 }

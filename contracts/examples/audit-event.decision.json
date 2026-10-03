@@ -105,7 +105,8 @@
     ],
     "sources": [
       "SEC-PII-01"
-    ]
+    ],
+    "since": null
   },
   "versions": {
     "policy": "f2ea2e81c6b4",
@@ -130,5 +131,5 @@
   "redacted_payload": "Klient PESEL <PESEL_1>, IBAN <IBAN_1> prosi o kredyt 200 000 zł.",
   "detail": {},
   "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "hash": "c4b6641fd97f4b98a011835de858e77b64e84b80304ce9dca89cc424eb3b7fc2"
+  "hash": "36a43fb01c0db969cdf5e46985b78b174ca7f1bb337f9fe4a9dc0fc4cf1278fc"
 }

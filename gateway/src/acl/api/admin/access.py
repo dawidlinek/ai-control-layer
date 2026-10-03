@@ -20,6 +20,9 @@ from acl.contracts.admin import (
     GrantChange,
     GrantCreate,
     Group,
+    GroupSettingsPreview,
+    GroupSettingsUpdate,
+    PolicyStatus,
     User,
 )
 from acl.contracts.audit import EventType
@@ -126,6 +129,27 @@ async def list_groups(request: Request, p: Viewer) -> list[Group]:
             )
         )
     return out
+
+
+@router.get("/groups/{name:path}/detail", response_model=Group, operation_id="getGroup")
+async def get_group(request: Request, name: str, p: Viewer) -> Group:
+    not_implemented("group detail")
+
+
+@router.post(
+    "/groups/{name:path}/settings/preview", response_model=GroupSettingsPreview, operation_id="previewGroupSettings"
+)
+async def preview_group_settings(
+    request: Request, name: str, body: GroupSettingsUpdate, p: Analyst
+) -> GroupSettingsPreview:
+    """Draft → validate → impact (dry-run on recent traffic). Writes nothing."""
+    not_implemented("group settings preview")
+
+
+@router.put("/groups/{name:path}/settings", response_model=PolicyStatus, operation_id="updateGroupSettings")
+async def update_group_settings(request: Request, name: str, body: GroupSettingsUpdate, p: Admin) -> PolicyStatus:
+    """Save group settings through the policy writer as a new policy version (validated, hot-reloaded)."""
+    not_implemented("group settings")
 
 
 @router.get("/grants", response_model=list[Grant], operation_id="listGrants")

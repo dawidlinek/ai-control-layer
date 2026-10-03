@@ -1336,6 +1336,20 @@
           },
           "title": "Sources",
           "type": "array"
+        },
+        "since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When `confidentiality` rose to its current level (the high-water mark time).",
+          "title": "Since"
         }
       },
       "title": "SessionLabels",
