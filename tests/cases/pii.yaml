@@ -62,7 +62,9 @@
   pair: pii-pesel
   point: tool_call
   input: {tool: mail.send, arguments: {to: "anna@corp.example", subject: "Dane", body: "PESEL 44051401359"}}
-  expect: {action: pseudonymise, rule_id: SEC-PII-01}
+  # Detected and reported, arguments untouched (`tool_call_action: monitor`); the session becomes confidential,
+  # so Rule of Two / recipient checks govern where it may go.
+  expect: {action: monitor, rule_id: SEC-PII-01}
 
 - id: pii-pesel-in-tool-result
   control: SEC-PII-01

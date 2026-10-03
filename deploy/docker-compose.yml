@@ -102,6 +102,9 @@ services:
       LOCAL_JUDGE_MODEL: ${LOCAL_JUDGE_MODEL:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"   # reach an SSH tunnel on the host (scripts/wcss.py tunnel)
+    networks:
+      default: {}
+      acl-clients-internal: {aliases: [gateway]}   # the locked OpenCode container's only route (compose.clients.yml)
     volumes:
       - ../policy:/policy            # single writer = the gateway's policy service
       - audit:/data/audit

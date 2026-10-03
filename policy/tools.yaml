@@ -58,6 +58,35 @@ tools:
     default_tier: deny
     checkers:
       - {type: url, field: url}
+  opencode.glob:
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path, params: {workspace_only: true}}
+  opencode.grep:
+    labels: [touches_sensitive]
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path, params: {workspace_only: true}}
+  opencode.list:
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path, params: {workspace_only: true}}
+  opencode.patch:
+    capabilities: [filesystem]
+    default_tier: allow
+  opencode.todowrite:
+    default_tier: allow
+  opencode.todoread:
+    default_tier: allow
+  opencode.task:
+    description: Spawns a sub-agent; its own tool calls are checked individually
+    default_tier: allow
+  opencode.skill:
+    description: Loads a skill; skills can carry instructions (ClawHavoc) — confirm unless allow-listed
+    default_tier: confirm
 
   # ---- MCP tools ----------------------------------------------------------------------
   files.read_file:

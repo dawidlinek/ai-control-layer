@@ -46,6 +46,14 @@ groups:
       opencode.edit: {}
       opencode.bash: {}
       opencode.webfetch: {tier: deny}
+      opencode.glob: {}
+      opencode.grep: {path_deny: ["**/.ssh/**", "**/.env", "**/.aws/**"]}
+      opencode.list: {}
+      opencode.patch: {}
+      opencode.todowrite: {}
+      opencode.todoread: {}
+      opencode.task: {}
+      opencode.skill: {}
       files.read_file: {}
       web.fetch: {}
       mail.read: {}

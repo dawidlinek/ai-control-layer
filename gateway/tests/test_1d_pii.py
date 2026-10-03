@@ -374,8 +374,10 @@ async def test_egress_and_tool_call_are_scanned() -> None:
         {"tool": "mail.send", "arguments": {"to": "x@y.pl", "body": f"PESEL {PESEL}"}},
         point=InspectionPoint.tool_call,
     )
-    assert d.action == Action.pseudonymise
+    # tool arguments are not rewritten (tool_call_action: monitor) but the PII is found and raises the session
+    assert d.action == Action.monitor
     assert {f.field for f in _pii_verdict(d).findings} >= {"arguments.body"}
+    assert d.labels_after.confidentiality.value == "confidential"
 
 
 async def test_config_action_override_and_block_is_final() -> None:

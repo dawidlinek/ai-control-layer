@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from acl.contracts.common import Action, DataClass, Phase
+from acl.contracts.common import Action, DataClass, InspectionPoint, Phase
 from acl.contracts.decision import Decision, Finding, Verdict
 from acl.contracts.inspection import InspectionContext
 from acl.controls.base import Control, ControlDeps, register_control
@@ -34,6 +34,11 @@ class PiiParams(BaseModel):
 
     entities: list[str] = list(ALL_ENTITIES)
     scan_line_joined: bool = True
+    # Tool-call arguments go to the tool as-is: PII there is detected (raises the session data class, which
+    # feeds Rule of Two / routing) but not rewritten, or a legitimate `send_email` to a colleague would
+    # arrive as `<EMAIL_1>`. Exfiltration via tool calls is governed by SEC-TOOL-01 recipient/url checkers,
+    # SEC-EXFIL-01 and SEC-FLOW-01. Set to `block`/`redact` for stricter deployments.
+    tool_call_action: Action = Action.monitor
 
 
 @register_control
@@ -54,6 +59,8 @@ class PiiControl(Control):
         p: PiiParams = self.params  # type: ignore[assignment]
         settings = self.preset_settings(ctx)
         action = settings.pii_action if settings is not None else Action.pseudonymise
+        if ctx.point == InspectionPoint.tool_call and action not in (Action.block, Action.monitor):
+            action = p.tool_call_action
         entities = tuple(p.entities)
         joinable = tuple(e for e in entities if e in JOINABLE)
 

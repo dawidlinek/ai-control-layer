@@ -1,7 +1,10 @@
 #!/bin/bash
 # Serve one model with vLLM (OpenAI-compatible) on a Lem H100 for the AI Control Layer gateway.
 #   sbatch --parsable -A <account> deploy/wcss/serve.sbatch
-# Publishes "<node> <port> <jobid>" to $PD/serve/endpoint; reach it with `uv run python scripts/wcss.py tunnel`.
+# Publishes "<host> <port> <jobid>" to $PD/serve/endpoint; reach it with `uv run python scripts/wcss.py tunnel`.
+# The login node cannot open TCP to compute nodes, so the job dials out instead: a reverse forward to
+# 127.0.0.1:<port> on ui.wcss.pl with ~/.ssh/acl_tunnel, whose authorized_keys line is
+#   restrict,port-forwarding,permitlisten="127.0.0.1:*",from="10.*,156.17.*" ssh-ed25519 ... acl-tunnel
 # The endpoint requires the API key in $PD/.llm_api_key (mode 600; same value as LOCAL_LLM_API_KEY in .env).
 # Two runtimes: the venv archive built by setup.sbatch (default), or an existing vLLM apptainer image
 # with weights resolved offline from an HF cache:
@@ -60,14 +63,23 @@ else
     VLLM=("$TMPDIR/venv/bin/vllm")
 fi
 
-echo "$(hostname -s) $PORT $SLURM_JOB_ID" > "$PD/serve/endpoint"
+TUNNEL_KEY="${TUNNEL_KEY:-$HOME/.ssh/acl_tunnel}"
+ENDPOINT_HOST="$(hostname -s)" BIND=0.0.0.0
+if [ -s "$TUNNEL_KEY" ]; then
+    # one attempt, no retry loop (WCSS safety rule); the job's cgroup ends it with the job
+    ssh -i "$TUNNEL_KEY" -o BatchMode=yes -o NumberOfPasswordPrompts=0 -o StrictHostKeyChecking=accept-new \
+        -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -N \
+        -R "127.0.0.1:$PORT:127.0.0.1:$PORT" ui.wcss.pl > "$PD/runs/${SLURM_JOB_ID}-tunnel.log" 2>&1 &
+    ENDPOINT_HOST=localhost BIND=127.0.0.1   # reachable only through the tunnel
+fi
+echo "$ENDPOINT_HOST $PORT $SLURM_JOB_ID" > "$PD/serve/endpoint"
 LOG="$PD/runs/${SLURM_JOB_ID}-serve.log"
-echo "serving $MODEL as $SERVED_NAME on $(hostname -s):$PORT, log $LOG"
+echo "serving $MODEL as $SERVED_NAME on $(hostname -s) $BIND:$PORT (endpoint $ENDPOINT_HOST), log $LOG"
 
 # API key read from a file by the shell; vLLM reads VLLM_API_KEY (never on the command line / in the log).
 VLLM_API_KEY="$(cat "$PD/.llm_api_key")" exec "${VLLM[@]}" serve "$MODEL" \
     --served-model-name "$SERVED_NAME" \
-    --host 0.0.0.0 --port "$PORT" \
+    --host "$BIND" --port "$PORT" \
     --max-model-len "$MAX_LEN" \
     --max-num-seqs "$MAX_SEQS" \
     --gpu-memory-utilization 0.90 \
