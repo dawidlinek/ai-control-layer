@@ -1,0 +1,348 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Approvals.dc.html": {
+      "expand": "fill",
+      "h": 1060,
+      "is_interactive": true,
+      "title": "Approvals",
+      "w": 1440,
+      "x": 0,
+      "y": 1400
+    },
+    "Components.dc.html": {
+      "h": 1040,
+      "title": "Vocabulary and components",
+      "w": 1200,
+      "x": 0,
+      "y": 2580
+    },
+    "Dashboard.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "page": "app",
+      "title": "1 · Overview",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "LiveTraffic.dc.html": {
+      "expand": "fill",
+      "h": 1120,
+      "is_interactive": true,
+      "page": "app",
+      "title": "2 · Traffic",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Logo.dc.html": {
+      "h": 780,
+      "page": "styles",
+      "title": "Rogatka — logo proposals",
+      "w": 1320,
+      "x": 3520,
+      "y": 1460
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "Overview (from style A)",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "OverviewA-Console.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "page": "styles",
+      "title": "A — Console (refined)",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "OverviewB-Minimal.dc.html": {
+      "expand": "fill",
+      "h": 1220,
+      "is_interactive": true,
+      "page": "styles",
+      "title": "B — Minimal",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "OverviewC-Editorial.dc.html": {
+      "expand": "fill",
+      "h": 1340,
+      "is_interactive": true,
+      "page": "styles",
+      "title": "C — Editorial report",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "OverviewD-Terminal.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "is_interactive": true,
+      "page": "styles",
+      "title": "D — Terminal",
+      "w": 1440,
+      "x": 0,
+      "y": 1460
+    },
+    "OverviewE-Soft.dc.html": {
+      "expand": "fill",
+      "h": 1120,
+      "is_interactive": true,
+      "page": "styles",
+      "title": "E — Soft",
+      "w": 1440,
+      "x": 1520,
+      "y": 1460
+    },
+    "Policies.dc.html": {
+      "expand": "fill",
+      "h": 1060,
+      "is_interactive": true,
+      "title": "Policies — draft and impact",
+      "w": 1440,
+      "x": 1520,
+      "y": 1400
+    },
+    "Traffic.dc.html": {
+      "expand": "fill",
+      "h": 1280,
+      "is_interactive": true,
+      "title": "Live traffic + decision trace",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "User360.dc.html": {
+      "expand": "fill",
+      "h": 1100,
+      "is_interactive": true,
+      "title": "User 360 — Jan Kowalski (new, for review)",
+      "w": 1440,
+      "x": 3040,
+      "y": 1400
+    },
+    "Incidents.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "3 · Incidents",
+      "w": 1440,
+      "h": 1060,
+      "x": 3040,
+      "y": 0
+    },
+    "ApprovalsQueue.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "4 · Approvals",
+      "w": 1440,
+      "h": 1160,
+      "x": 4560,
+      "y": 0
+    },
+    "UsersGroups.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "5 · Users & groups — People tab",
+      "w": 1440,
+      "h": 1000,
+      "x": 0,
+      "y": 1300
+    },
+    "Grants.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "6 · Grants",
+      "w": 1440,
+      "h": 780,
+      "x": 1520,
+      "y": 1300
+    },
+    "PolicyEditor.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "7 · Policies",
+      "w": 1440,
+      "h": 1000,
+      "x": 3040,
+      "y": 1300
+    },
+    "ModelsConnectors.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "8 · Models & connectors",
+      "w": 1440,
+      "h": 920,
+      "x": 0,
+      "y": 2420
+    },
+    "ToolsMcp.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "9 · Tools & MCP",
+      "w": 1440,
+      "h": 880,
+      "x": 1520,
+      "y": 2420
+    },
+    "FeedArtifacts.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "10 · Known threats",
+      "w": 1440,
+      "h": 860,
+      "x": 3040,
+      "y": 2420
+    },
+    "Budgets.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "11 · Budgets & spend",
+      "w": 1440,
+      "h": 920,
+      "x": 4560,
+      "y": 2420
+    },
+    "Insights.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "12 · Automation Insights",
+      "w": 1440,
+      "h": 800,
+      "x": 0,
+      "y": 3480
+    },
+    "UsersGroupsGroups.dc.html": {
+      "page": "app",
+      "expand": "fill",
+      "is_interactive": true,
+      "title": "5b · Users & groups — Groups tab (managing a group)",
+      "w": 1440,
+      "h": 1000,
+      "x": 4560,
+      "y": 1300
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-03T15:30:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "page": "app",
+    "view": "canvas"
+  },
+  "notes": {
+    "appNext": {
+      "fill": "blue",
+      "page": "app",
+      "text": "Sidebar: Overview · Monitor (Traffic, Incidents, Approvals) · Access (Users & groups, Grants) · Govern (Policies, Models & connectors, Tools & MCP, Known threats, Budgets & spend) · Optimise (Automation Insights).\n\nPattern everywhere: list with filters, click a row to open details in a sidebar.",
+      "w": 360,
+      "x": 6080,
+      "y": 0
+    },
+    "appTitle": {
+      "kind": "title1",
+      "maxW": 6000,
+      "page": "app",
+      "text": "Rogatka Dashboard — final screens in menu order",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "levers": {
+      "fill": "blue",
+      "text": "Styling levers (select an artboard → Tweaks): theme dark / light, accent colour, badge style tint / outline / solid, density compact / comfortable. The profile menu (top right) also switches the theme in Play.\n\nIn Play, the sidebar links move between Overview, Live traffic, Approvals, Policies and Users & groups (User 360).",
+      "w": 360,
+      "x": 3040,
+      "y": 0
+    },
+    "stylesGuide": {
+      "fill": "teal",
+      "page": "styles",
+      "text": "Same facts on every board, so you compare style only.\n\nA Console — dense SOC tool, dark, IBM Plex.\nB Minimal — no cards, one sentence answers the 3 questions, Geist.\nC Editorial — report for management, serif headline, Newsreader.\nD Terminal — keyboard-first, all mono, phosphor accent.\nE Soft — rounded cards, icons, friendly SaaS, Plus Jakarta Sans.\n\nEach board has its own Tweaks (theme, accent, radius / ink / phosphor, density). Tell me the winner — or mix, e.g. B's layout with A's badges.",
+      "w": 380,
+      "x": 3040,
+      "y": 1460
+    },
+    "stylesTitle": {
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "styles",
+      "text": "Overview — five candidate styles, same content",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "title": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "Rogatka Dashboard — selected screens",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Traffic.dc.html",
+    "Approvals.dc.html",
+    "Policies.dc.html",
+    "Components.dc.html",
+    "User360.dc.html",
+    "OverviewA-Console.dc.html",
+    "OverviewB-Minimal.dc.html",
+    "OverviewC-Editorial.dc.html",
+    "OverviewD-Terminal.dc.html",
+    "OverviewE-Soft.dc.html",
+    "Logo.dc.html",
+    "Dashboard.dc.html",
+    "LiveTraffic.dc.html",
+    "Incidents.dc.html",
+    "ApprovalsQueue.dc.html",
+    "UsersGroups.dc.html",
+    "Grants.dc.html",
+    "PolicyEditor.dc.html",
+    "ModelsConnectors.dc.html",
+    "ToolsMcp.dc.html",
+    "FeedArtifacts.dc.html",
+    "Budgets.dc.html",
+    "Insights.dc.html",
+    "UsersGroupsGroups.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "screens",
+      "name": "Screens"
+    },
+    {
+      "id": "styles",
+      "name": "Overview styles"
+    },
+    {
+      "id": "app",
+      "name": "Rogatka Dashboard"
+    }
+  ],
+  "title": "Rogatka Dashboard"
+}

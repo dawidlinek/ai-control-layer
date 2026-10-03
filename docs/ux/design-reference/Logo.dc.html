@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rogatka — logo proposals</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1320px; box-sizing: border-box; padding: 40px; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; background: {{c.bg}}; color: {{c.text}}; display: flex; flex-direction: column; gap: 28px">
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em">Rogatka — logo proposals</h1>
+    <p style="margin: 0; color: {{c.muted}}; font-size: 15px">Every AI request passes the gate.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+
+    <section style="display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: 12px; background: {{c.surface}}; border: 1px solid {{c.border}}">
+      <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: {{c.muted}}">1</span><h2 style="margin: 0; font-size: 16px; font-weight: 600">Szlaban</h2><span style="color: {{c.muted}}">raised boom barrier</span></div>
+      <div style="display: flex; justify-content: center; padding: 8px 0">
+        <span style="display: inline-flex; width: 200px; height: 200px; border-radius: 44px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}">
+          <svg width="128" height="128" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6.5 21V9.5 M3.5 21h6" stroke-width="2.2"></path><path d="M6.5 10L21 4" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="3.4 2.2"></path><circle cx="6.5" cy="10" r="2" fill="currentColor" stroke="none"></circle></svg>
+        </span>
+      </div>
+      <sc-for list="{{lockups}}" as="l" hint-placeholder-count="2">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 8px; background: {{l.bg}}; color: {{l.fg}}; border: 1px solid {{l.bd}}">
+          <span style="display: inline-flex; width: 28px; height: 28px; border-radius: 7px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6.5 21V9.5 M3.5 21h6" stroke-width="2.2"></path><path d="M6.5 10L21 4" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="3.4 2.2"></path><circle cx="6.5" cy="10" r="2" fill="currentColor" stroke="none"></circle></svg></span>
+          <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Rogatka <span style="font-weight: 400; color: {{l.muted}}">Dashboard</span></span>
+        </div>
+      </sc-for>
+      <div style="display: flex; align-items: flex-end; gap: 16px">
+        <sc-for list="{{sizes}}" as="z" hint-placeholder-count="4">
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+            <span style="display: inline-flex; width: {{z.px}}px; height: {{z.px}}px; border-radius: {{z.r}}px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="{{z.icon}}" height="{{z.icon}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6.5 21V9.5 M3.5 21h6" stroke-width="2.2"></path><path d="M6.5 10L21 4" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="3.4 2.2"></path><circle cx="6.5" cy="10" r="2" fill="currentColor" stroke="none"></circle></svg></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{c.muted}}">{{z.px}}</span>
+          </span>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: 12px; background: {{c.surface}}; border: 1px solid {{c.border}}">
+      <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: {{c.muted}}">2</span><h2 style="margin: 0; font-size: 16px; font-weight: 600">R-gate</h2><span style="color: {{c.muted}}">monogram, barrier as the leg</span></div>
+      <div style="display: flex; justify-content: center; padding: 8px 0">
+        <span style="display: inline-flex; width: 200px; height: 200px; border-radius: 44px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}">
+          <svg width="128" height="128" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21V4h6a4.5 4.5 0 0 1 0 9H7" stroke-width="2.4"></path><path d="M11.5 13.5l8.5 7.5" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="2.6 1.9"></path></svg>
+        </span>
+      </div>
+      <sc-for list="{{lockups}}" as="l" hint-placeholder-count="2">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 8px; background: {{l.bg}}; color: {{l.fg}}; border: 1px solid {{l.bd}}">
+          <span style="display: inline-flex; width: 28px; height: 28px; border-radius: 7px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21V4h6a4.5 4.5 0 0 1 0 9H7" stroke-width="2.4"></path><path d="M11.5 13.5l8.5 7.5" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="2.6 1.9"></path></svg></span>
+          <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Rogatka <span style="font-weight: 400; color: {{l.muted}}">Dashboard</span></span>
+        </div>
+      </sc-for>
+      <div style="display: flex; align-items: flex-end; gap: 16px">
+        <sc-for list="{{sizes}}" as="z" hint-placeholder-count="4">
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+            <span style="display: inline-flex; width: {{z.px}}px; height: {{z.px}}px; border-radius: {{z.r}}px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="{{z.icon}}" height="{{z.icon}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21V4h6a4.5 4.5 0 0 1 0 9H7" stroke-width="2.4"></path><path d="M11.5 13.5l8.5 7.5" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="2.6 1.9"></path></svg></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{c.muted}}">{{z.px}}</span>
+          </span>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: 12px; background: {{c.surface}}; border: 1px solid {{c.border}}">
+      <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: {{c.muted}}">3</span><h2 style="margin: 0; font-size: 16px; font-weight: 600">Checkpoint</h2><span style="color: {{c.muted}}">gate with a request passing</span></div>
+      <div style="display: flex; justify-content: center; padding: 8px 0">
+        <span style="display: inline-flex; width: 200px; height: 200px; border-radius: 44px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}">
+          <svg width="128" height="128" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M4 21V8 M20 21V8 M2 21h4 M18 21h4" stroke-width="2.2"></path><path d="M4 10.5h16" stroke-width="2.8" stroke-linecap="butt" stroke-dasharray="2.7 1.9"></path><circle cx="12" cy="16.5" r="2.2" fill="currentColor" stroke="none"></circle></svg>
+        </span>
+      </div>
+      <sc-for list="{{lockups}}" as="l" hint-placeholder-count="2">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 8px; background: {{l.bg}}; color: {{l.fg}}; border: 1px solid {{l.bd}}">
+          <span style="display: inline-flex; width: 28px; height: 28px; border-radius: 7px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M4 21V8 M20 21V8 M2 21h4 M18 21h4" stroke-width="2.2"></path><path d="M4 10.5h16" stroke-width="2.8" stroke-linecap="butt" stroke-dasharray="2.7 1.9"></path><circle cx="12" cy="16.5" r="2.2" fill="currentColor" stroke="none"></circle></svg></span>
+          <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Rogatka <span style="font-weight: 400; color: {{l.muted}}">Dashboard</span></span>
+        </div>
+      </sc-for>
+      <div style="display: flex; align-items: flex-end; gap: 16px">
+        <sc-for list="{{sizes}}" as="z" hint-placeholder-count="4">
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+            <span style="display: inline-flex; width: {{z.px}}px; height: {{z.px}}px; border-radius: {{z.r}}px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="{{z.icon}}" height="{{z.icon}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M4 21V8 M20 21V8 M2 21h4 M18 21h4" stroke-width="2.2"></path><path d="M4 10.5h16" stroke-width="2.8" stroke-linecap="butt" stroke-dasharray="2.7 1.9"></path><circle cx="12" cy="16.5" r="2.2" fill="currentColor" stroke="none"></circle></svg></span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{c.muted}}">{{z.px}}</span>
+          </span>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","section":"Style"},"accent":{"editor":"color","options":["#4C8DFF","#2BB3A3","#D97757","#A78BFA"],"default":"#4C8DFF","section":"Style"},"$preview":{"width":1320,"height":780}}'>
+function shade(hex, t) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const f = (v) => Math.round(v * (1 - t)).toString(16).padStart(2, '0');
+  return '#' + f((n >> 16) & 255) + f((n >> 8) & 255) + f(n & 255);
+}
+class Component extends DCLogic {
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') !== 'light';
+    const accent = this.props.accent ?? '#4C8DFF';
+    const c = dark
+      ? { bg: '#0e1013', surface: '#15181c', border: '#272c33', text: '#e7e9ec', muted: '#9ba4ae' }
+      : { bg: '#f3f4f6', surface: '#ffffff', border: '#dce0e5', text: '#14171b', muted: '#56606b' };
+    c.accent = dark ? accent : shade(accent, 0.32);
+    c.onAccent = dark ? '#0e1013' : '#ffffff';
+    return {
+      c: c,
+      lockups: [
+        { bg: '#0e1013', fg: '#e7e9ec', muted: '#9ba4ae', bd: '#272c33' },
+        { bg: '#ffffff', fg: '#14171b', muted: '#56606b', bd: '#dce0e5' }
+      ],
+      sizes: [64, 40, 24, 16].map((px) => ({ px: px, r: Math.round(px * 0.22), icon: Math.round(px * 0.68) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

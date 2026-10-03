@@ -1,5 +1,7 @@
 # Admin panel UX
 
+> **Start with [HANDOFF.md](HANDOFF.md).** It holds the final, reduced scope (12 screens), the visual design, and the decisions made after the documents below were written. Where they disagree, HANDOFF.md wins. Final screen sources: [design-reference/](design-reference/).
+
 *Status: deliverables 1–3 done and waiting for review (2026-10-03). Steps 4–7 (design system, high-fidelity, mock data, prototype) start after review.*
 *Source of truth: [`../CONCEPT.md`](../CONCEPT.md). Brief: [`../prompts/admin-panel-ux.md`](../prompts/admin-panel-ux.md).*
 

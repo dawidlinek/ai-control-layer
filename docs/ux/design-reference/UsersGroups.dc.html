@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Users &amp; groups — Rogatka Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#7cb4ff}a:hover{color:#a9cdff}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #7cb4ff;outline-offset:2px}
+</style>
+</helmet>
+<div style="font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; background: {{c.bg}}; color: {{c.text}}; min-height: 100vh">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 8px 16px; background: {{c.surface}}; border-bottom: 1px solid {{c.border}}; font-size: 12.5px">
+  <a href="Dashboard.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: {{c.text}}; font-weight: 600; font-size: 13.5px; margin-right: 8px">
+    <span style="display: inline-flex; width: 24px; height: 24px; border-radius: 6px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6.5 21V9.5 M3.5 21h6" stroke-width="2.2"></path><path d="M6.5 10L21 4" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="3.4 2.2"></path><circle cx="6.5" cy="10" r="2" fill="currentColor" stroke="none"></circle></svg></span>
+    <span>Rogatka <span style="font-weight: 400; color: {{c.muted}}">Dashboard</span></span>
+  </a>
+  <div style="flex: 1 1 20px"></div>
+  <div style="position: relative">
+    <button aria-haspopup="menu" aria-expanded="{{menu.expanded}}" onClick="{{toggleMenu}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 2px 10px 2px 2px; border: 1px solid {{menu.bd}}; border-radius: 20px; background: {{menu.bg}}; color: {{c.text}}; font: inherit; cursor: pointer">
+      <span style="width: 30px; height: 30px; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">KW</span>
+      <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 12.5px">Katarzyna Wójcik</span><span style="font-size: 11px; color: {{c.muted}}">Security analyst</span></span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="{{menu.chev}}"></path></svg>
+    </button>
+    <sc-if value="{{menu.open}}" hint-placeholder-val="{{ false }}">
+      <div role="menu" aria-label="Account" style="position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 290px; box-sizing: border-box; padding: 6px; background: {{c.surface}}; border: 1px solid {{c.strong}}; border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 2px; font-size: 13px">
+        <div style="display: flex; gap: 10px; align-items: center; padding: 10px 10px 12px">
+          <span style="width: 38px; height: 38px; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600">KW</span>
+          <span style="display: flex; flex-direction: column; min-width: 0">
+            <b style="font-weight: 600">Katarzyna Wójcik</b>
+            <span style="font-size: 12px; color: {{c.muted}}">k.wojcik@corp.example</span>
+          </span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; border-bottom: 1px solid {{c.border}}">
+          <span style="font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: {{c.accentSoft}}; color: {{c.accent}}">Security analyst</span>
+          <span style="font-size: 11.5px; padding: 1px 8px; border-radius: 10px; border: 1px solid {{c.border}}; color: {{c.muted}}">Keycloak · /panel/analysts</span>
+        </div>
+        <sc-for list="{{menuItems}}" as="mi" hint-placeholder-count="4">
+          <a role="menuitem" href="{{mi.href}}" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 6px; text-decoration: none; color: {{c.text}}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: {{c.muted}}"><path d="{{mi.d}}"></path></svg>
+            <span style="flex: 1">{{mi.l}}</span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{c.muted}}">{{mi.hint}}</span>
+          </a>
+        </sc-for>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 10px; border-top: 1px solid {{c.border}}; margin-top: 4px">
+          <span>Theme</span>
+          <span role="group" aria-label="Theme" style="display: inline-flex; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+            <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+              <button aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="border: 0; padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; background: {{t.bg}}; color: {{t.fg}}">{{t.l}}</button>
+            </sc-for>
+          </span>
+        </div>
+        <a role="menuitem" href="#" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 6px; border-top: 1px solid {{c.border}}; text-decoration: none; color: {{c.text}}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: {{c.muted}}"><path d="M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10"></path></svg>
+          <span>Sign out</span>
+        </a>
+      </div>
+    </sc-if>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: stretch">
+<nav aria-label="Main" style="flex: 1 1 200px; box-sizing: border-box; padding: 14px 10px; border-right: 1px solid {{c.border}}; background: {{c.surface}}; display: flex; flex-direction: column; gap: 14px">
+  <sc-for list="{{nav}}" as="sec" hint-placeholder-count="7">
+    <div style="display: flex; flex-direction: column; gap: 1px">
+      <sc-if value="{{sec.h}}" hint-placeholder-val="{{ true }}">
+        <div style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: {{c.muted}}; padding: 0 10px 4px">{{sec.h}}</div>
+      </sc-if>
+      <sc-for list="{{sec.items}}" as="it" hint-placeholder-count="3">
+        <a href="{{it.href}}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; box-sizing: border-box; padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 13px; color: {{it.fg}}; background: {{it.bg}}; font-weight: {{it.w}}">
+          <span>{{it.l}}</span>
+          <sc-if value="{{it.count}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 11px; font-weight: 600; background: {{c.accentSoft}}; color: {{c.accent}}; border-radius: 9px; padding: 0 7px">{{it.count}}</span>
+          </sc-if>
+        </a>
+      </sc-for>
+    </div>
+  </sc-for>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 14px">
+
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Users &amp; groups</h1>
+    <div style="flex: 1"></div>
+    <a href="#" style="display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.border}}; color: {{c.text}}; text-decoration: none; font-size: 12.5px">Open Keycloak ↗</a>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+    <div role="group" aria-label="View" style="display: inline-flex; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2">
+        <button aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="min-height: 32px; padding: 0 12px; border: 0; border-right: 1px solid {{c.border}}; background: {{t.bg}}; color: {{t.fg}}; font: inherit; font-size: 12.5px; cursor: pointer">{{t.l}} <span style="font-family: 'IBM Plex Mono', monospace; color: {{c.muted}}">{{t.n}}</span></button>
+      </sc-for>
+    </div>
+    <sc-if value="{{showUsers}}" hint-placeholder-val="{{ true }}">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="2">
+        <button style="display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.surface}}; color: {{c.text}}; font: inherit; font-size: 12.5px; cursor: pointer">{{f}}<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      </sc-for>
+    </sc-if>
+    <label style="display: flex; align-items: center; gap: 6px; min-height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{c.border}}; border-radius: 6px; background: {{c.inset}}; color: {{c.muted}}; flex: 0 1 240px; min-width: 150px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14z M20 20l-4-4"></path></svg>
+      <input aria-label="Search people or groups" placeholder="Name or e-mail" style="flex: 1; border: 0; background: transparent; color: {{c.text}}; font: inherit; font-size: 12.5px; outline: none; min-width: 0">
+    </label>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+    <section aria-label="List" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+      <div style="overflow-x: auto; border: 1px solid {{c.border}}; border-radius: 8px; background: {{c.surface}}">
+        <sc-if value="{{showUsers}}" hint-placeholder-val="{{ true }}">
+          <div role="table" aria-label="Users" style="min-width: 780px; font-size: 12.5px">
+            <div role="row" style="display: grid; grid-template-columns: minmax(180px, 1.3fr) 120px 76px 84px 70px 120px 56px 14px; gap: 0 12px; padding: 9px 14px; border-bottom: 1px solid {{c.border}}; color: {{c.muted}}; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase">
+              <span role="columnheader">Person</span><span role="columnheader">Group</span><span role="columnheader">Preset</span><span role="columnheader">Last active</span><span role="columnheader" style="text-align: right">Requests 7 d</span><span role="columnheader" style="text-align: right">Tokens in / out 7 d</span><span role="columnheader" style="text-align: right">Blocks</span><span></span>
+            </div>
+            <sc-for list="{{users}}" as="u" hint-placeholder-count="8">
+              <a role="row" href="#" onClick="{{u.pick}}" aria-current="{{u.cur}}" style="display: grid; grid-template-columns: minmax(180px, 1.3fr) 120px 76px 84px 70px 120px 56px 14px; gap: 0 12px; align-items: center; padding: {{pad}} 14px; border-bottom: 1px solid {{c.border}}; background: {{u.bg}}; box-shadow: {{u.mark}}; text-decoration: none; color: {{c.text}}">
+                <span role="cell" style="display: flex; align-items: center; gap: 10px; min-width: 0">
+                  <span style="width: 28px; height: 28px; flex: none; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">{{u.ini}}</span>
+                  <span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{u.name}}</span><span style="font-size: 11.5px; color: {{c.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{u.email}}</span></span>
+                </span>
+                <span role="cell" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{u.group}}</span>
+                <span role="cell" style="color: {{c.muted}}">{{u.preset}}</span>
+                <span role="cell" style="color: {{c.muted}}">{{u.last}}</span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace">{{u.req}}</span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace">{{u.tok}}</span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{u.blkFg}}">{{u.blocks}}</span>
+                <span role="cell" style="color: {{c.muted}}" aria-hidden="true">›</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{showGroups}}" hint-placeholder-val="{{ false }}">
+          <div role="table" aria-label="Groups" style="min-width: 640px; font-size: 12.5px">
+            <div role="row" style="display: grid; grid-template-columns: minmax(140px, 1fr) 70px 80px minmax(150px, 1.2fr) 120px 80px 14px; gap: 0 12px; padding: 9px 14px; border-bottom: 1px solid {{c.border}}; color: {{c.muted}}; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase">
+              <span role="columnheader">Group</span><span role="columnheader" style="text-align: right">Members</span><span role="columnheader">Preset</span><span role="columnheader">Models</span><span role="columnheader" style="text-align: right">Tokens in / out today</span><span role="columnheader" style="text-align: right">Spend today</span><span></span>
+            </div>
+            <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+              <a role="row" href="#" onClick="{{g.pick}}" aria-current="{{g.cur}}" style="display: grid; grid-template-columns: minmax(140px, 1fr) 70px 80px minmax(150px, 1.2fr) 120px 80px 14px; gap: 0 12px; align-items: center; padding: {{pad}} 14px; border-bottom: 1px solid {{c.border}}; background: {{g.bg}}; box-shadow: {{g.mark}}; text-decoration: none; color: {{c.text}}">
+                <span role="cell" style="font-weight: 500">{{g.name}}</span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace">{{g.members}}</span>
+                <span role="cell" style="color: {{c.muted}}">{{g.preset}}</span>
+                <span role="cell" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{g.models}}</span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace">{{g.tokIO}}</span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace">{{g.spend}}</span>
+                <span role="cell" style="color: {{c.muted}}" aria-hidden="true">›</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <nav aria-label="Pagination" style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: {{c.muted}}">
+        <span>Rows per page</span>
+        <button style="display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.surface}}; color: {{c.text}}; font: inherit; font-size: 12.5px; cursor: pointer">25<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div style="flex: 1"></div>
+        <button aria-label="Previous page" style="min-width: 34px; min-height: 32px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.surface}}; color: {{c.muted}}; font: inherit">‹</button>
+        <button aria-current="page" style="min-width: 34px; min-height: 32px; border-radius: 6px; border: 1px solid {{c.accent}}; background: {{c.accentSoft}}; color: {{c.text}}; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">1</button>
+        <button style="min-width: 34px; min-height: 32px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.surface}}; color: {{c.muted}}; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">2</button>
+        <button aria-label="Next page" style="min-width: 34px; min-height: 32px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.surface}}; color: {{c.text}}; font: inherit">›</button>
+      </nav>
+    </section>
+
+    <sc-if value="{{userDrawer}}" hint-placeholder-val="{{ true }}">
+    <aside aria-label="Person" style="flex: 1 1 460px; min-width: 0; background: {{c.surface}}; border: 1px solid {{c.border}}; border-radius: 8px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid {{c.border}}">
+        <span style="width: 42px; height: 42px; flex: none; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600">{{u.ini}}</span>
+        <span style="display: flex; flex-direction: column; min-width: 0; flex: 1">
+          <b style="font-size: 15px; font-weight: 600">{{u.name}}</b>
+          <span style="font-size: 12px; color: {{c.muted}}">{{u.email}} · {{u.group}} · {{u.preset}}</span>
+          <span style="font-size: 12px; color: {{c.muted}}">7 days: <span style="color: {{c.text}}">{{u.req}} requests · {{u.tok}} tokens in / out</span></span>
+        </span>
+        <button aria-label="Close" onClick="{{close}}" style="display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: {{c.muted}}; cursor: pointer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"></path></svg>
+        </button>
+      </div>
+
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid {{c.border}}">
+        <div style="display: flex; align-items: baseline; gap: 8px; padding-bottom: 4px">
+          <h3 style="margin: 0; font-size: 12px; font-weight: 600">Access</h3>
+          <span style="font-size: 11.5px; color: {{c.muted}}">and where it comes from</span>
+          <div style="flex: 1"></div>
+          <button onClick="{{openGrant}}" style="min-height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid {{c.accent}}; background: {{c.accent}}; color: {{c.onAccent}}; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer">+ Grant</button>
+        </div>
+        <sc-for list="{{access}}" as="r" hint-placeholder-count="8">
+          <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr) 96px 60px; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 6px; background: {{r.bg}}; font-size: 12.5px">
+            <span style="font-size: 11px; color: {{c.muted}}">{{r.kind}}</span>
+            <span style="display: flex; flex-direction: column; min-width: 0">
+              <span style="display: inline-flex; align-items: center; gap: 6px; min-width: 0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{r.fg}}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{r.d}}"></path></svg><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.item}}</span></span>
+              <span style="font-size: 11.5px; color: {{c.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.src}}</span>
+            </span>
+            <span style="font-size: 11.5px; color: {{r.expFg}}; text-align: right">{{r.exp}}</span>
+            <span style="text-align: right"><sc-if value="{{r.act}}" hint-placeholder-val="{{ false }}"><button onClick="{{r.onAct}}" style="padding: 1px 7px; border-radius: 5px; border: 1px solid {{c.strong}}; background: transparent; color: {{c.accent}}; font: inherit; font-size: 11.5px; cursor: pointer">{{r.act}}</button></sc-if></span>
+          </div>
+        </sc-for>
+        <sc-if value="{{grantForm}}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 6px; padding: 12px; border-radius: 8px; border: 1px solid {{c.accentLine}}; background: {{c.inset}}; display: flex; flex-direction: column; gap: 10px">
+            <b style="font-size: 13px; font-weight: 600">Give {{u.first}} access to smart → gemini</b>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px">
+              <span style="padding: 1px 8px; border-radius: 10px; border: 1px solid {{c.accentLine}}; background: {{c.accentSoft}}">✓ public</span>
+              <span style="padding: 1px 8px; border-radius: 10px; border: 1px solid {{c.accentLine}}; background: {{c.accentSoft}}">✓ internal</span>
+              <span style="padding: 1px 8px; border-radius: 10px; border: 1px solid {{c.border}}; color: {{c.muted}}">× confidential · LOCK-01</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: {{c.muted}}">Expires
+              <span role="group" aria-label="Expiry" style="display: inline-flex; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+                <sc-for list="{{expiry}}" as="e" hint-placeholder-count="3">
+                  <button aria-pressed="{{e.on}}" onClick="{{e.pick}}" style="border: 0; border-right: 1px solid {{c.border}}; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; background: {{e.bg}}; color: {{e.fg}}">{{e.l}}</button>
+                </sc-for>
+              </span>
+            </div>
+            <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{c.muted}}">Reason (required)
+              <input value="Gemini pilot" style="min-height: 32px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.surface}}; color: {{c.text}}; font: inherit; font-size: 12.5px">
+            </label>
+            <div style="display: flex; justify-content: flex-end; gap: 8px">
+              <button onClick="{{closeGrant}}" style="min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.border}}; background: transparent; color: {{c.text}}; font: inherit; font-size: 12.5px; cursor: pointer">Cancel</button>
+              <button onClick="{{saveGrant}}" style="min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.accent}}; background: {{c.accent}}; color: {{c.onAccent}}; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Grant access</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid {{c.border}}">
+        <h3 style="margin: 0; font-size: 12px; font-weight: 600">Their clients see</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{seeModels}}" as="m" hint-placeholder-count="3">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 2px 8px; border-radius: 5px; border: 1px solid {{m.bd}}; background: {{m.bg}}">{{m.l}}</span>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 6px">
+        <h3 style="margin: 0 0 2px; font-size: 12px; font-weight: 600">Recent activity</h3>
+        <sc-for list="{{activity}}" as="a" hint-placeholder-count="4">
+          <a href="LiveTraffic.dc.html" style="display: grid; grid-template-columns: 62px minmax(0, 1fr) max-content; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid {{c.border}}; text-decoration: none; color: {{c.text}}; font-size: 12.5px">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: {{c.muted}}">{{a.t}}</span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.what}}</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{a.b.fg}}; background: {{a.b.bg}}; border: 1px solid {{a.b.bd}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{a.b.d}}"></path></svg>{{a.b.label}}</span>
+          </a>
+        </sc-for>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; padding-top: 4px; font-size: 12.5px">
+          <a href="LiveTraffic.dc.html" style="color: {{c.accent}}">All activity in Traffic →</a>
+          <a href="Grants.dc.html" style="color: {{c.accent}}">Grant history →</a>
+        </div>
+      </div>
+    </aside>
+    </sc-if>
+
+    <sc-if value="{{groupDrawer}}" hint-placeholder-val="{{ false }}">
+    <aside aria-label="Group" style="flex: 1 1 480px; min-width: 0; background: {{c.surface}}; border: 1px solid {{c.border}}; border-radius: 8px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid {{c.border}}">
+        <span style="display: flex; flex-direction: column; flex: 1; min-width: 0">
+          <b style="font-size: 15px; font-weight: 600">{{g.name}}</b>
+          <span style="font-size: 12px; color: {{c.muted}}">Keycloak group · {{g.members}} members · {{g.tokIO}} tokens today</span>
+        </span>
+        <button aria-label="Close" onClick="{{close}}" style="display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: {{c.muted}}; cursor: pointer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 10px 14px; font-size: 12px; color: {{c.muted}}; border-bottom: 1px solid {{c.border}}">Who is in the group comes from Keycloak. What the group may use is set here and saved to <span style="font-family: 'IBM Plex Mono', monospace">groups.yaml</span> as a new policy version.</div>
+
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid {{c.border}}">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; font-weight: 600">Strictness</span>
+          <span role="group" aria-label="Preset" style="display: inline-flex; align-self: flex-start; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+            <sc-for list="{{gPresets}}" as="p" hint-placeholder-count="4"><button aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="border: 0; border-right: 1px solid {{c.border}}; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; background: {{p.bg}}; color: {{p.fg}}">{{p.l}}</button></sc-for>
+          </span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; font-weight: 600">Models <span style="font-weight: 400; color: {{c.muted}}">· click to allow or remove</span></span>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{gModels}}" as="m" hint-placeholder-count="5"><button aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid {{m.bd}}; background: {{m.bg}}; color: {{m.fg}}; font-family: 'IBM Plex Mono', monospace; font-size: 12px; cursor: pointer">{{m.mark}} {{m.l}}</button></sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; font-weight: 600">Tools</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{gTools}}" as="m" hint-placeholder-count="6"><button aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid {{m.bd}}; background: {{m.bg}}; color: {{m.fg}}; font-family: 'IBM Plex Mono', monospace; font-size: 12px; cursor: pointer">{{m.mark}} {{m.l}}</button></sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 14px 28px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 12px; font-weight: 600">Cloud models may get</span>
+            <span role="group" aria-label="Cloud data" style="display: inline-flex; align-self: flex-start; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+              <sc-for list="{{gCloud}}" as="p" hint-placeholder-count="3"><button aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="border: 0; border-right: 1px solid {{c.border}}; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; background: {{p.bg}}; color: {{p.fg}}">{{p.l}}</button></sc-for>
+            </span>
+            <span style="font-size: 11.5px; color: {{c.muted}}">confidential and above: never (LOCK-01)</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 12px; font-weight: 600">Daily budget</span>
+            <span style="display: inline-flex; align-items: stretch; align-self: flex-start; border: 1px solid {{c.strong}}; border-radius: 6px; overflow: hidden">
+              <button aria-label="Lower budget" onClick="{{budgetDown}}" style="width: 32px; border: 0; border-right: 1px solid {{c.border}}; background: {{c.raised}}; color: {{c.text}}; font: inherit; cursor: pointer">−</button>
+              <span style="display: inline-flex; align-items: center; padding: 0 12px; font-family: 'IBM Plex Mono', monospace; font-weight: 600">{{gBudget}} USD</span>
+              <button aria-label="Raise budget" onClick="{{budgetUp}}" style="width: 32px; border: 0; border-left: 1px solid {{c.border}}; background: {{c.raised}}; color: {{c.text}}; font: inherit; cursor: pointer">+</button>
+            </span>
+            <span style="font-size: 11.5px; color: {{c.muted}}">used today {{g.spend}}</span>
+          </div>
+        </div>
+        <sc-if value="{{gChanged}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid {{c.accentLine}}; background: {{c.inset}}">
+            <span style="flex: 1; min-width: 200px; font-size: 12.5px">{{gChangeText}}</span>
+            <button onClick="{{gDiscard}}" style="min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.border}}; background: transparent; color: {{c.text}}; font: inherit; font-size: 12.5px; cursor: pointer">Discard</button>
+            <button onClick="{{gSave}}" style="min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.accent}}; background: {{c.accent}}; color: {{c.onAccent}}; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Save as policy v9</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{gSaved}}" hint-placeholder-val="{{ false }}">
+          <div role="status" style="padding: 10px 12px; border-radius: 6px; background: {{okT.bg}}; border: 1px solid {{okT.bd}}; font-size: 12.5px"><b style="font-weight: 600">v9 is live.</b> Members’ clients get the new model and tool lists on their next request.</div>
+        </sc-if>
+      </div>
+
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; align-items: baseline; gap: 8px"><h3 style="margin: 0; font-size: 12px; font-weight: 600">Members</h3><a href="#" style="margin-left: auto; font-size: 12.5px; color: {{c.accent}}">Manage in Keycloak ↗</a></div>
+        <sc-for list="{{g.people}}" as="p" hint-placeholder-count="4">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12.5px">
+            <span style="width: 24px; height: 24px; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600">{{p.ini}}</span>
+            <span style="flex: 1">{{p.name}}</span><span style="font-size: 11.5px; color: {{c.muted}}">{{p.note}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+    </sc-if>
+  </div>
+</main>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","section":"Style"},"accent":{"editor":"color","options":["#4C8DFF","#2BB3A3","#D97757","#A78BFA"],"default":"#4C8DFF","section":"Style"},"badgeStyle":{"editor":"enum","options":["tint","outline","solid"],"default":"tint","section":"Style"},"density":{"editor":"enum","options":["compact","comfortable"],"default":"compact","section":"Style"},"$preview":{"width":1440,"height":1000}}'>
+const DEC = {
+  allow: { l: 'allow', d: 'M5 12.5l4.5 4.5L19 7.5', dk: '#4ade80', lt: '#15803d' },
+  monitor: { l: 'monitor', d: 'M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 1 0 0-5.6z', dk: '#a3b1c2', lt: '#475569' },
+  redact: { l: 'redact', d: 'M4 6h16v4H4z M4 14h7 M14 14h6 M4 18h16', dk: '#d8a4fe', lt: '#7e22ce' },
+  pseudonymise: { l: 'pseudonymise', d: 'M4 8h13 M14 4.5L17.5 8 14 11.5 M20 16H7 M10 12.5L6.5 16 10 19.5', dk: '#b4a0ff', lt: '#6d28d9' },
+  sanitize: { l: 'sanitize', d: 'M4 6h16 M7 12h10 M10 18h4', dk: '#2dd4bf', lt: '#0f766e' },
+  downgrade: { l: 'downgrade', d: 'M12 4v15 M6 13l6 6 6-6', dk: '#fbbf24', lt: '#a16207' },
+  route_local: { l: 'route_local', d: 'M3.5 11L12 4.5l8.5 6.5 M6 9.5v10h12v-10 M10 19.5v-5h4v5', dk: '#7cb4ff', lt: '#1d4ed8' },
+  require_approval: { l: 'require_approval', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M12 7.5V12l3 2', dk: '#fb923c', lt: '#c2410c' },
+  block: { l: 'block', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M6 6l12 12', dk: '#f87171', lt: '#b91c1c' }
+};
+const SEV = {
+  critical: { l: 'critical', d: 'M12 3.5l9 16H3z M12 10v4.5 M12 17.5v.01', dk: '#fb7185', lt: '#be123c' },
+  high: { l: 'high', d: 'M12 3.5l9 16H3z M12 10v4.5 M12 17.5v.01', dk: '#f87171', lt: '#b91c1c' },
+  medium: { l: 'medium', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M12 8v5 M12 16v.01', dk: '#fbbf24', lt: '#a16207' },
+  low: { l: 'low', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M12 11v5 M12 8v.01', dk: '#a3b1c2', lt: '#475569' }
+};
+function rgba(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((x) => x + x).join('') : h, 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+function shade(hex, t) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const f = (v) => Math.round(v * (1 - t)).toString(16).padStart(2, '0');
+  return '#' + f((n >> 16) & 255) + f((n >> 8) & 255) + f(n & 255);
+}
+function palette(theme, accent) {
+  const dark = theme !== 'light';
+  const p = dark
+    ? { bg: '#0e1013', surface: '#15181c', raised: '#1c2025', inset: '#101215', border: '#272c33', strong: '#3a414a', text: '#e7e9ec', muted: '#9ba4ae' }
+    : { bg: '#f3f4f6', surface: '#ffffff', raised: '#f6f7f9', inset: '#eceef1', border: '#dce0e5', strong: '#c3c9d1', text: '#14171b', muted: '#56606b' };
+  p.dark = dark;
+  p.accent = dark ? accent : shade(accent, 0.32);
+  p.onAccent = dark ? '#0e1013' : '#ffffff';
+  p.accentSoft = rgba(accent, dark ? 0.16 : 0.12);
+  p.accentLine = rgba(accent, dark ? 0.7 : 0.8);
+  return p;
+}
+function chip(set, key, p, style) {
+  const k = set[key];
+  const fg = p.dark ? k.dk : k.lt;
+  if (style === 'solid') return { label: k.l, d: k.d, fg: p.dark ? '#0e1013' : '#ffffff', bg: fg, bd: fg, raw: fg };
+  if (style === 'outline') return { label: k.l, d: k.d, fg: fg, bg: 'transparent', bd: rgba(fg, 0.75), raw: fg };
+  return { label: k.l, d: k.d, fg: fg, bg: rgba(fg, p.dark ? 0.14 : 0.1), bd: rgba(fg, p.dark ? 0.32 : 0.3), raw: fg };
+}
+function navFor(active, p) {
+  const S = [
+    [null, [['Overview', 'Dashboard.dc.html', 'ov']]],
+    ['Monitor', [['Traffic', 'LiveTraffic.dc.html', 'traffic'], ['Incidents', 'Incidents.dc.html', 'inc', '7'], ['Approvals', 'ApprovalsQueue.dc.html', 'apr', '3']]],
+    ['Access', [['Users & groups', 'UsersGroups.dc.html', 'users'], ['Grants', 'Grants.dc.html', 'grants']]],
+    ['Govern', [['Policies', 'PolicyEditor.dc.html', 'pol'], ['Models & connectors', 'ModelsConnectors.dc.html', 'models'], ['Tools & MCP', 'ToolsMcp.dc.html', 'tools'], ['Known threats', 'FeedArtifacts.dc.html', 'feed'], ['Budgets & spend', 'Budgets.dc.html', 'budgets']]],
+    ['Optimise', [['Automation Insights', 'Insights.dc.html', 'ins']]]
+  ];
+  return S.map(([h, items]) => ({
+    h: h,
+    items: items.map(([l, href, key, count]) => ({
+      l: l, href: href, count: count || '',
+      fg: key === active ? p.text : p.muted,
+      bg: key === active ? p.accentSoft : 'transparent',
+      w: key === active ? '600' : '400'
+    }))
+  }));
+}
+function statusFor(p) {
+  const ok = p.dark ? DEC.allow.dk : DEC.allow.lt;
+  return [
+    { t: 'Gateway OK', s: '', dot: ok, href: '#' },
+    { t: 'policy v8', s: 'external edit · 14:02', dot: p.accent, href: 'PolicyEditor.dc.html' },
+    { t: 'feed f-2026.10.03.4', s: '30 s ago', dot: ok, href: '#' },
+    { t: 'chain verified', s: '14:00', dot: ok, href: '#' },
+    { t: 'LIVE', s: '', dot: ok, href: 'LiveTraffic.dc.html' }
+  ];
+}
+
+// Shared by the app-page screens: profile menu, theme switch, selected-row styling and switches.
+function menuVals(cmp, c) {
+  const S = cmp.state;
+  const cur = S.theme ?? cmp.props.theme ?? 'dark';
+  return {
+    menu: { open: !!S.menu, expanded: String(!!S.menu), bg: S.menu ? c.accentSoft : 'transparent', bd: S.menu ? c.accentLine : 'transparent', chev: S.menu ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6' },
+    menuItems: [
+      { l: 'Notifications', href: '#', hint: '', d: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z M10 20.5h4' },
+      { l: 'Keyboard shortcuts', href: '#', hint: '?', d: 'M3 7h18v10H3z M7 11h.01 M11 11h.01 M15 11h.01 M8 14h8' }
+    ],
+    themes: [['dark', 'Dark'], ['light', 'Light']].map(([k, l]) => ({
+      l: l, on: String(cur === k), bg: cur === k ? c.accentSoft : 'transparent', fg: cur === k ? c.text : c.muted, pick: () => cmp.setState({ theme: k })
+    })),
+    toggleMenu: () => cmp.setState({ menu: !S.menu })
+  };
+}
+function rowSel(on, c) {
+  return { cur: on ? 'true' : 'false', bg: on ? c.accentSoft : 'transparent', mark: on ? 'inset 3px 0 0 ' + c.accent : 'none' };
+}
+function switchVals(on, c) {
+  return on
+    ? { on: 'true', track: c.accent, bd: c.accent, dot: c.onAccent, knob: 14 }
+    : { on: 'false', track: c.inset, bd: c.strong, dot: c.muted, knob: 2 };
+}
+function segVals(list, current, c, pick) {
+  return list.map(([k, l, n]) => ({ l: l, n: n || '', on: String(current === k), bg: current === k ? c.accentSoft : 'transparent', fg: current === k ? c.text : c.muted, pick: () => pick(k) }));
+}
+
+const USERS = [
+  { ini: 'JK', name: 'Jan Kowalski', first: 'Jan', email: 'jan.kowalski@corp.example', group: 'developers', preset: 'balanced', last: '14:02', req: '1 214', tok: '1.2M / 310k', blocks: '3' },
+  { ini: 'AN', name: 'Anna Nowak', first: 'Anna', email: 'anna.nowak@corp.example', group: 'credit-analysts', preset: 'strict', last: '14:03', req: '842', tok: '640k / 150k', blocks: '1' },
+  { ini: 'PZ', name: 'Piotr Zieliński', first: 'Piotr', email: 'piotr.zielinski@corp.example', group: 'developers', preset: 'balanced', last: '14:00', req: '1 530', tok: '1.8M / 420k', blocks: '0' },
+  { ini: 'ML', name: 'Marta Lis', first: 'Marta', email: 'marta.lis@corp.example', group: 'credit-analysts', preset: 'strict', last: '13:59', req: '611', tok: '380k / 96k', blocks: '0' },
+  { ini: 'TW', name: 'Tomasz Wiśniewski', first: 'Tomasz', email: 'tomasz.wisniewski@corp.example', group: 'credit-analysts', preset: 'strict', last: 'yesterday', req: '402', tok: '210k / 52k', blocks: '0' },
+  { ini: 'EG', name: 'Ewa Grabowska', first: 'Ewa', email: 'ewa.grabowska@corp.example', group: 'operations', preset: 'balanced', last: '12:40', req: '288', tok: '150k / 40k', blocks: '0' },
+  { ini: 'KW', name: 'Katarzyna Wójcik', first: 'Katarzyna', email: 'k.wojcik@corp.example', group: 'security', preset: 'strict', last: 'now', req: '96', tok: '40k / 11k', blocks: '0' },
+  { ini: 'MZ', name: 'Magdalena Zielińska', first: 'Magdalena', email: 'm.zielinska@corp.example', group: 'security', preset: 'strict', last: '14:04', req: '120', tok: '52k / 14k', blocks: '0' }
+];
+const ALL_MODELS = ['auto', 'local-coder', 'local-pl', 'smart (gemini)', 'corp/loan-memo-pl'];
+const ALL_TOOLS = ['read', 'edit', 'bash', 'git', 'search', 'jira'];
+const GROUPS = [
+  { name: 'developers', members: '14', preset: 'balanced', spend: '2.10 USD', tokIO: '2.4M / 610k', budget: 5, cloud: 'internal',
+    models: ['auto', 'local-coder'], tools: ['read', 'edit', 'bash', 'git', 'search'],
+    people: [['JK', 'Jan Kowalski', 'personal grant: smart'], ['PZ', 'Piotr Zieliński', ''], ['+', '12 more', '']] },
+  { name: 'credit-analysts', members: '9', preset: 'strict', spend: '0.74 USD', tokIO: '1.1M / 260k', budget: 2, cloud: 'internal',
+    models: ['auto', 'local-pl', 'corp/loan-memo-pl'], tools: ['read', 'edit', 'bash'],
+    people: [['AN', 'Anna Nowak', 'bash denied for her'], ['ML', 'Marta Lis', ''], ['+', '7 more', '']] },
+  { name: 'operations', members: '12', preset: 'balanced', spend: '0.21 USD', tokIO: '310k / 80k', budget: 1, cloud: 'internal',
+    models: ['auto'], tools: ['search', 'jira'],
+    people: [['EG', 'Ewa Grabowska', ''], ['+', '11 more', '']] },
+  { name: 'security', members: '6', preset: 'strict', spend: '0.07 USD', tokIO: '92k / 25k', budget: 1, cloud: 'public',
+    models: ['auto'], tools: ['read', 'search'],
+    people: [['KW', 'Katarzyna Wójcik', 'you'], ['MZ', 'Magdalena Zielińska', ''], ['+', '4 more', '']] }
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { menu: false, theme: null, tab: 'users', sel: 0, gsel: -1, form: false, granted: false, exp: '7 d', bashRevoked: false, gedit: {}, gsaved: {} };
+  }
+  renderVals() {
+    const style = this.props.badgeStyle ?? 'tint';
+    const c = palette(this.state.theme ?? this.props.theme ?? 'dark', this.props.accent ?? '#4C8DFF');
+    const pad = (this.props.density ?? 'compact') === 'comfortable' ? '11px' : '8px';
+    const fgOf = (k) => (c.dark ? DEC[k].dk : DEC[k].lt);
+    const b = (k) => chip(DEC, k, c, style);
+    const S = this.state;
+
+    const users = USERS.map((u, i) => Object.assign({
+      ini: u.ini, name: u.name, email: u.email, group: u.group, preset: u.preset, last: u.last, req: u.req, tok: u.tok, blocks: u.blocks,
+      blkFg: u.blocks !== '0' ? fgOf('block') : c.muted,
+      pick: () => this.setState({ sel: i, form: false })
+    }, rowSel(S.sel === i, c)));
+
+    // Group edits: start from the group's policy values, apply the admin's unsaved changes.
+    const gIdx = Math.max(0, S.gsel);
+    const G0 = GROUPS[gIdx];
+    const edit = S.gedit[gIdx] || {};
+    const G = {
+      preset: edit.preset ?? G0.preset, cloud: edit.cloud ?? G0.cloud, budget: edit.budget ?? G0.budget,
+      models: edit.models ?? G0.models, tools: edit.tools ?? G0.tools
+    };
+    const setEdit = (patch) => {
+      const all = Object.assign({}, S.gedit); all[gIdx] = Object.assign({}, edit, patch);
+      const saved = Object.assign({}, S.gsaved); saved[gIdx] = false;
+      this.setState({ gedit: all, gsaved: saved });
+    };
+    const diffs = [];
+    if (G.preset !== G0.preset) diffs.push('preset ' + G0.preset + ' → ' + G.preset);
+    if (G.cloud !== G0.cloud) diffs.push('cloud data ' + G0.cloud + ' → ' + G.cloud);
+    if (G.budget !== G0.budget) diffs.push('budget ' + G0.budget + ' → ' + G.budget + ' USD');
+    ALL_MODELS.forEach((m) => { const a = G0.models.indexOf(m) >= 0, z = G.models.indexOf(m) >= 0; if (a !== z) diffs.push((z ? '+ ' : '− ') + m); });
+    ALL_TOOLS.forEach((m) => { const a = G0.tools.indexOf(m) >= 0, z = G.tools.indexOf(m) >= 0; if (a !== z) diffs.push((z ? '+ ' : '− ') + m); });
+    const changed = diffs.length > 0 && !S.gsaved[gIdx];
+    const chipToggle = (list, key) => (name) => {
+      const on = list.indexOf(name) >= 0;
+      return {
+        l: name, on: String(on), mark: on ? '✓' : '+',
+        bd: on ? c.accentLine : c.border, bg: on ? c.accentSoft : 'transparent', fg: on ? c.text : c.muted,
+        pick: () => { const next = on ? list.filter((x) => x !== name) : list.concat([name]); const p = {}; p[key] = next; setEdit(p); }
+      };
+    };
+    const groups = GROUPS.map((g, i) => Object.assign({
+      name: g.name, members: g.members, preset: (S.gedit[i] && S.gsaved[i] && S.gedit[i].preset) || g.preset,
+      models: ((S.gsaved[i] && S.gedit[i] && S.gedit[i].models) || g.models).join(' · '), tokIO: g.tokIO, spend: g.spend,
+      pick: () => this.setState({ gsel: i })
+    }, rowSel(S.gsel === i, c)));
+    const tabs = segVals([['users', 'People', '41'], ['groups', 'Groups', '4']], S.tab, c, (k) => this.setState({ tab: k, gsel: k === 'groups' ? 0 : -1 }));
+
+    const U = USERS[Math.max(0, S.sel)];
+    const isJan = U.name === 'Jan Kowalski', isAnna = U.name === 'Anna Nowak';
+    const st = {
+      ok: { d: DEC.allow.d, fg: fgOf('allow') }, no: { d: DEC.block.d, fg: fgOf('block') },
+      el: { d: DEC.require_approval.d, fg: fgOf('require_approval') }, none: { d: 'M6 12h12', fg: c.muted }, val: { d: 'M5 12h14', fg: c.muted }
+    };
+    const row = (kind, item, s, src, exp, opts) => Object.assign({ kind: kind, item: item, d: st[s].d, fg: st[s].fg, src: src, exp: exp || '', expFg: c.muted, act: '', onAct: null, bg: 'transparent' }, opts || {});
+    let access;
+    if (isJan) {
+      access = [
+        row('Model', 'auto', 'ok', 'group developers · groups.yaml L20'),
+        row('Model', 'local-coder', 'ok', 'group developers · groups.yaml L20'),
+        S.granted
+          ? row('Model', 'smart → gemini', 'ok', 'your grant g-0412 · “Gemini pilot” · ≤ internal', 'in ' + S.exp, { bg: c.accentSoft, act: 'Revoke', onAct: () => this.setState({ granted: false }) })
+          : row('Model', 'smart → gemini', 'none', 'not in group developers', '', { act: 'Grant', onAct: () => this.setState({ form: true }) }),
+        row('Tool', 'read · edit', 'ok', 'group developers'),
+        S.bashRevoked
+          ? row('Tool', 'bash', 'no', 'user deny g-0415 · overrides group', '', { bg: c.accentSoft, act: 'Restore', onAct: () => this.setState({ bashRevoked: false }) })
+          : row('Tool', 'bash', 'ok', 'group developers', '', { act: 'Revoke', onAct: () => this.setState({ bashRevoked: true }) }),
+        row('Tool', 'git push → jk-priv', 'el', 'approved apr-0193 by k.wojcik', '14:57 left', { expFg: fgOf('downgrade') }),
+        row('MCP', 'github', 'ok', 'group developers'),
+        row('Budget', '1.00 USD / day', 'val', 'grant g-0420 · share of developers')
+      ];
+    } else if (isAnna) {
+      access = [
+        row('Model', 'auto · local-pl', 'ok', 'group credit-analysts · groups.yaml L9'),
+        row('Model', 'corp/loan-memo-pl', 'ok', 'group credit-analysts'),
+        row('Skill', 'skill/loan-memo-summary', 'ok', 'group credit-analysts'),
+        row('Tool', 'bash', 'no', 'user deny g-0415 · “No shell needed”', '', { act: 'Restore' }),
+        row('MCP', 'jira', 'ok', 'grant g-0398 · “Jira pilot”', '31 Oct'),
+        row('Cloud', 'up to internal', 'val', 'org lock LOCK-01')
+      ];
+    } else {
+      access = [row('Model', 'auto', 'ok', 'group ' + U.group), row('Tool', 'read · search', 'ok', 'group ' + U.group), row('Cloud', 'up to internal', 'val', 'org lock LOCK-01')];
+    }
+    const seeModels = (isJan ? ['auto', 'local-coder'] : isAnna ? ['auto', 'local-pl', 'corp/loan-memo-pl', 'skill/loan-memo-summary'] : ['auto']).map((l) => ({ l: l, bd: c.border, bg: 'transparent' }));
+    if (isJan && S.granted) seeModels.push({ l: 'smart (new)', bd: c.accentLine, bg: c.accentSoft });
+    const activity = isJan
+      ? [['14:02:41', 'git push origin feature/loan-calc', 'require_approval'], ['14:02:30', 'read config/settings.py', 'redact'], ['14:01:20', 'pip install litellm==1.82.8', 'block'], ['14:00:47', 'auto → qwen2.5-coder:7b', 'allow']]
+      : isAnna ? [['14:03:12', 'auto → bielik-11b (PESEL)', 'pseudonymise'], ['14:01:55', 'bash: ls -la', 'block'], ['13:59:48', 'skill/loan-memo-summary', 'route_local']]
+        : [['13:59:10', 'auto → qwen3:8b', 'allow']];
+
+    return Object.assign({
+      c: c, pad: pad,
+      nav: navFor('users', c),
+      tabs: tabs, showUsers: S.tab === 'users', showGroups: S.tab === 'groups',
+      filters: ['Group', 'Risk'],
+      users: users, groups: groups,
+      userDrawer: S.tab === 'users' && S.sel >= 0,
+      groupDrawer: S.tab === 'groups' && S.gsel >= 0,
+      close: () => this.setState(S.tab === 'users' ? { sel: -1 } : { gsel: -1 }),
+      u: { ini: U.ini, name: U.name, first: U.first, email: U.email, group: U.group, preset: U.preset, req: U.req, tok: U.tok },
+      g: { name: G0.name, members: G0.members, spend: G0.spend, tokIO: G0.tokIO, people: G0.people.map(([ini, name, note]) => ({ ini: ini, name: name, note: note })) },
+      gPresets: segVals([['monitor', 'monitor'], ['balanced', 'balanced'], ['strict', 'strict'], ['paranoid', 'paranoid']], G.preset, c, (k) => setEdit({ preset: k })),
+      gCloud: segVals([['none', 'nothing'], ['public', 'public'], ['internal', 'internal']], G.cloud, c, (k) => setEdit({ cloud: k })),
+      gModels: ALL_MODELS.map(chipToggle(G.models, 'models')),
+      gTools: ALL_TOOLS.map(chipToggle(G.tools, 'tools')),
+      gBudget: G.budget.toFixed(2),
+      budgetUp: () => setEdit({ budget: Math.min(50, G.budget + 1) }),
+      budgetDown: () => setEdit({ budget: Math.max(0, G.budget - 1) }),
+      gChanged: changed,
+      gChangeText: diffs.length + (diffs.length === 1 ? ' change: ' : ' changes: ') + diffs.join(', ') + ' · written to groups.yaml',
+      gDiscard: () => { const all = Object.assign({}, S.gedit); delete all[gIdx]; this.setState({ gedit: all }); },
+      gSave: () => { const saved = Object.assign({}, S.gsaved); saved[gIdx] = true; this.setState({ gsaved: saved }); },
+      gSaved: !!S.gsaved[gIdx] && diffs.length > 0,
+      okT: chip(DEC, 'allow', c, 'tint'),
+      access: access,
+      openGrant: () => this.setState({ sel: 0, form: true }),
+      grantForm: isJan && S.form && !S.granted,
+      closeGrant: () => this.setState({ form: false }),
+      saveGrant: () => this.setState({ granted: true, form: false }),
+      expiry: segVals([['1 d', '1 d'], ['7 d', '7 d'], ['30 d', '30 d']], S.exp, c, (k) => this.setState({ exp: k })),
+      seeModels: seeModels,
+      activity: activity.map(([t, what, k]) => ({ t: t, what: what, b: b(k) }))
+    }, menuVals(this, c));
+  }
+}
+</script>
+</body>
+</html>

