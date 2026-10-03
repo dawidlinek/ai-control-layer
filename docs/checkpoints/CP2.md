@@ -78,8 +78,12 @@ and atomic consumption; user-scope decision rules; principal-namespaced sessions
 octal hosts); SQL stacked/write/file/sleep functions; path `..`/`%2e`/`~`/drive case; `curl|sh` + decode-to-shell pipes;
 hidden MCP tools can't be called; sampling refused; drift covers name/description/schema; budget/loop `inspect()` read-only.
 
-All findings fixed with regression tests that failed before the fix (merged 2026-10-03). **Full-suite + e2e re-run after
-the last merge is still pending** (fix branches each passed `dev.py test` + `lint` on their own).
+All findings fixed with regression tests that failed before the fix (merged 2026-10-03). Final gate on `main` after all
+merges (2026-10-04): **1 718 deterministic tests** (1 179 gateway unit + 29 policy-service + 510 system, **353/353 case
+cells**), lint clean, **e2e 22/22** on the live stack. Two tests failed once only inside the full parallel run and pass
+alone and in 3 repeated parallel runs: under heavy CPU contention a deterministic control hits its timeout and fails
+closed (correct, safe) — the decide test then sees `block` instead of a hold, and the 15 ms latency micro-benchmark
+measures the contended machine. Logged, not masked.
 
 ## Decisions recorded
 
@@ -90,6 +94,15 @@ the last merge is still pending** (fix branches each passed `dev.py test` + `lin
 - `opencode.read` / `files.read_file` are `reads_untrusted` + `touches_sensitive` (repo content is untrusted).
 
 ## Not done / risks
+
+- **E2E budget hygiene**: scenario 7 (runaway agent) charges ~125k tokens per run to user `anna`'s daily budget (500k);
+  after ~4 runs a day anna is (correctly) blocked by SEC-BUDGET-01 and later e2e checks fail. Follow-up: run scenario 7
+  as the `research-bot` agent (client credentials, its own budget) or a dedicated load-test user. Meanwhile reset with
+  `delete from budget_counters/budget_breakers where node_id like 'user:anna%'` on the dev DB (gateway stopped).
+- MCP IFC sessions without `X-Session-Id` are principal-wide (`mcp-default`): correct for cross-server taint, but clients
+  should send their session id (OpenCode plugin does for chat/decide; check MCP).
+- New tool-check behaviour: shell writes outside the workspace are blocked; in-workspace output files (`-o`, `--junitxml`)
+  need approval; named-package installs in tainted sessions are not held by the untrusted-exec rule (feed still checks them).
 
 - **Live model**: `.env` now has `ACL_DETERMINISTIC=0` and `LOCAL_LLM_BASE_URL=http://host.docker.internal:8001/v1`,
   but no tunnel is listening on :8001 → local-model calls return 502 until the WCSS link runs. The newer WCSS tooling

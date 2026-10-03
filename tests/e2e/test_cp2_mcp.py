@@ -17,6 +17,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -39,10 +40,14 @@ class McpClient:
         self.url = f"{stack.cfg.gateway}/mcp/{server}"
         self.session: str | None = None
         self.n = 0
+        # IFC/loop session, as a real client sends it (OpenCode: its session id). Without it every MCP call of a
+        # principal shares one session (cross-server taint) and repeated e2e runs would trip SEC-LOOP-01.
+        self.ifc_session = f"e2e-{uuid.uuid4().hex[:12]}"
 
     def rpc(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self.n += 1
         headers = dict(self.stack.auth(self.user))
+        headers["X-Session-Id"] = self.ifc_session
         if self.session:
             headers["Mcp-Session-Id"] = self.session
         body: dict[str, Any] = {"jsonrpc": "2.0", "id": self.n, "method": method}
@@ -94,16 +99,34 @@ def _bank_data() -> Any:
     return module
 
 
+def _reset_rugpull_server() -> None:
+    """POST /reset inside the rugpull-demo container (not published on the host)."""
+    import subprocess
+
+    code = (
+        "import urllib.request as u;"
+        "u.urlopen(u.Request('http://127.0.0.1:8000/reset', method='POST'), timeout=5).read()"
+    )
+    try:
+        subprocess.run(
+            ["docker", "exec", "acl-mcp-rugpull-1", "python", "-c", code], check=True, capture_output=True, timeout=30
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        pytest.skip(f"cannot reset the rugpull-demo server: {exc}")
+
+
 def test_cp2_scenario_6_rug_pull_quarantine_and_incident(stack, sse) -> None:
+    # Make the scenario independent of earlier runs: put the demo server back into its benign state (its /reset
+    # endpoint is only reachable on the compose network), let the gateway see the clean manifest, and re-pin it if an
+    # earlier run left it quarantined (re-approval is deliberately sticky).
+    _reset_rugpull_server()
+    McpClient(stack, "anna", "rugpull-demo").open().tools()
     rows = [r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather"]
     if rows and rows[0]["status"] != "pinned":
-        # leftover from an earlier run: after `docker compose up -d --force-recreate mcp-rugpull` the server is clean
-        # again; let the gateway see the clean manifest, then re-pin it as an admin (re-approval is deliberately sticky)
-        McpClient(stack, "anna", "rugpull-demo").open().tools()
-        approved = stack.admin("POST", f"/mcp/tools/{rows[0]['id']}/approve", json={"reason": "e2e reset"})
+        stack.admin("POST", f"/mcp/tools/{rows[0]['id']}/approve", json={"reason": "e2e reset"})
         rows = [r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather"]
-        if approved.status_code != 200 or not rows or rows[0]["status"] != "pinned":
-            pytest.skip("rugpull-demo is rugged from an earlier run: docker compose up -d --force-recreate mcp-rugpull")
+    if not rows or rows[0]["status"] != "pinned":
+        pytest.skip("could not reset rugpull-demo; docker compose up -d --force-recreate mcp-rugpull")
 
     anna = McpClient(stack, "anna", "rugpull-demo").open()
     assert anna.tools() == ["get_weather"]  # first sight on an allowlisted server: pinned
