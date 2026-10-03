@@ -514,6 +514,7 @@ class FakeApprovals:
 
         self.created: list[dict[str, Any]] = []
         self.outcome = ApprovalStatus(outcome)
+        self.redeemed = False
 
     async def create(self, ctx: Any, decision: Any, *, approver_scope: str, preview: str):  # type: ignore[no-untyped-def]
         from acl.contracts.decision import ApprovalRef
@@ -525,6 +526,19 @@ class FakeApprovals:
 
     async def wait(self, approval_id: str, timeout_s: float):  # type: ignore[no-untyped-def]
         return self.outcome
+
+    async def redeem(self, ctx: Any, decision: Any, engine: Any):  # type: ignore[no-untyped-def]
+        """Approve-once: an approved request waives the held verdicts exactly once (as the real service does)."""
+        from acl.contracts.common import Action, ApprovalStatus
+
+        if self.outcome != ApprovalStatus.approved or not self.created or self.redeemed:
+            return None
+        self.redeemed = True
+        waived = [
+            v.model_copy(update={"action": Action.allow}) if v.action == Action.require_approval else v
+            for v in decision.verdicts
+        ]
+        return engine.pipeline.recompose(ctx, waived)
 
 
 @pytest.fixture
