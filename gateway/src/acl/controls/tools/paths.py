@@ -11,7 +11,9 @@ Rules (all deterministic, no I/O):
     wherever they sit (also inside the workspace): class codes `SENSITIVE:<class>`;
   * `workspace_only`: the canonical path must be inside `workspace_root` (else `cwd`); `..` is resolved
     lexically first, so `src/../../etc/passwd` escapes and is denied;
-  * group `path_deny` globs always deny, group `path_allow` globs (when set) must match.
+  * group `path_deny` globs always deny, group `path_allow` globs (when set) must match;
+  * Windows aliases are classified as the file they open: trailing dots / spaces (`.env.`), NTFS data streams
+    (`.env::$DATA`), case (`.ENV`) and common 8.3 short names (`SECRET~1.YAM`); see `alias_normalise`.
 """
 
 from __future__ import annotations
@@ -75,12 +77,79 @@ _PERSISTENCE = re.compile(
     r"(?:^|/)(?:\.git/(?:hooks/|config$)|\.github/(?:workflows|actions)/|\.gitlab-ci\.ya?ml$|\.husky/|\.vscode/"
     r"|\.idea/|\.envrc$|\.claude/|\.opencode/|opencode\.jsonc?$|agents\.md$|claude\.md$|\.cursor/|\.cursorrules$"
     r"|\.(?:bash|zsh)rc$|\.(?:bash_)?profile$|\.zprofile$|\.bash_login$|crontab$|authorized_keys$"
-    r"|\.config/(?:autostart|systemd)/|start menu/programs/startup/)"
+    r"|\.config/(?:autostart|systemd|fish)/|start menu/programs/startup/|etc/profile\.d/|etc/cron|etc/rc\.local$"
+    r"|\.x(?:init|session)rc$|\.xprofile$)"
 )
 
 
 def is_persistence_path(path: str) -> bool:
-    return bool(_PERSISTENCE.search(path.replace("\\", "/").casefold()))
+    return bool(_PERSISTENCE.search(alias_normalise(path.replace("\\", "/").casefold())))
+
+
+# ---------------------------------------------------------------- Windows filename aliases
+# NTFS (and the Win32 path layer) resolve several spellings to the same file: trailing dots and spaces are dropped
+# (`.env.` / `.env ` → `.env`), `name:stream` / `name::$DATA` address a data stream of `name`, and every long name may
+# also be reachable through its 8.3 short name (`SECRET~1.YAM`). Classification runs on the aliased form. On POSIX these
+# spellings are distinct files; treating them as the protected name there too only ever makes a decision stricter.
+
+
+def alias_normalise(path: str) -> str:
+    """Casefolded `/`-path with trailing dots/spaces stripped from every component and NTFS stream suffixes dropped."""
+    out: list[str] = []
+    for i, part in enumerate(path.casefold().split("/")):
+        if i == 0 and _WIN_DRIVE.fullmatch(part):
+            out.append(part)  # `c:` drive prefix
+            continue
+        if ":" in part:
+            part = part.split(":", 1)[0]  # `name:stream:$DATA`, `name::$DATA`
+        if part not in (".", ".."):
+            part = part.rstrip(". ") or part
+        out.append(part)
+    return "/".join(out)
+
+
+# 8.3 short names: `<up to 6 chars>~<n>[.<up to 3 chars>]`. Only the common generated form is recognised; hashed short
+# names (`SE1A2B~1`, created after many collisions) are not, and remain a documented limitation.
+_SHORT_NAME = re.compile(r"^([^~./]{1,6})~\d{1,6}(?:\.([^.]{1,3}))?$")
+# (long base name without leading dots, required extension or None = no extension, class); "*" = any extension
+_SHORT_TARGETS: tuple[tuple[str, str | None, str], ...] = (
+    ("env", "*", "env"),
+    ("ssh", None, "ssh"),
+    ("aws", None, "cloud_creds"),
+    ("azure", None, "cloud_creds"),
+    ("kube", None, "cloud_creds"),
+    ("gnupg", None, "cloud_creds"),
+    ("npmrc", None, "cloud_creds"),
+    ("pypirc", None, "cloud_creds"),
+    ("netrc", None, "cloud_creds"),
+    ("git-credentials", None, "cloud_creds"),
+    ("pgpass", None, "cloud_creds"),
+    ("vault-token", None, "cloud_creds"),
+    ("secret", "yaml|yml|json|toml", "cloud_creds"),
+    ("secrets", "yaml|yml|json|toml", "cloud_creds"),
+    ("credentials", "json", "cloud_creds"),
+    ("id_ed25519", None, "private_key"),
+    ("id_ecdsa", None, "private_key"),
+)
+
+
+def _short_name_class(part: str) -> str | None:
+    m = _SHORT_NAME.match(part)
+    if not m:
+        return None
+    stem, ext = m.group(1), m.group(2)
+    for base, want_ext, cls in _SHORT_TARGETS:
+        if not base.startswith(stem) or len(stem) < min(len(base), 5):
+            continue
+        if want_ext == "*":
+            if ext is None or not any(s.startswith(ext) for s in _ENV_OK_SUFFIX):
+                return cls
+        elif want_ext is None:
+            if ext is None:
+                return cls
+        elif ext is not None and any(e[:3] == ext for e in want_ext.split("|")):
+            return cls
+    return None
 
 
 # Basenames that are unambiguous even as a bare shell token (no directory part): `cat .env`, `scp id_rsa host:`.
@@ -90,10 +159,15 @@ _BARE_NAMES = re.compile(r"^(?:\.npmrc|\.pypirc|\.netrc|_netrc|\.git-credentials
 
 def classify_sensitive(path: str, *, bare: bool = False) -> str | None:
     """Sensitive-location class of a canonical path (None if not sensitive). `bare`: a lone token without `/`."""
-    p = path.replace("\\", "/").casefold().rstrip("/")
+    p = alias_normalise(path.replace("\\", "/").rstrip("/"))
     if not p:
         return None
     base = p.rsplit("/", 1)[-1]
+    if "~" in p:
+        for part in p.split("/"):
+            cls = _short_name_class(part)
+            if cls is not None and (not bare or cls in _BARE_CLASSES or "/" in p):
+                return cls
     if bare and "/" not in p:
         for code, rx in _BASENAME_PATTERNS:
             if code in _BARE_CLASSES and rx.match(base) and not _env_template(base):

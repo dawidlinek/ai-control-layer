@@ -3,7 +3,8 @@
     untrusted  = session integrity untrusted, or taint `untrusted`
     sensitive  = taint `sensitive`, or confidentiality >= confidential
     sink       = the tool is labelled `external_egress` (or is unknown to the catalogue, or is a shell tool whose
-                 command sends data out / publishes: `curl`, `git push`, `scp`, `npm publish`, ...)
+                 command sends data out / publishes: `curl`, `git push`, `scp`, `npm publish`, ..., or runs
+                 workspace / inline code: `pytest`, `make`, `npm test`, `python x.py`, `node -e`, `./run.sh`)
 
     untrusted AND sensitive AND sink   → preset `rule_of_two_action` (balanced: require_approval, strict: block)
     `taint_mode: full` (paranoid)      → untrusted AND sink → block, even without sensitive data
@@ -61,7 +62,7 @@ class RuleOfTwoControl(Control):
             return self.verdict(reason="session has no untrusted input")
         policy = self.deps.get("policy")
         tool = policy.tools.get(payload.tool) if policy is not None else None  # type: ignore[call-overload]
-        sink, sink_reason = call_is_sink(tool, payload)
+        sink, sink_reason = call_is_sink(tool, payload, untrusted=True)  # only reached for an untrusted session
         if not sink:
             return self.verdict(reason="call is not an external-egress sink")
 
