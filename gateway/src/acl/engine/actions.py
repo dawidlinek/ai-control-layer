@@ -116,6 +116,12 @@ async def evaluate_point(
         attributes=dict(attributes or {}),
     )
     decision = await engine.evaluate(ctx)
+    redeem = getattr(getattr(app.state, "approvals", None), "redeem", None)
+    if redeem is not None and point == InspectionPoint.tool_call and decision.action == Action.require_approval:
+        # an approved request for exactly this call (session, tool, args, covering rules) lets it through
+        redeemed = await redeem(ctx, decision, engine)
+        if redeemed is not None:
+            decision = redeemed
     if record:
         from acl.audit.builder import redacted_text
         from acl.engine.transforms import unaddressable_fields

@@ -47,4 +47,6 @@ class ApprovalRow(Base):
     note: Mapped[str | None] = mapped_column(Text)
     elevation_scope: Mapped[str | None] = mapped_column(String(255))
     elevation_until: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # "approve once": set when the approved call was executed (redeemed); a consumed row never waives again
+    consumed_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
     detail: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)

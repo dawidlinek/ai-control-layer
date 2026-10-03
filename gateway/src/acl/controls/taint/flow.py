@@ -20,7 +20,7 @@ from pydantic import BaseModel, ConfigDict
 
 from acl.contracts.common import DATA_CLASS_ORDER, Action, DataClass, Integrity, Phase, TaintFlag
 from acl.contracts.decision import Verdict
-from acl.contracts.inspection import InspectionContext, ToolCallPayload
+from acl.contracts.inspection import InspectionContext, SessionLabels, ToolCallPayload
 from acl.controls.base import Control, register_control
 from acl.controls.taint.sinks import call_is_sink
 
@@ -30,8 +30,10 @@ class RuleOfTwoParams(BaseModel):
 
 
 def session_flags(ctx: InspectionContext) -> tuple[bool, bool]:
-    """(untrusted, sensitive) from the session labels."""
-    labels = ctx.session.labels
+    """(untrusted, sensitive) from the session labels joined with everything detected earlier in this request
+    (`labels_so_far`, published by the pipeline after each phase) — a PESEL inside the sink call itself counts."""
+    running = ctx.attributes.get("labels_so_far")
+    labels = running if isinstance(running, SessionLabels) else ctx.session.labels
     untrusted = labels.integrity == Integrity.untrusted or TaintFlag.untrusted in labels.taint
     sensitive = (
         TaintFlag.sensitive in labels.taint
@@ -43,7 +45,8 @@ def session_flags(ctx: InspectionContext) -> tuple[bool, bool]:
 @register_control
 class RuleOfTwoControl(Control):
     type = "rule_of_two"
-    phase = Phase.deterministic
+    # Runs in the `decide` phase, after every detector, so it judges the session labels raised by this very call.
+    phase = Phase.decide
     Params = RuleOfTwoParams
     cacheable = False  # depends on session state
 

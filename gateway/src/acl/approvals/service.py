@@ -25,7 +25,7 @@ import contextlib
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import select, update
@@ -79,6 +79,11 @@ def approver_scope_for(engine: Any, decision: Decision) -> Scope:
     other control need an administrator. Shared by `/v1/decide` and the MCP proxy."""
     holders = [v for v in enforced_verdicts(engine, decision) if v.action == Action.require_approval]
     return "user" if holders and all(v.control_type == "tool_policy" for v in holders) else "admin"
+
+
+def _aware(dt: datetime) -> datetime:
+    """SQLite returns naive datetimes: treat them as UTC."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 def _label(principal: Principal) -> str:
@@ -349,6 +354,79 @@ class ApprovalService:
                 return status
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(event.wait(), timeout=min(remaining, 1.0))
+
+    async def redeem(self, ctx: InspectionContext, decision: Decision, engine: Any) -> Decision | None:
+        """Let an approved call through. SECURITY-CRITICAL (orchestrator-owned semantics).
+
+        Only turns `require_approval` into whatever the remaining verdicts allow — never touches a `block`.
+        Matches an `approved` row for exactly this (session, tool, args_hash) whose recorded rule ids cover every rule
+        that holds the new call. "Approve once" rows (no elevation) are consumed atomically on first use; rows with an
+        elevation window cover this exact call until it ends. Returns the re-composed decision, or None.
+        """
+        payload = ctx.payload
+        if decision.action != Action.require_approval or not isinstance(payload, ToolCallPayload):
+            return None
+        holding = [v for v in decision.verdicts if v.action == Action.require_approval]
+        held_rules = {r for v in holding for r in v.rule_ids}
+        if not holding or not held_rules:
+            return None
+        args_hash = value_hash(canonical_json(payload.arguments), self._salt(), 64)
+        now = self._now()
+        async with self._sessions()() as s:
+            rows = (
+                (
+                    await s.execute(
+                        select(ApprovalRow)
+                        .where(
+                            ApprovalRow.session_id == ctx.session_id,
+                            ApprovalRow.tool == payload.tool,
+                            ApprovalRow.args_hash == args_hash,
+                            ApprovalRow.status == ApprovalStatus.approved.value,
+                        )
+                        .order_by(ApprovalRow.decided_at.desc())
+                        .limit(20)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            chosen: ApprovalRow | None = None
+            for row in rows:
+                if not held_rules <= set(row.rule_ids or []):
+                    continue
+                if row.elevation_until is not None:
+                    if _aware(row.elevation_until) > now:
+                        chosen = row
+                        break
+                    continue
+                if row.consumed_at is None:
+                    res = await s.execute(
+                        update(ApprovalRow)
+                        .where(ApprovalRow.id == row.id, ApprovalRow.consumed_at.is_(None))
+                        .values(consumed_at=now)
+                    )
+                    await s.commit()
+                    if res.rowcount:
+                        chosen = row
+                        break
+        if chosen is None:
+            return None
+        waived = [
+            v.model_copy(update={"action": Action.allow, "reason": f"approved {chosen.id}: {v.reason or ''}".strip()})
+            if v.action == Action.require_approval
+            else v
+            for v in decision.verdicts
+        ]
+        new = engine.pipeline.recompose(ctx, waived)
+        new = new.model_copy(
+            update={
+                "decision_id": decision.decision_id,
+                "latency_ms": decision.latency_ms,
+                "reason": (new.reason or f"approved by {chosen.decided_by} ({chosen.id})"),
+            }
+        )
+        await self._record("redeemed", chosen, ctx.principal, decision_id=decision.decision_id)
+        return new
 
     async def elevation(self, session_id: str, tool_id: str) -> datetime | None:
         """Latest active elevation end for `(session, tool)`, else None."""

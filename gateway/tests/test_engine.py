@@ -299,3 +299,34 @@ async def test_session_store_merge_is_monotonic() -> None:
     await store.update("s", lambda s: s.model_copy(update={"labels": a}))
     await store.update("s", lambda s: s.model_copy(update={"labels": merge_labels(s.labels, b)}))
     assert (await store.load("s")).labels.confidentiality == DataClass.restricted
+
+
+async def test_running_labels_carry_detected_data_not_predicted_taint() -> None:
+    from acl.contracts.common import DataClass
+    from acl.contracts.decision import LabelUpdate
+
+    class _Det(_Fixed):
+        type = "det_dc"
+
+        async def inspect(self, ctx):  # type: ignore[override]
+            return self.verdict(data_class=DataClass.confidential, labels=LabelUpdate(integrity_untrusted=True))
+
+    class _Late(_Seen):
+        type = "late_seen"
+
+        async def inspect(self, ctx):  # type: ignore[override]
+            lab = ctx.attributes["labels_so_far"]
+            return self.verdict(reason=f"{lab.confidentiality.value}/{lab.integrity.value}")
+
+    r = ControlRegistry()
+    r.register(_Det)
+    r.register(_Late)
+    p = Pipeline(
+        [
+            r.build(_cfg("T-D-01", ctype="det_dc"), ControlDeps()),
+            r.build(_cfg("T-L-01", CostTier.l1, ctype="late_seen"), ControlDeps()),
+        ],
+        GlobalSettings(),
+    )
+    d = await p.run(make_context("x"))
+    assert next(v for v in d.verdicts if v.control_id == "T-L-01").reason == "confidential/trusted"

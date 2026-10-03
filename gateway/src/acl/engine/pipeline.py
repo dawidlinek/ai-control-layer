@@ -22,6 +22,7 @@ from acl.contracts.decision import Decision, Verdict
 from acl.contracts.inspection import InspectionContext
 from acl.controls.base import Control
 from acl.engine.cache import VerdictCache, payload_digest
+from acl.engine.decide import _raise_labels as raise_labels
 from acl.engine.decide import compose_decision
 from acl.policy.models import GlobalSettings, PresetSettings
 
@@ -68,6 +69,12 @@ class Pipeline:
             for v in results:
                 if v.outputs:
                     ctx.attributes.update(v.outputs)
+            # running IFC labels for later phases: session ∪ data DETECTED in this payload so far (data_class only),
+            # e.g. SEC-FLOW-01 sees a PESEL inside the very tool call it is judging. Label updates that describe what
+            # a call will bring back (SEC-TAINT-01 on a reads_untrusted tool) are excluded: they apply after the call.
+            ctx.attributes["labels_so_far"] = raise_labels(
+                ctx.session.labels, [v.model_copy(update={"labels": None}) for v in verdicts if v.data_class]
+            )
             if any(v.final and v.action == Action.block for v in results):
                 break
         return compose_decision(
@@ -75,6 +82,21 @@ class Pipeline:
             verdicts,
             self.settings,
             latency_ms=(time.perf_counter() - started) * 1000,
+            shadow_controls=frozenset(c.id for c in applicable if c.shadow),
+            never_block=bool((ps := self.presets.get(ctx.preset)) and ps.never_block),
+            locked_controls=frozenset(c.id for c in applicable if c.locked),
+        )
+
+    def recompose(self, ctx: InspectionContext, verdicts: list[Verdict]) -> Decision:
+        """Compose a decision for already-evaluated verdicts with this pipeline's semantics (shadow, locked, presets).
+
+        Used by approval redemption to re-derive the decision after held verdicts were waived; never re-runs controls.
+        """
+        applicable = self.applicable(ctx)
+        return compose_decision(
+            ctx,
+            verdicts,
+            self.settings,
             shadow_controls=frozenset(c.id for c in applicable if c.shadow),
             never_block=bool((ps := self.presets.get(ctx.preset)) and ps.never_block),
             locked_controls=frozenset(c.id for c in applicable if c.locked),

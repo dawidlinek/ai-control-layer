@@ -81,7 +81,9 @@
   point: tool_call
   session: untrusted_sensitive
   input: {tool: opencode.upload, arguments: {}}
-  expect: {action: block, rule_id: SEC-FLOW-01}
+  # an unknown tool is refused by SEC-TOOL-01 (final, deterministic phase) before SEC-FLOW-01 runs in `decide`;
+  # SEC-FLOW-01's own unknown-tool-is-a-sink rule is covered by unit tests (test_2b_taint)
+  expect: {action: block, rule_id: SEC-TOOL-01}
 
 # ---- positives (near misses) ---------------------------------------------------------------------------------------
 - id: flow-fetch-clean-session

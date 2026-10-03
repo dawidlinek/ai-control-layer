@@ -41,6 +41,7 @@ def upgrade() -> None:
         sa.Column("note", sa.Text(), nullable=True),
         sa.Column("elevation_scope", sa.String(255), nullable=True),
         sa.Column("elevation_until", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("consumed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("detail", sa.JSON(), nullable=False),
         sa.PrimaryKeyConstraint("id", name="pk_approvals"),
     )
