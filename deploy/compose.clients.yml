@@ -1,2 +1,139 @@
-# Compose fragment included by docker-compose.yml (owner: Phase 2C). Services join the default network.
-services: {}
+# Compose fragment included by docker-compose.yml (owner: Phase 2C). Everything here is behind the `clients`
+# profile:   COMPOSE_PROFILES=clients uv run python scripts/dev.py up
+#       or   docker compose --env-file .env -f deploy/docker-compose.yml --profile clients up -d --build
+#
+# Paths are relative to this file (deploy/). See deploy/README-clients.md.
+#
+# ORCHESTRATOR WIRING (this fragment may not edit the main file): the `gateway` service must also join the
+# `acl-clients-internal` network under the alias `gateway`, e.g. in docker-compose.yml
+#       gateway:
+#         networks:
+#           default: {}
+#           acl-clients-internal: {aliases: [gateway]}
+# The locked OpenCode container has no other route anywhere: no internet, no Keycloak, no LibreChat.
+
+services:
+  # ------------------------------------------------------------------ OpenCode (locked container)
+  # Door to Keycloak for the device-code login: sits on both networks and answers to the name `keycloak`
+  # on the internal one, forwarding only the device-authorization and token endpoints (idp-gate.conf).
+  idp-gate:
+    profiles: [clients]
+    image: nginx:1.27-alpine
+    volumes:
+      - ./opencode/idp-gate.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      default: {}
+      acl-clients-internal:
+        aliases: [keycloak]
+    depends_on:
+      keycloak: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  opencode:
+    profiles: [clients]
+    build:
+      context: ..
+      dockerfile: deploy/opencode/Dockerfile
+    image: acl-opencode-locked:local
+    stdin_open: true
+    tty: true
+    read_only: true        # root filesystem; writable: /tmp, /state (volume), /workspace (volume)
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    environment:
+      ACL_GATEWAY_URL: http://gateway:8000
+      # Issuer = what users' browsers (and the tokens) see; the backchannel goes through idp-gate.
+      ACL_OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8180}/realms/acl
+      ACL_OIDC_BASE_URL: http://keycloak:8080/realms/acl
+      ACL_OIDC_CLIENT_ID: opencode
+      ACL_MCP_SERVERS: governed-tools,files,mail,web
+    volumes:
+      - opencode_workspace:/workspace
+      - opencode_state:/state
+    networks:
+      - acl-clients-internal       # ONLY this network: internal=true, so no route to the internet
+    depends_on:
+      idp-gate: {condition: service_healthy}
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ LibreChat
+  librechat-mongo:
+    profiles: [clients]
+    image: mongo:8.0.20
+    command: ["mongod", "--bind_ip_all", "--noauth"]    # reachable only on the compose network, no published port
+    volumes:
+      - librechat_mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  librechat:
+    profiles: [clients]
+    build:
+      context: ./librechat
+    image: acl-librechat:local
+    entrypoint: ["/bin/sh", "/librechat-entrypoint.sh"]
+    command: ["npm", "run", "backend"]
+    depends_on:
+      librechat-mongo: {condition: service_healthy}
+      keycloak: {condition: service_healthy}
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3080"
+      MONGO_URI: mongodb://librechat-mongo:27017/LibreChat
+      DOMAIN_CLIENT: http://localhost:3080
+      DOMAIN_SERVER: http://localhost:3080
+      CONFIG_PATH: /app/librechat.yaml
+      SEARCH: "false"                      # no Meilisearch
+      SCHEDULES_SINGLE_PROCESS: "true"     # one replica: lets the scheduler arm (silences a startup error)
+      LOGIN_MAX: "100"                     # demo + e2e log in repeatedly; default is 7 per window
+      ENDPOINTS: custom                    # only the endpoints declared in librechat.yaml
+      # Single generated secret; the entrypoint derives JWT/CREDS/session secrets from it.
+      LIBRECHAT_APP_SECRET: ${LIBRECHAT_APP_SECRET:?run `make env`}
+      # Login: Keycloak only.
+      ALLOW_EMAIL_LOGIN: "false"
+      ALLOW_REGISTRATION: "false"
+      ALLOW_SOCIAL_LOGIN: "true"
+      ALLOW_SOCIAL_REGISTRATION: "true"
+      # The issuer is what Keycloak puts into its tokens (KC_HOSTNAME); oidc-forward.cjs makes it reachable in-container.
+      OPENID_ISSUER: http://localhost:${KEYCLOAK_PORT:-8180}/realms/acl
+      OPENID_ALLOW_INSECURE_HTTP: "true"   # demo-only patch (deploy/librechat/Dockerfile); production uses an HTTPS issuer
+      OIDC_LOCAL_PORT: ${KEYCLOAK_PORT:-8180}
+      OIDC_UPSTREAM: keycloak:8080
+      OPENID_CLIENT_ID: librechat
+      OPENID_CLIENT_SECRET: ${KC_LIBRECHAT_SECRET:?run `make env`}
+      OPENID_CALLBACK_URL: /oauth/openid/callback
+      OPENID_SCOPE: openid profile email
+      OPENID_REUSE_TOKENS: "true"          # keep the Keycloak access token so it can be forwarded to the gateway
+      OPENID_USE_PKCE: "true"
+      OPENID_BUTTON_LABEL: Sign in with company SSO
+      OPENID_AUTO_REDIRECT: "false"
+    volumes:
+      - ./librechat/librechat.yaml:/app/librechat.yaml:ro
+    ports:
+      - "3080:3080"
+    restart: unless-stopped
+
+networks:
+  # No route out of the host. Containers attached here can only talk to each other (and to whatever
+  # the orchestrator attaches: the gateway, and idp-gate for login).
+  acl-clients-internal:
+    name: acl-clients-internal
+    internal: true
+
+volumes:
+  opencode_workspace:
+  opencode_state:
+  librechat_mongo:

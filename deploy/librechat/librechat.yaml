@@ -1,0 +1,41 @@
+# LibreChat configuration for the AI Control Layer demo (concept section 5).
+# One endpoint only: the company gateway. Users sign in through Keycloak; each request to the gateway carries
+# THAT user's own Keycloak access token (audience `gateway`), so the gateway authenticates and authorises the
+# actual person, not LibreChat. Mounted read-only at /app/librechat.yaml (compose.clients.yml).
+version: 1.3.17
+
+cache: true
+
+interface:
+  # The gateway is the only model authority: users cannot add endpoints, keys or base URLs.
+  modelSelect: true
+  parameters: true
+  presets: false
+  prompts: true
+  bookmarks: false
+  multiConvo: false
+
+registration:
+  socialLogins: ["openid"]
+
+endpoints:
+  custom:
+    - name: "Company AI"
+      # LibreChat requires an apiKey value; it is overridden by the Authorization header below and is
+      # not a credential for anything.
+      apiKey: "overridden-by-authorization-header"
+      baseURL: "http://gateway:8000/v1"
+      headers:
+        # The user's OIDC access token (needs OPENID_REUSE_TOKENS=true). If the token is expired or missing,
+        # LibreChat refuses the request (OpenIDReauthRequiredError) instead of sending it unauthenticated.
+        Authorization: "Bearer {{LIBRECHAT_OPENID_ACCESS_TOKEN}}"
+        X-Client-App: "librechat"
+        # Correlation only: the gateway must never trust these for identity (the token is the identity).
+        X-Session-Id: "{{LIBRECHAT_BODY_CONVERSATIONID}}"
+      models:
+        default: ["auto"]
+        fetch: true               # GET /v1/models with the user's token => personalised list
+      titleConvo: true
+      titleModel: "auto"
+      modelDisplayLabel: "Company AI"
+      dropParams: ["stop", "frequency_penalty", "presence_penalty"]
