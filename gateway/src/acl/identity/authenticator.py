@@ -27,6 +27,10 @@ log = logging.getLogger(__name__)
 
 _CHALLENGE = {"WWW-Authenticate": "Bearer"}
 MAX_FAILURE_EVENTS_PER_10S = 100
+STALE_IDENTITY_DETAIL = (
+    "stale_identity: the API key owner's groups have not been refreshed by a Keycloak sign-in recently; "
+    "sign in once to refresh them"
+)
 
 
 def _unauthorized(detail: str = "invalid or missing credentials") -> HTTPException:
@@ -65,7 +69,7 @@ class Authenticator:
         try:
             if looks_like_api_key(token):
                 principal, _ = await self.keys.authenticate(token)
-                # keep the user's last-known groups/roles; a key never refreshes them
+                # the user's last-known groups (refused when too old); never an admin-panel role
                 return principal
             claims = await self.verifier.verify(token)
             principal = principal_from_claims(claims)
@@ -77,6 +81,8 @@ class Authenticator:
             return principal
         except AuthError as exc:
             await self._record_failure(request, exc.reason)
+            if exc.reason == "stale_identity":
+                raise _unauthorized(STALE_IDENTITY_DETAIL) from exc
             raise _unauthorized() from exc
         except IdentityProviderUnavailable as exc:
             log.error("identity provider unreachable: cannot verify tokens")

@@ -25,7 +25,7 @@ from acl.contracts.admin import (
 from acl.contracts.audit import EventType
 from acl.contracts.common import GrantResourceType, Severity
 from acl.contracts.inspection import Principal
-from acl.identity.access import AccessUnavailable
+from acl.identity.access import AccessUnavailable, preset_rank
 from acl.identity.apikeys import key_from_row
 from acl.identity.db_models import UserRow
 from acl.identity.grants import GrantAlreadyRevoked, GrantNotFound
@@ -160,7 +160,35 @@ async def create_grant(request: Request, body: GrantCreate, p: Admin) -> Grant:
         raise HTTPException(503, detail="policy not loaded yet") from exc
     if problem is not None and body.effect == "allow":
         raise HTTPException(422, detail=problem)
+    if body.effect == "allow" and body.constraints.preset is not None:
+        await _check_grant_preset(svc, body)
     return await svc.grants.create(body, p)
+
+
+async def _check_grant_preset(svc: IdentityServices, body: GrantCreate) -> None:
+    """A grant may only tighten the preset: reject one laxer than the subject's current effective preset."""
+    wanted = body.constraints.preset
+    assert wanted is not None
+    try:
+        if body.subject_type == "group":
+            current, source = await svc.access.group_preset(body.subject.strip("/"))
+        else:
+            row = await svc.users.get(body.subject)
+            principal = (
+                principal_from_row(row) if row is not None else Principal(subject=body.subject, username=body.subject)
+            )
+            current, source = await svc.access.effective_preset_with_source(principal)
+    except AccessUnavailable as exc:
+        raise HTTPException(503, detail="policy not loaded yet") from exc
+    if preset_rank(wanted) < preset_rank(current):
+        raise HTTPException(
+            422,
+            detail=(
+                f"preset '{wanted.value}' is laxer than the {body.subject_type}'s current effective preset "
+                f"'{current.value}' (from {source}); a grant can only make the preset stricter "
+                "(monitor < balanced < strict < paranoid)"
+            ),
+        )
 
 
 @router.delete("/grants/{grant_id}", response_model=Grant, operation_id="revokeGrant")

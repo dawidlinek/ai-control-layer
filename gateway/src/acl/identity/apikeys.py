@@ -14,12 +14,15 @@ from sqlalchemy.exc import IntegrityError
 from acl.contracts.admin import ApiKey, ApiKeyCreated
 from acl.contracts.common import AuthMethod, PrincipalKind
 from acl.contracts.inspection import Principal
+from acl.identity.config import IdentityOptions
 from acl.identity.db_models import ApiKeyRow, UserRow, utcnow
 from acl.identity.tokens import AuthError
-from acl.identity.users import SessionMaker
+from acl.identity.users import SessionMaker, agent_id_for
 
 KEY_PREFIX = "acl"
 LAST_USED_RESOLUTION = timedelta(seconds=30)  # avoid a DB write on every request
+PANEL_ROLES = frozenset({"acl-admin", "acl-analyst", "acl-viewer"})
+"""Admin-panel roles: never carried by an API-key principal (`acl-user` and other roles are kept)."""
 
 
 def looks_like_api_key(token: str) -> bool:
@@ -57,9 +60,10 @@ def key_from_row(row: ApiKeyRow) -> ApiKey:
 
 
 class ApiKeyService:
-    def __init__(self, sessions: SessionMaker, pepper: bytes) -> None:
+    def __init__(self, sessions: SessionMaker, pepper: bytes, *, max_group_age: timedelta | None = None) -> None:
         self._sessions = sessions
         self._pepper = pepper
+        self._max_group_age = max_group_age if max_group_age is not None else IdentityOptions().api_key_max_group_age
 
     async def create(self, user: UserRow, name: str, expires_at: datetime | None) -> ApiKeyCreated:
         for _ in range(5):
@@ -118,15 +122,26 @@ class ApiKeyService:
             user = await s.get(UserRow, row.user_id)
             if user is None or user.disabled:
                 raise AuthError("account_disabled")
+            # Groups come from the owner's last Keycloak sign-in; a key never refreshes them. Refuse keys whose
+            # owner has not signed in recently enough for those groups to be trusted.
+            if user.last_seen is None or now - user.last_seen > self._max_group_age:
+                raise AuthError("stale_identity")
             if row.last_used_at is None or now - row.last_used_at >= LAST_USED_RESOLUTION:
                 row.last_used_at = now
-            principal = Principal(
-                subject=user.subject,
-                kind=PrincipalKind(user.kind),
-                username=user.username,
-                groups=list(user.groups or []),
-                roles=list(user.roles or []),
-                auth_method=AuthMethod.api_key,
-                api_key_id=row.id,
-            )
-            return principal, row
+            return principal_for_key(user, row.id), row
+
+
+def principal_for_key(user: UserRow, key_id: str) -> Principal:
+    """The principal an API key acts as: the owner's stored groups, never an admin-panel role (the admin API
+    always needs a fresh Keycloak JWT); agent owners keep `kind=agent` and their `agent_id`."""
+    agent_id = agent_id_for(user)
+    return Principal(
+        subject=user.subject,
+        kind=PrincipalKind.agent if agent_id else PrincipalKind(user.kind),
+        username=user.username,
+        groups=list(user.groups or []),
+        roles=[r for r in (user.roles or []) if r not in PANEL_ROLES],
+        agent_id=agent_id,
+        auth_method=AuthMethod.api_key,
+        api_key_id=key_id,
+    )

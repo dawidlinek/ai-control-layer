@@ -81,7 +81,7 @@ class AccessResolver(Protocol):
         ...
 
     async def effective_preset(self, principal: Principal) -> Preset:
-        """User grant constraint > strictest group preset > `global.default_preset`."""
+        """Strictest of: group presets (or `global.default_preset` if no group sets one) and grant presets."""
         ...
 
     async def effective_access(self, principal: Principal) -> EffectiveAccess: ...
@@ -130,6 +130,16 @@ def grant_keys(principal: Principal) -> tuple[list[str], list[str]]:
     return [k for k in dict.fromkeys([principal.subject, principal.username or ""]) if k], expand_groups(
         principal.groups
     )
+
+
+def preset_rank(preset: Preset) -> int:
+    """monitor < balanced < strict < paranoid."""
+    return _PRESET_RANK[preset]
+
+
+def strictest_preset(cands: Sequence[tuple[Preset, str]]) -> tuple[Preset, str]:
+    """The strictest (preset, source); the first one wins a tie."""
+    return max(cands, key=lambda c: _PRESET_RANK[c[0]])
 
 
 def _ordered(classes: Iterable[DataClass]) -> list[DataClass]:
@@ -436,30 +446,26 @@ class Resolution:
 
     # ------------------------------------------------------------ preset
 
-    def preset(self) -> tuple[Preset, str]:
-        def strictest(cands: list[tuple[Preset, str]]) -> tuple[Preset, str]:
-            return max(cands, key=lambda c: _PRESET_RANK[c[0]])
-
-        user = [
-            (g.constraints.preset, f"grant:{g.id}")
-            for g in self.grants
-            if g.subject_type == "user" and g.effect == "allow" and g.constraints.preset
-        ]
-        if user:
-            return strictest(user)  # type: ignore[arg-type]
+    def base_preset(self) -> tuple[Preset, str]:
+        """Strictest preset from the policy alone: group presets, or `global.default_preset` if none sets one."""
         group: list[tuple[Preset, str]] = []
         for g in self.groups:
             gp = self.policy.groups.get(g)  # type: ignore[call-overload]
             if gp is not None and gp.preset is not None:
                 group.append((gp.preset, f"group:{g}"))
-        group += [
+        return strictest_preset(group) if group else (self.policy.global_.default_preset, "default")
+
+    def preset(self) -> tuple[Preset, str]:
+        """Strictest of the policy preset (`base_preset`) and every active allow grant's preset constraint.
+
+        A grant (user or group subject) can only tighten the preset, never loosen what the groups set
+        (monitor < balanced < strict < paranoid). On a tie the policy source is reported."""
+        grants = [
             (g.constraints.preset, f"grant:{g.id}")
             for g in self.grants
-            if g.subject_type == "group" and g.effect == "allow" and g.constraints.preset
+            if g.effect == "allow" and g.constraints.preset is not None
         ]
-        if group:
-            return strictest(group)
-        return self.policy.global_.default_preset, "default"
+        return strictest_preset([self.base_preset(), *grants])  # type: ignore[list-item]
 
     # ------------------------------------------------------------ tools
 
@@ -653,6 +659,18 @@ class DefaultAccessResolver:
     async def effective_preset(self, principal: Principal) -> Preset:
         res, _ = await self._resolve(principal)
         return res.preset()[0]
+
+    async def effective_preset_with_source(self, principal: Principal) -> tuple[Preset, str]:
+        res, _ = await self._resolve(principal)
+        return res.preset()
+
+    async def group_preset(self, group: str) -> tuple[Preset, str]:
+        """Effective preset of a group itself (its policy preset, inherited parents, active group grants)."""
+        idx, _ = self._index()
+        groups = expand_groups([group])
+        grants = await self.grants.active_for([], groups)
+        member = Principal(subject=f"group:{group.strip('/')}", groups=[group.strip("/")])
+        return Resolution(idx, member, grants, self._now()).preset()
 
     async def effective_access(self, principal: Principal) -> EffectiveAccess:
         res, version = await self._resolve(principal)

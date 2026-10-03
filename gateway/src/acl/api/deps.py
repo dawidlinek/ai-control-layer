@@ -53,6 +53,9 @@ def require_role(minimum: str) -> Callable[..., Principal]:
     """Admin API guard: admin ⊇ analyst ⊇ viewer."""
 
     async def _guard(principal: PrincipalDep) -> Principal:
+        if principal.auth_method == AuthMethod.api_key:
+            # API keys carry the owner's last-known groups only; admin roles need a fresh Keycloak JWT.
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="the admin API requires a Keycloak sign-in")
         rank = max((_ROLE_RANK[r] for r in principal.roles if r in _ROLE_RANK), default=-1)
         if rank < _ROLE_RANK[minimum]:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail=f"requires role {minimum}")
