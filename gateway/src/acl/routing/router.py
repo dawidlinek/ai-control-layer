@@ -28,6 +28,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from acl.budgets.signal import budget_exhausted_reason
 from acl.contracts.common import DATA_CLASS_ORDER, Action, ConnectorTier, DataClass
 from acl.contracts.decision import RouteInfo
 from acl.policy.models import DataClassTierLock, ModelEntry, Policy
@@ -54,6 +55,9 @@ class RouteRequest:
     force_reason: str = ""
     capability: str = "chat"
     sensitive_external_action: Action = Action.route_local
+    budget_exhausted: str | None = None
+    """Why the cloud budget is spent (SEC-BUDGET-01 `route_local`). When unset the router falls back to the
+    request-scoped signal of `acl.budgets.signal`; the chat flow may fill this field directly."""
 
 
 @dataclass
@@ -176,7 +180,18 @@ class Router:
         assert model_id is not None
         factors["via"] = "auto" if auto else "direct"
 
-        # -- 2. route_local / downgrade obligations
+        # -- 2a. budget exhausted (SEC-BUDGET-01 route_local): a degraded local route, never silent
+        degraded = False
+        exhausted = req.budget_exhausted or budget_exhausted_reason()
+        if exhausted and self._tier(model_id) != ConnectorTier.local:
+            local = self._ref(targets.local)
+            if local is not None:
+                steps.append(f"budget exhausted ({exhausted}) → degraded {local}")
+                factors["budget_exhausted"] = exhausted
+                degraded = True
+                model_id = local
+
+        # -- 2b. route_local / downgrade obligations
         if req.force_local and self._tier(model_id) != ConnectorTier.local:
             local = self._ref(targets.local)
             steps.append(f"{req.force_reason or 'route_local'} → {local}")
@@ -211,7 +226,6 @@ class Router:
             model_id = local
 
         # -- 4. availability → degraded fallback
-        degraded = False
         problem = self.table.model_problem(model_id)
         if problem is not None:
             fallback = self._ref(targets.degraded)

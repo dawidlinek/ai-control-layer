@@ -152,7 +152,7 @@ controls:
 
   - id: SEC-BUDGET-01
     type: budget
-    enabled: false
+    enabled: true
     description: Hierarchical budgets, rate limits, circuit breaker, guard spend
     stages: [ingress, embeddings, tool_call]
     cost_tier: deterministic
@@ -161,7 +161,7 @@ controls:
 
   - id: SEC-LOOP-01
     type: loop_detector
-    enabled: false
+    enabled: true
     description: Repeated (tool, args-hash), step/depth limits, spend derivative
     stages: [ingress, tool_call]
     cost_tier: deterministic

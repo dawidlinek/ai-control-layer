@@ -4,12 +4,19 @@
 
 budgets:
   org: {usd_month: 100, gpu_seconds_day: 3600}
-  default_user: {tokens_day: 500000, requests_per_minute: 60}
+  default_user: {tokens_day: 500000, requests_per_minute: 60, gpu_seconds_session: 120}
   groups:
     developers: {tokens_day: 2000000, usd_day: 5}
     credit-analysts: {tokens_day: 1000000, usd_day: 2}
+  # Per-user overrides (key = username). `budget-probe-user` is a test fixture: it never matches a real
+  # user, and tests/cases/budgets.yaml uses it to hit a small per-session cap with a short prompt.
+  users:
+    budget-probe-user: {tokens_session: 400}
   agents:
     research-bot: {tokens_session: 50000, gpu_seconds_session: 120, tool_calls_session: 40}
+    # Test fixture (agent ids come from verified identity, so nobody can claim this one): tiny caps so the
+    # YAML cases in tests/cases/budgets.yaml can trip token / GPU-second / tool-call limits without state.
+    ci-budget-probe: {tokens_session: 400, gpu_seconds_session: 0.1, tool_calls_session: 2}
   on_exceed:
     soft_pct: 80
     soft_action: alert
