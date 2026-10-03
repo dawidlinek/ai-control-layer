@@ -74,7 +74,7 @@ controls:
       # Gateway wiring always registers the `access` service (DB grants + org locks). `policy_only` is the
       # fallback for engines built without it (in-process case harness): group policy + org locks, no DB grants.
       # Use `block` to fail closed when the service is missing.
-      missing_service: policy_only
+      missing_service: policy_only   # readyz fails if the access service is not wired (see api/health.py)
 
   - id: SEC-PII-01
     type: pii

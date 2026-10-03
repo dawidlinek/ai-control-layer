@@ -36,5 +36,7 @@ training/**/outputs/
 *.gguf
 *.onnx
 
+feed-server/state/
+
 # agent worktrees
 .claude/worktrees/

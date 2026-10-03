@@ -69,3 +69,16 @@ def test_not_ready_on_invalid_policy(tmp_path: Path) -> None:
     app = create_app(Settings(policy_dir=tmp_path))
     with TestClient(app) as client:
         assert client.get("/readyz").json()["status"] == "down"
+
+
+def test_readyz_down_when_a_control_service_is_not_wired(tmp_path: Path) -> None:
+    settings = Settings(
+        policy_dir=POLICY_DIR, deterministic=True, database_url=f"sqlite+aiosqlite:///{tmp_path / 'r.db'}"
+    )
+    with TestClient(create_app(settings)) as client:
+        body = client.get("/readyz").json()
+        assert body["status"] == "ok", body
+        assert body["checks"]["service:access"] == "ok"
+    with TestClient(create_app(settings, installers=["acl.policy.wiring:install"])) as client:
+        body = client.get("/readyz").json()
+        assert body["status"] == "down" and body["checks"]["service:access"].startswith("missing")

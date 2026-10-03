@@ -221,8 +221,6 @@ async def quarantine_tool(tool_id: str, body: McpToolApprovalRequest, p: Analyst
 # ---------------------------------------------------------------- feed (1D)
 
 
-
-
 @router.get("/feed", response_model=FeedStatus, tags=["feed"], operation_id="getFeedStatus")
 async def feed_status(request: Request, p: Viewer) -> FeedStatus:
     # Status of the active signature bundle (version, entries, last sync / error). No docstring on purpose:

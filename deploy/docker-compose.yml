@@ -51,8 +51,21 @@ services:
 
   feed-server:
     build: ../feed-server
+    environment:
+      FEED_ADMIN_TOKEN: ${FEED_ADMIN_TOKEN:?run `make env`}   # POST /entries (add a rule live)
+      FEED_SIGNING_KEY: ${FEED_SIGNING_KEY:-}                 # optional ed25519 seed; empty = sha256 only
+      STATE_DIR: /srv/state
+    volumes:
+      - feed_state:/srv/state
     ports:
       - "${FEED_PORT:-8090}:8080"
+    restart: unless-stopped
+
+  # Attacker sink (tests/oracle/sink.py): logs every request so tests can prove exfiltration did/didn't happen.
+  attacker-sink:
+    build: ../tests/oracle
+    ports:
+      - "${SINK_PORT:-8099}:8080"
     restart: unless-stopped
 
   gateway:
@@ -70,6 +83,7 @@ services:
       ACL_FEED_URL: http://feed-server:8080/bundle.json
       ACL_DETERMINISTIC: ${ACL_DETERMINISTIC:-0}
       ACL_LOG_LEVEL: ${ACL_LOG_LEVEL:-INFO}
+      ACL_POLICY_FORCE_POLLING: "true"   # bind mounts from Windows/macOS hosts deliver no inotify events
       ACL_VALUE_HASH_SALT: ${ACL_VALUE_HASH_SALT:?run `make env`}
       ACL_API_KEY_PEPPER: ${ACL_API_KEY_PEPPER:?run `make env`}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -91,3 +105,4 @@ services:
 volumes:
   pgdata:
   audit:
+  feed_state:

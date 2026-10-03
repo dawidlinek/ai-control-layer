@@ -24,7 +24,7 @@ paths:
       tags:
       - health
       summary: Readyz
-      description: 'Readiness: a policy is loaded and the engine is built.'
+      description: 'Readiness: a policy is loaded, the engine is built and every service its controls rely on is wired.'
       operationId: readyz
       responses:
         '200':
