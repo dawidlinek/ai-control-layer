@@ -58,6 +58,14 @@ docs/           CONCEPT.md, ux/, prompts/, checkpoints/
   Policy swap = replace the Engine instance atomically.
 - **Connectors** (`acl.routing.connectors`): OpenAI-shaped dicts; `mock` is deterministic and scriptable
   with `[[mock:...]]` directives (see `mock.py`). Model names only from policy / `env:NAME` references.
+- **Wiring** (`acl.main`): packages expose `acl/<pkg>/wiring.py: install(app, settings)` and are listed in
+  `main.INSTALLERS`; they add routers, `app.state.on_startup/on_shutdown` hooks and `app.state.control_deps`
+  services. Never edit `create_app` itself. Rebuild the engine with `app.state.build_engine(policy, version)`.
+- **Database** (`acl.db`): `Base`, tables in `acl/<pkg>/db_models.py`; migrations in `acl/migrations/versions/`
+  with `down_revision = "0001_base"`; SQLite `create_all` in tests, `python -m acl.migrate` in containers.
+- **Payload text** (`acl.engine.text`): `iter_texts(payload)` gives (field path, text); `apply_replacements`
+  applies finding spans. Field paths are the `Finding.field` convention.
+- **Audit sink** (`acl.audit.sink.AuditSink`, at `app.state.audit`): `record_decision(...)`, `record_event(...)`.
 - **Audit record**: `acl.contracts.audit.AuditEvent`; hash chain and canonical JSON in `acl.contracts.canonical`.
 
 ## Rules

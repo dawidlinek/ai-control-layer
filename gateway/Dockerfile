@@ -19,4 +19,4 @@ USER acl
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --retries=6 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"
-CMD ["uvicorn", "acl.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["sh", "-c", "python -m acl.migrate && exec uvicorn acl.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
