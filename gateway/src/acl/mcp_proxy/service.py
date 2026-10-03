@@ -258,11 +258,25 @@ class McpProxy:
             ephemeral = True
         try:
             sess.last_used = time.monotonic()
-            return await self._dispatch(request, sess, principal, rid, method, params)
+            try:
+                response = await self._dispatch(request, sess, principal, rid, method, params)
+            finally:
+                await self._audit_server_requests(sess.upstream, sess.server_id, principal, request, sess)
+            await self._after_upstream(request, sess, principal, method)
+            return response
         finally:
-            await self._audit_server_requests(sess.upstream, sess.server_id, principal, request, sess)
             if ephemeral:
                 await sess.upstream.aclose()
+
+    async def _after_upstream(self, request: Request, sess: GatewaySession, principal: Principal, method: str) -> None:
+        """`notifications/tools/list_changed` seen in a response stream: re-pin right away (quarantine early)."""
+        notifications, sess.upstream.notifications = list(sess.upstream.notifications), []
+        if "notifications/tools/list_changed" in notifications and method != "tools/list":
+            self._last_refresh.pop(sess.server_id, None)
+            try:
+                await self.list_and_pin(request, sess, principal, explicit=False)
+            except (UpstreamError, UpstreamRpcError):
+                log.warning("re-pin after list_changed failed for server %s", sess.server_id)
 
     async def handle_delete(self, request: Request, server_id: str, principal: Principal) -> Response:
         sess = self._session_for(request, server_id, principal)
