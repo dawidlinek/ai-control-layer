@@ -1,8 +1,11 @@
 #!/bin/bash
 # Serve one model with vLLM (OpenAI-compatible) on a Lem H100 for the AI Control Layer gateway.
-#   sbatch --parsable -A <account> deploy-wcss/serve.sbatch
-# Publishes "<node> <port>" to $PD/serve/endpoint; reach it with `uv run python scripts/wcss.py tunnel`.
+#   sbatch --parsable -A <account> deploy/wcss/serve.sbatch
+# Publishes "<node> <port> <jobid>" to $PD/serve/endpoint; reach it with `uv run python scripts/wcss.py tunnel`.
 # The endpoint requires the API key in $PD/.llm_api_key (mode 600; same value as LOCAL_LLM_API_KEY in .env).
+# Two runtimes: the venv archive built by setup.sbatch (default), or an existing vLLM apptainer image
+# with weights resolved offline from an HF cache:
+#   --export=ALL,SIF=<path>.sif,MODEL=Qwen/Qwen3.8-27B,HF_CACHE=<pd>/hf_cache
 
 #SBATCH --job-name=acl-llm-serve
 #SBATCH --partition=lem-gpu-short
@@ -17,37 +20,51 @@
 set -uo pipefail
 PD="/lustre/pd03/${SLURM_JOB_ACCOUNT}"
 MODEL_DIR="${MODEL_DIR:-qwen3.8-27b-fp8}"
+MODEL="${MODEL:-$PD/models/$MODEL_DIR}"     # a local path, or an HF id resolved from HF_CACHE
+SIF="${SIF:-}"                              # apptainer image with vLLM; empty = setup.sbatch's venv archive
+HF_CACHE="${HF_CACHE:-}"
 SERVED_NAME="${SERVED_NAME:-qwen3.8-27b}"
-PORT="${PORT:-8000}"
-MAX_LEN="${MAX_LEN:-32768}"
+PORT="${PORT:-$((20000 + SLURM_JOB_ID % 10000))}"   # per job: a GPU node is shared by up to 4 jobs
+MAX_LEN="${MAX_LEN:-131072}"
 TOOL_PARSER="${TOOL_PARSER:-qwen3_coder}"
 REASONING_PARSER="${REASONING_PARSER:-qwen3}"
 mkdir -p "$PD/runs" "$PD/serve"
 test -s "$PD/.llm_api_key" || { echo "missing $PD/.llm_api_key"; exit 2; }
 
-source /usr/local/sbin/modules.sh
-module load Python/3.12.3-GCCcore-13.3.0    # the venv links against this module's libpython
-module load CUDA/13.0.0                     # nothing else sets CUDA_HOME on GPU nodes
-
-export HF_HOME="$TMPDIR/hf" PYTHONNOUSERSITE=1 OMP_NUM_THREADS=8
+export PYTHONNOUSERSITE=1 OMP_NUM_THREADS=8
 export DG_JIT_CACHE_DIR="$PD/llm-stack/dg-cache"
 export DG_CACHE_DIR="$PD/llm-stack/dg-cache"
-export TRITON_CACHE_DIR="$PD/llm-stack/triton-cache"
-export VLLM_CACHE_ROOT="$PD/llm-stack/vllm-cache"
+export TRITON_CACHE_DIR="$TMPDIR/triton-cache"
+export VLLM_CACHE_ROOT="$TMPDIR/vllm-cache"
 mkdir -p "$DG_JIT_CACHE_DIR" "$TRITON_CACHE_DIR" "$VLLM_CACHE_ROOT"
+if [ -n "$HF_CACHE" ]; then
+    export HF_HOME="$HF_CACHE" HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1
+else
+    export HF_HOME="$TMPDIR/hf"
+fi
 
-tar -xf "$PD/llm-stack/vllm.tar" -C "$TMPDIR"
-for f in "$TMPDIR"/venv/bin/*; do
-    [ -f "$f" ] && [ "$(head -c2 "$f" 2>/dev/null)" = '#!' ] && sed -i "1s|.*|#!$TMPDIR/venv/bin/python|" "$f"
-done
-export PATH="$TMPDIR/venv/bin:$PATH"
+if [ -n "$SIF" ]; then
+    test -s "$SIF" || { echo "missing image $SIF"; exit 2; }
+    export APPTAINER_TMPDIR="$TMPDIR/apptainer"
+    mkdir -p "$APPTAINER_TMPDIR"
+    VLLM=(apptainer exec --nv -B /lustre -B "$TMPDIR" "$SIF" vllm)   # the environment passes through
+else
+    source /usr/local/sbin/modules.sh
+    module load Python/3.12.3-GCCcore-13.3.0    # the venv links against this module's libpython
+    module load CUDA/13.0.0                     # nothing else sets CUDA_HOME on GPU nodes
+    tar -xf "$PD/llm-stack/vllm.tar" -C "$TMPDIR"
+    for f in "$TMPDIR"/venv/bin/*; do
+        [ -f "$f" ] && [ "$(head -c2 "$f" 2>/dev/null)" = '#!' ] && sed -i "1s|.*|#!$TMPDIR/venv/bin/python|" "$f"
+    done
+    VLLM=("$TMPDIR/venv/bin/vllm")
+fi
 
 echo "$(hostname -s) $PORT $SLURM_JOB_ID" > "$PD/serve/endpoint"
 LOG="$PD/runs/${SLURM_JOB_ID}-serve.log"
-echo "serving $MODEL_DIR as $SERVED_NAME on $(hostname -s):$PORT, log $LOG"
+echo "serving $MODEL as $SERVED_NAME on $(hostname -s):$PORT, log $LOG"
 
 # API key read from a file by the shell; vLLM reads VLLM_API_KEY (never on the command line / in the log).
-VLLM_API_KEY="$(cat "$PD/.llm_api_key")" exec vllm serve "$PD/models/$MODEL_DIR" \
+VLLM_API_KEY="$(cat "$PD/.llm_api_key")" exec "${VLLM[@]}" serve "$MODEL" \
     --served-model-name "$SERVED_NAME" \
     --host 0.0.0.0 --port "$PORT" \
     --max-model-len "$MAX_LEN" \

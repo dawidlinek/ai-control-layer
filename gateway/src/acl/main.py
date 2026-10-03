@@ -41,6 +41,7 @@ INSTALLERS: list[str] = [
     "acl.audit.wiring:install",  # 1A: audit chain + index + SSE + /metrics (app.state.audit)
     "acl.api.wiring:install",  # 1A: connectors, replay buffer, /v1 chat/embeddings/models
     "acl.identity.wiring:install",  # 1C: authenticator, access resolver (control service "access")
+    "acl.sessions.wiring:install",  # orchestrator: session store (labels, steps) + flow hooks list
     "acl.controls.pii.wiring:install",  # 1D: pseudonymisation vault (control service "vault")
     "acl.feed.wiring:install",  # 1D: signature store + feed sync (control service "signatures")
     "acl.policy.wiring:install",  # 1B: policy service builds/swaps the engine; keep last

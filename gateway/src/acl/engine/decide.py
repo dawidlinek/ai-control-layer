@@ -9,6 +9,10 @@ Invariants (tested in gateway/tests/test_engine_decide.py):
   4. EXCEPT locked controls (`locked_controls`: `locked: true` or a `control_locked` org lock, e.g. LOCK-02
      "secrets never leave"): their verdicts are always enforced, whatever the mode, preset or shadow flag.
   5. No verdicts → allow.
+  6. Session labels (IFC) only rise: `labels_after` = session labels joined with every verdict's label
+     update and detected data class (shadow verdicts included — they observe real data). A data class of
+     confidential or above adds the `sensitive` taint; an untrusted-integrity update adds `untrusted`.
+     Content that was blocked (or held for approval) never reached the model, so it raises nothing.
 
 Phase 0: primary action = most severe verdict action. Graded risk scoring (§6.5) is added in
 Phase 2B/3A as a separate factor-composition step feeding the same invariants.
@@ -18,9 +22,18 @@ from __future__ import annotations
 
 import uuid
 
-from acl.contracts.common import ACTION_SEVERITY, Action, PolicyMode, Taxonomy
+from acl.contracts.common import (
+    ACTION_SEVERITY,
+    DATA_CLASS_ORDER,
+    Action,
+    DataClass,
+    Integrity,
+    PolicyMode,
+    TaintFlag,
+    Taxonomy,
+)
 from acl.contracts.decision import Decision, Verdict
-from acl.contracts.inspection import InspectionContext
+from acl.contracts.inspection import InspectionContext, SessionLabels
 from acl.policy.models import GlobalSettings
 
 _QUIET = (Action.allow, Action.monitor)
@@ -38,6 +51,42 @@ def _merge_taxonomy(verdicts: list[Verdict]) -> Taxonomy:
                 if tag not in bucket:
                     bucket.append(tag)
     return merged
+
+
+def _raise_labels(base: SessionLabels, verdicts: list[Verdict]) -> SessionLabels:
+    labels = base.model_copy(deep=True)
+    taint = list(labels.taint)
+    sources = list(labels.sources)
+    for v in verdicts:
+        changed = False
+        upd = v.labels
+        if upd is not None:
+            if upd.integrity_untrusted and labels.integrity != Integrity.untrusted:
+                labels.integrity = Integrity.untrusted
+                changed = True
+            if upd.integrity_untrusted and TaintFlag.untrusted not in taint:
+                taint.append(TaintFlag.untrusted)
+                changed = True
+            if upd.confidentiality and DATA_CLASS_ORDER[upd.confidentiality] > DATA_CLASS_ORDER[labels.confidentiality]:
+                labels.confidentiality = upd.confidentiality
+                changed = True
+            for flag in upd.taint:
+                if flag in TaintFlag.__members__.values() and TaintFlag(flag) not in taint:
+                    taint.append(TaintFlag(flag))
+                    changed = True
+        dc = v.data_class
+        if dc is not None and DATA_CLASS_ORDER[dc] > DATA_CLASS_ORDER[labels.confidentiality]:
+            labels.confidentiality = dc
+            changed = True
+        sensitive = dc is not None and DATA_CLASS_ORDER[dc] >= DATA_CLASS_ORDER[DataClass.confidential]
+        if sensitive and TaintFlag.sensitive not in taint:
+            taint.append(TaintFlag.sensitive)
+            changed = True
+        if changed:
+            sources.extend(r for r in (v.rule_ids or [v.control_id]) if r not in sources)
+    labels.taint = taint
+    labels.sources = sources[-50:]
+    return labels
 
 
 def compose_decision(
@@ -113,7 +162,11 @@ def compose_decision(
         risk_score=max((v.score or 0.0 for v in enforced if v.action != Action.allow), default=0.0),
         reason=(primary.reason or "") if primary is not None and primary.action != Action.allow else "",
         verdicts=verdicts,
-        labels_after=ctx.session.labels.model_copy(deep=True),
+        labels_after=(
+            ctx.session.labels.model_copy(deep=True)
+            if action in (Action.block, Action.require_approval)
+            else _raise_labels(ctx.session.labels, verdicts)
+        ),
         taxonomy=_merge_taxonomy(enforced),
         versions=ctx.versions,
         latency_ms=latency_ms,

@@ -241,3 +241,61 @@ async def test_real_secrets_control_blocks_under_monitor_preset() -> None:
     engine = Engine.build(loaded.policy, loaded.version)
     d = await engine.evaluate(make_context("key AKIAIOSFODNN7EXAMPLQ please", preset=Preset.monitor))
     assert d.action == Action.block and "SEC-SECRET-01" in d.rule_ids
+
+
+# ---------------------------------------------------------------- IFC labels (monotonic)
+
+
+def test_labels_rise_from_data_class_and_updates_but_not_on_block() -> None:
+    from acl.contracts.common import DataClass, Integrity, TaintFlag
+    from acl.contracts.decision import LabelUpdate
+
+    ctx = make_context("x")
+    pii = Verdict(
+        control_id="P-1",
+        control_type="t",
+        phase=Phase.deterministic,
+        cost_tier=CostTier.deterministic,
+        action=Action.pseudonymise,
+        rule_ids=["P-1"],
+        data_class=DataClass.confidential,
+    )
+    tr = Verdict(
+        control_id="T-1",
+        control_type="t",
+        phase=Phase.deterministic,
+        cost_tier=CostTier.deterministic,
+        labels=LabelUpdate(integrity_untrusted=True),
+    )
+    d = compose_decision(ctx, [pii, tr], GlobalSettings())
+    assert d.labels_after.confidentiality == DataClass.confidential
+    assert d.labels_after.integrity == Integrity.untrusted
+    assert set(d.labels_after.taint) == {TaintFlag.sensitive, TaintFlag.untrusted}
+    assert ctx.session.labels.taint == []  # input untouched
+    blk = Verdict(
+        control_id="B-1",
+        control_type="t",
+        phase=Phase.deterministic,
+        cost_tier=CostTier.deterministic,
+        action=Action.block,
+        final=True,
+        rule_ids=["B-1"],
+    )
+    d2 = compose_decision(ctx, [pii, blk], GlobalSettings())
+    assert d2.labels_after.taint == []
+
+
+async def test_session_store_merge_is_monotonic() -> None:
+    from acl.contracts.common import DataClass, Integrity, TaintFlag
+    from acl.contracts.inspection import SessionLabels
+    from acl.sessions import InMemorySessionStore, merge_labels
+
+    a = SessionLabels(integrity=Integrity.untrusted, confidentiality=DataClass.restricted, taint=[TaintFlag.untrusted])
+    b = SessionLabels(confidentiality=DataClass.internal, taint=[TaintFlag.sensitive])
+    m = merge_labels(a, b)
+    assert m.integrity == Integrity.untrusted and m.confidentiality == DataClass.restricted
+    assert set(m.taint) == {TaintFlag.untrusted, TaintFlag.sensitive}
+    store = InMemorySessionStore()
+    await store.update("s", lambda s: s.model_copy(update={"labels": a}))
+    await store.update("s", lambda s: s.model_copy(update={"labels": merge_labels(s.labels, b)}))
+    assert (await store.load("s")).labels.confidentiality == DataClass.restricted

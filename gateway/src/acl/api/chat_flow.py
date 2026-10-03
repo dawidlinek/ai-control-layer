@@ -59,6 +59,7 @@ from acl.contracts.inspection import (
     ToolCall,
 )
 from acl.engine.engine import Engine
+from acl.engine.hooks import run_hooks
 from acl.engine.replay import ReplayBuffer
 from acl.engine.streaming import RepeatDetector, StreamGuard, is_blocking
 from acl.engine.text import apply_replacements, iter_texts
@@ -79,6 +80,7 @@ from acl.routing.dev_access import PermissiveAccess
 from acl.routing.metering import compute_usage, estimate_tokens
 from acl.routing.registry import ConnectorRegistry, RoutingTable
 from acl.routing.router import Route, RouteError, Router, RouteRequest, max_data_class
+from acl.sessions.store import merge_labels
 
 log = logging.getLogger(__name__)
 
@@ -244,6 +246,8 @@ class BaseFlow:
     ) -> InspectionContext:
         preset: Preset = await self.access.effective_preset(self.principal)
         sid = self._session_id(body)
+        sessions = getattr(self.app.state, "sessions", None)
+        session = await sessions.load(sid) if sessions is not None else SessionState(session_id=sid)
         return InspectionContext(
             trace_id=self.trace_id,
             request_id=self.request_id,
@@ -255,7 +259,7 @@ class BaseFlow:
             mode=PolicyMode.enforce,
             model_requested=name,
             payload=payload,
-            session=SessionState(session_id=sid),
+            session=session,
             versions=Versions(
                 policy=self.engine.policy_version,
                 grants=str(getattr(self.access, "grants_version", "0")),
@@ -307,6 +311,8 @@ class BaseFlow:
     ) -> AuditEvent:
         redacted = self._redacted(ctx, decision.verdicts) if self.policy.global_.store_redacted_payloads else None
         total = (time.perf_counter() - (total_since if total_since is not None else self.t0)) * 1000
+        if usage is not None:
+            await run_hooks(self.app, "on_usage", ctx, decision, route, usage)
         return await self.audit.record_decision(
             ctx,
             decision,
@@ -316,6 +322,20 @@ class BaseFlow:
             redacted_payload=redacted,
             response_hash=response_hash,
         )
+
+    async def _commit(self, ctx: InspectionContext, decision: Decision) -> None:
+        """Apply an enforced decision: control state, session labels (monotonic) + step counter, flow hooks."""
+        await self.engine.commit(ctx, decision)
+        sessions = getattr(self.app.state, "sessions", None)
+        if sessions is not None:
+            ingress = ctx.point == InspectionPoint.ingress
+
+            def apply(state: SessionState) -> SessionState:
+                labels = merge_labels(state.labels, decision.labels_after)
+                return state.model_copy(update={"labels": labels, "step": state.step + (1 if ingress else 0)})
+
+            await sessions.update(ctx.session_id, apply)
+        await run_hooks(self.app, "on_commit", ctx, decision)
 
     @staticmethod
     def _redacted(ctx: InspectionContext, verdicts: list[Verdict]) -> str | None:
@@ -343,7 +363,7 @@ class BaseFlow:
             ctx, rule, reason, control_id="SEC-MODEL-01", control_type="model_access", started=self.t0
         )
         event = await self._record(ctx, decision)
-        await self.engine.commit(ctx, decision)
+        await self._commit(ctx, decision)
         who = self.principal.username or self.principal.subject
         await self.audit.record_event(
             EventType.incident,
@@ -366,7 +386,7 @@ class BaseFlow:
     ) -> GatewayError:
         escalate_to_block(decision, rule_id, reason, decided_by)
         await self._record(ctx, decision)
-        await self.engine.commit(ctx, decision)
+        await self._commit(ctx, decision)
         self._replay(ctx, decision)
         return self._denial(decision)
 
@@ -470,7 +490,7 @@ class ChatFlow(BaseFlow):
         decision = await self.engine.evaluate(ctx)
         if is_blocking(decision):
             await self._record(ctx, decision)
-            await self.engine.commit(ctx, decision)
+            await self._commit(ctx, decision)
             self._replay(ctx, decision)
             raise self._denial(decision)
 
@@ -518,7 +538,7 @@ class ChatFlow(BaseFlow):
                 raise await self._block_after_engine(ctx, decision, _rule(exc.rule_id), str(exc), "ROUTER") from exc
             self._replay(ctx, decision)
             await self._record(ctx, decision)
-            await self.engine.commit(ctx, decision)
+            await self._commit(ctx, decision)
             raise self._error(
                 exc.status,
                 "invalid_request_error" if exc.status < 500 else "service_unavailable",
@@ -532,7 +552,7 @@ class ChatFlow(BaseFlow):
 
         # -- 5. audit ingress, then commit
         await self._record(ctx, decision, route=route.info)
-        await self.engine.commit(ctx, decision)
+        await self._commit(ctx, decision)
 
         # -- 6. upstream request
         request = self._upstream_request(payload_out, route)
@@ -652,7 +672,7 @@ class ChatFlow(BaseFlow):
 
         if is_blocking(decision):
             await self._record(egress_ctx, decision, route=route.info, usage=usage, upstream_ms=upstream_ms)
-            await self.engine.commit(egress_ctx, decision)
+            await self._commit(egress_ctx, decision)
             self._replay(egress_ctx, decision)
             raise self._denial(decision)
 
@@ -667,7 +687,7 @@ class ChatFlow(BaseFlow):
                 "ENG-REDACT-01",
             )
             await self._record(egress_ctx, decision, route=route.info, usage=usage, upstream_ms=upstream_ms)
-            await self.engine.commit(egress_ctx, decision)
+            await self._commit(egress_ctx, decision)
             raise self._denial(decision)
         assert isinstance(out_payload, CompletionPayload)
         text = out_payload.content
@@ -688,7 +708,7 @@ class ChatFlow(BaseFlow):
         await self._record(
             egress_ctx, decision, route=route.info, usage=usage, upstream_ms=upstream_ms, response_hash=rhash
         )
-        await self.engine.commit(egress_ctx, decision)
+        await self._commit(egress_ctx, decision)
         self._replay(egress_ctx, decision)
         overall = max(ingress_action, decision.action, key=lambda a: ACTION_SEVERITY[a])
         return JSONResponse(body, headers=self._decision_headers(overall, route.info))
@@ -1005,7 +1025,7 @@ class ChatFlow(BaseFlow):
                 upstream_ms=upstream_ms,
                 response_hash=value_hash(emitted, self.salt, 64) if emitted else None,
             )
-            await self.engine.commit(egress_ctx, final)
+            await self._commit(egress_ctx, final)
             self._replay(egress_ctx, final)
             if cut_reason is not None:
                 await self._system_alert(ctx, {"event": "stream_cut", "reason": cut_reason, "model": route.info.model})
@@ -1060,7 +1080,7 @@ class EmbeddingsFlow(BaseFlow):
         decision = await self.engine.evaluate(ctx)
         if is_blocking(decision):
             await self._record(ctx, decision)
-            await self.engine.commit(ctx, decision)
+            await self._commit(ctx, decision)
             self._replay(ctx, decision)
             raise self._denial(decision)
 
@@ -1095,7 +1115,7 @@ class EmbeddingsFlow(BaseFlow):
             if exc.status == 403:
                 raise await self._block_after_engine(ctx, decision, _rule(exc.rule_id), str(exc), "ROUTER") from exc
             await self._record(ctx, decision)
-            await self.engine.commit(ctx, decision)
+            await self._commit(ctx, decision)
             raise self._error(
                 exc.status,
                 "invalid_request_error" if exc.status < 500 else "service_unavailable",
@@ -1113,7 +1133,7 @@ class EmbeddingsFlow(BaseFlow):
         except ConnectorError as exc:
             self.registry.record_error(route.info.connector, str(exc))
             await self._record(ctx, decision, route=route.info)
-            await self.engine.commit(ctx, decision)
+            await self._commit(ctx, decision)
             await self._system_alert(ctx, {"event": "upstream_error", "status": exc.status, "model": route.info.model})
             raise self._error(
                 502, "upstream_error", "the upstream model call failed", f"upstream_{exc.status}"
@@ -1125,7 +1145,7 @@ class EmbeddingsFlow(BaseFlow):
             up.input_tokens = estimate_tokens("\n".join(out.inputs))
         usage = compute_usage(route.model, up)
         await self._record(ctx, decision, route=route.info, usage=usage, upstream_ms=upstream_ms)
-        await self.engine.commit(ctx, decision)
+        await self._commit(ctx, decision)
         result = copy.deepcopy(resp.body)
         result["model"] = route.info.model
         result["usage"] = {"prompt_tokens": usage.input_tokens, "total_tokens": usage.input_tokens}
