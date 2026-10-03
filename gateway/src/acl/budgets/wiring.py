@@ -3,7 +3,6 @@
 app.state.budgets                 BudgetService (ledger, breakers, loops, `charge_guard()` for Phase 3 judges)
 app.state.flow_hooks              += the service (`on_commit`, `on_usage`)
 control service "budgets"         read by SEC-BUDGET-01 / SEC-LOOP-01
-ASGI middleware                   request-scoped "budget exhausted" signal for the router (see signal.py)
 startup / shutdown                reload counters + breakers from the DB, flush every few seconds
 """
 
@@ -14,7 +13,6 @@ import logging
 from fastapi import FastAPI
 
 from acl.budgets.service import BudgetService
-from acl.budgets.signal import BudgetSignalMiddleware
 from acl.budgets.store import BudgetStore
 from acl.settings import Settings
 
@@ -33,7 +31,6 @@ def install(app: FastAPI, settings: Settings) -> None:
     if not hasattr(app.state, "flow_hooks"):
         app.state.flow_hooks = []
     app.state.flow_hooks.append(service)
-    app.add_middleware(BudgetSignalMiddleware)
 
     async def start(app: FastAPI) -> None:
         store = BudgetStore(app.state.db, service.ledger, service.breakers)

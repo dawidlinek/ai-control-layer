@@ -88,6 +88,16 @@ _UA = re.compile(r"([A-Za-z0-9._-]+)(?:/([\w.+-]+))?")
 _MAX_SESSION_ID = 128
 
 
+def budget_exhausted(decision: Decision) -> str | None:
+    """Reason when an enforced budget verdict asked for a local model (the response is then marked degraded)."""
+    if Action.route_local not in decision.applied:
+        return None
+    for v in decision.verdicts:
+        if v.control_type == "budget" and v.action == Action.route_local:
+            return v.reason or "budget exhausted"
+    return None
+
+
 def _rule(candidate: str | None, fallback: str = "SEC-MODEL-01") -> str:
     return candidate if candidate and _RULE_ID.match(candidate) else fallback
 
@@ -508,6 +518,7 @@ class ChatFlow(BaseFlow):
             usable=usable,
             force_local=obliges_local(self.engine, decision),
             force_reason=("route_local" if Action.route_local in decision.applied else "downgrade"),
+            budget_exhausted=budget_exhausted(decision),
             capability="chat",
             sensitive_external_action=preset_cfg.sensitive_external_action if preset_cfg else Action.route_local,
         )
@@ -1086,6 +1097,7 @@ class EmbeddingsFlow(BaseFlow):
             data_class=self._data_class(decision, ctx),
             usable=usable,
             force_local=obliges_local(self.engine, decision),
+            budget_exhausted=budget_exhausted(decision),
             capability="embeddings",
             sensitive_external_action=preset_cfg.sensitive_external_action if preset_cfg else Action.route_local,
         )

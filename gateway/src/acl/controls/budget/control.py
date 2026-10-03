@@ -24,7 +24,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from acl.budgets.estimate import Estimate, estimate_request
 from acl.budgets.ledger import Breach
 from acl.budgets.service import BudgetService
-from acl.budgets.signal import signal_budget_exhausted
 from acl.contracts.common import Action, InspectionPoint, Phase
 from acl.contracts.decision import Verdict
 from acl.contracts.inspection import InspectionContext
@@ -100,8 +99,6 @@ class BudgetControl(Control):
             if degrade:
                 report["action"] = "route_local"
                 reason = f"budget exhausted: {detail}; serving a local model"
-                if not self.shadow:
-                    signal_budget_exhausted(detail)
                 return self.verdict(
                     action=Action.route_local, rule_ids=[self.id], reason=reason, outputs={"budget_report": report}
                 )

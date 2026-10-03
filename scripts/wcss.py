@@ -104,6 +104,9 @@ def cmd_push(args: argparse.Namespace) -> None:
 
 def _submit(args: argparse.Namespace, script: str) -> None:
     account = _account(args)
+    for kv in args.export or []:
+        if re.search(r"=[A-Za-z]:[/\\]", kv):  # Git Bash rewrote /lustre/... into a Windows path
+            raise SystemExit(f"--export {kv!r} looks like a Windows path; rerun with MSYS_NO_PATHCONV=1")
     # one --export flag: sbatch keeps only the last one when given several
     extra = shlex.quote("--export=ALL," + ",".join(args.export)) if args.export else ""
     preflight = f"~/wcss-slurm/scripts/preflight.sh {script} -A {account} 2>&1 | tail -5; " if args.preflight else ""

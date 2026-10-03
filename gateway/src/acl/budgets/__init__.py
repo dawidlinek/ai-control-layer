@@ -7,12 +7,11 @@
     nodes.py      which nodes and limits a request touches
     service.py    BudgetService: owns the above; flow hooks `on_commit` / `on_usage`; guard spend; admin views
     store.py      periodic flush to the DB (`db_models.py`) and reload on startup
-    signal.py     request-scoped "budget exhausted" signal for the router (degraded local route)
     wiring.py     `install(app, settings)`: service `"budgets"`, flow hook, middleware, startup / shutdown
 
 Controls (`acl.controls.budget`, `acl.controls.loops`) only read; every counter changes in the hooks.
 
 Follow-ups (out of scope for 2D): a per-user / per-data-class scoped response cache (needs a chat-flow seam, see
-`budgets.cache`); a router field filled by the chat flow instead of `signal.py`; counting model-emitted tool
+`budgets.cache`); counting model-emitted tool
 calls (egress) as `tool_call` points for the loop detector.
 """

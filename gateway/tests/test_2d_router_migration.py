@@ -1,8 +1,7 @@
-"""2D: the router's budget-exhausted route, the request-scoped signal, and the Alembic migration."""
+"""2D: the router's budget-exhausted route, and the Alembic migration."""
 
 from __future__ import annotations
 
-import asyncio
 import sqlite3
 from pathlib import Path
 
@@ -10,7 +9,6 @@ import pytest
 from alembic import command
 from alembic.script import ScriptDirectory
 
-from acl.budgets import signal
 from acl.contracts.common import ConnectorTier, DataClass
 from acl.db import Base, import_all_models
 from acl.migrate import alembic_config, upgrade_head
@@ -55,22 +53,6 @@ async def test_budget_exhausted_leaves_local_requests_alone(setup) -> None:  # t
 async def test_budget_exhausted_composes_with_the_route_local_obligation(setup) -> None:  # type: ignore[no-untyped-def]
     r = await setup("smart", budget_exhausted="usd_day", force_local=True, force_reason="route_local")
     assert r.info.model == "local/general" and r.info.degraded
-
-
-async def test_signal_crosses_gathered_tasks_but_only_inside_a_request() -> None:
-    signal.signal_budget_exhausted("outside any request")  # no holder: a no-op
-    assert signal.budget_exhausted_reason() is None
-    token = signal._HOLDER.set({})  # what BudgetSignalMiddleware does per HTTP request
-    try:
-
-        async def control() -> None:  # the pipeline runs controls in gather() child tasks
-            signal.signal_budget_exhausted("usd_day on org")
-
-        await asyncio.gather(control())
-        assert signal.budget_exhausted_reason() == "usd_day on org"
-    finally:
-        signal._HOLDER.reset(token)
-    assert signal.budget_exhausted_reason() is None
 
 
 TABLES = ("budget_nodes", "budget_counters", "budget_breakers")

@@ -28,7 +28,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from acl.budgets.signal import budget_exhausted_reason
 from acl.contracts.common import DATA_CLASS_ORDER, Action, ConnectorTier, DataClass
 from acl.contracts.decision import RouteInfo
 from acl.policy.models import DataClassTierLock, ModelEntry, Policy
@@ -182,7 +181,7 @@ class Router:
 
         # -- 2a. budget exhausted (SEC-BUDGET-01 route_local): a degraded local route, never silent
         degraded = False
-        exhausted = req.budget_exhausted or budget_exhausted_reason()
+        exhausted = req.budget_exhausted
         if exhausted and self._tier(model_id) != ConnectorTier.local:
             local = self._ref(targets.local)
             if local is not None:
