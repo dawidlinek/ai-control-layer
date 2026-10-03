@@ -15,14 +15,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
-from acl.contracts.common import PHASE_ORDER, Action, CostTier, FailMode, VerdictStatus
+from acl.contracts.common import PHASE_ORDER, Action, CostTier, FailMode, Preset, VerdictStatus
 from acl.contracts.decision import Decision, Verdict
 from acl.contracts.inspection import InspectionContext
 from acl.controls.base import Control
 from acl.engine.decide import compose_decision
-from acl.policy.models import GlobalSettings
+from acl.policy.models import GlobalSettings, PresetSettings
 
 log = logging.getLogger(__name__)
 
@@ -34,9 +34,15 @@ def _default_fail_mode(settings: GlobalSettings, tier: CostTier) -> FailMode:
 
 
 class Pipeline:
-    def __init__(self, controls: Iterable[Control], settings: GlobalSettings) -> None:
+    def __init__(
+        self,
+        controls: Iterable[Control],
+        settings: GlobalSettings,
+        presets: Mapping[Preset, PresetSettings] | None = None,
+    ) -> None:
         self.controls = list(controls)
         self.settings = settings
+        self.presets = dict(presets or {})
 
     def applicable(self, ctx: InspectionContext) -> list[Control]:
         return [c for c in self.controls if c.applies(ctx)]
@@ -62,6 +68,7 @@ class Pipeline:
             self.settings,
             latency_ms=(time.perf_counter() - started) * 1000,
             shadow_controls=frozenset(c.id for c in applicable if c.shadow),
+            never_block=bool((ps := self.presets.get(ctx.preset)) and ps.never_block),
         )
 
     async def _run_one(self, control: Control, ctx: InspectionContext) -> Verdict:

@@ -4,7 +4,8 @@ Invariants (tested in gateway/tests/test_engine_decide.py):
   1. A final verdict with action=block always yields action=block, regardless of anything else.
   2. AI-tier verdicts (similarity/l1/l2) can only make the outcome stricter, never relax a
      deterministic verdict.
-  3. Shadow controls (mode: monitor) and monitor-mode policy never change the enforced action;
+  3. Shadow controls (mode: monitor), monitor-mode policy and `never_block` presets (`monitor`)
+     never change the enforced action;
      the would-be action is recorded in `would_action`.
   4. No verdicts → allow.
 
@@ -44,6 +45,7 @@ def compose_decision(
     *,
     latency_ms: float = 0.0,
     shadow_controls: frozenset[str] = frozenset(),
+    never_block: bool = False,
 ) -> Decision:
     enforced = [v for v in verdicts if v.control_id not in shadow_controls]
 
@@ -75,7 +77,7 @@ def compose_decision(
                     rule_ids.append(r)
 
     would_action: Action | None = None
-    monitor_mode = settings.mode == PolicyMode.monitor or ctx.mode == PolicyMode.monitor
+    monitor_mode = settings.mode == PolicyMode.monitor or ctx.mode == PolicyMode.monitor or never_block
     if monitor_mode and action not in (Action.allow, Action.monitor):
         would_action = action
         action = Action.monitor

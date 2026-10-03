@@ -35,12 +35,19 @@ class Engine:
     ) -> Engine:
         if load_builtins:
             load_builtin_controls()
-        deps = deps or ControlDeps()
+        deps = (deps or ControlDeps()).child(policy=policy, policy_version=policy_version)
         controls = [control_registry.build(c, deps) for c in policy.controls if c.enabled]
-        return cls(policy=policy, policy_version=policy_version, pipeline=Pipeline(controls, policy.global_), deps=deps)
+        pipeline = Pipeline(controls, policy.global_, presets=policy.presets)
+        return cls(policy=policy, policy_version=policy_version, pipeline=pipeline, deps=deps)
 
     async def evaluate(self, ctx: InspectionContext) -> Decision:
+        """Side-effect free evaluation (safe for dry-run / replay)."""
         return await self.pipeline.run(ctx)
+
+    async def commit(self, ctx: InspectionContext, decision: Decision) -> None:
+        """Let controls apply state changes for a decision that was actually enforced."""
+        for c in self.pipeline.applicable(ctx):
+            await c.commit(ctx, decision)
 
     async def aclose(self) -> None:
         for c in self.pipeline.controls:

@@ -17,6 +17,9 @@ A control family lives in `acl/controls/<family>/` and registers one or more cla
             ...
             return self.verdict(action=Action.pseudonymise, rule_ids=[self.id], findings=[...])
 
+Controls read the policy they were built with via `self.deps.get("policy")` (a per-engine child of the
+app-wide ControlDeps) and preset settings via `self.preset_settings(ctx)`.
+
 Each configured instance comes from a `ControlConfig` in policy (id, stages, cost_tier,
 fail_mode, timeout_ms, params). Controls MUST:
   * be side-effect free on the context (return data in the Verdict; use `outputs` for
@@ -35,7 +38,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict
 
 from acl.contracts.common import Action, FailMode, Phase, PolicyMode
-from acl.contracts.decision import Verdict
+from acl.contracts.decision import Decision, Verdict
 from acl.contracts.inspection import InspectionContext
 from acl.policy.models import ControlConfig
 
@@ -59,6 +62,10 @@ class ControlDeps:
 
     def get(self, name: str, default: Any = None) -> Any:
         return self._services.get(name, default)
+
+    def child(self, **extra: Any) -> ControlDeps:
+        """Per-engine view: same services plus build-specific ones (e.g. `policy`)."""
+        return ControlDeps(**{**self._services, **extra})
 
     def require(self, name: str) -> Any:
         try:
@@ -95,6 +102,11 @@ class Control(ABC):
             return False
         return self.config.presets is None or ctx.preset in self.config.presets
 
+    def preset_settings(self, ctx: InspectionContext) -> Any:
+        """`PresetSettings` for the context's preset from the engine's policy (None if unavailable)."""
+        policy = self.deps.get("policy")
+        return policy.presets.get(ctx.preset) if policy is not None else None
+
     @property
     def shadow(self) -> bool:
         return self.config.mode == PolicyMode.monitor
@@ -104,6 +116,13 @@ class Control(ABC):
     @abstractmethod
     async def inspect(self, ctx: InspectionContext) -> Verdict:
         """Inspect the context and return a verdict. Must not mutate `ctx`."""
+
+    async def commit(self, ctx: InspectionContext, decision: Decision) -> None:  # noqa: B027 - optional hook
+        """Apply state changes (budgets, taint, counters) AFTER the decision is enforced.
+
+        Called by the request flow only for real traffic, never for dry-run/replay. `inspect()`
+        must stay side-effect free so that dry-run can re-evaluate stored traffic safely.
+        """
 
     async def aclose(self) -> None:  # noqa: B027 - optional hook
         """Release resources (models, connections) on policy swap / shutdown."""

@@ -172,3 +172,23 @@ def test_semantic_cannot_relax_deterministic_block() -> None:
 def test_no_verdicts_allow() -> None:
     d = compose_decision(make_context("x"), [], GlobalSettings())
     assert d.action == Action.allow and d.rule_ids == []
+
+
+async def test_never_block_preset_records_would_action() -> None:
+    from acl.contracts.common import Preset
+    from acl.policy.models import PresetSettings
+
+    r = _registry()
+    p = Pipeline(
+        [r.build(_cfg("T-B-01", action="block", final=True), ControlDeps())],
+        GlobalSettings(),
+        presets={Preset.monitor: PresetSettings(injection_threshold=0.8, never_block=True)},
+    )
+    d = await p.run(make_context("x", preset=Preset.monitor))
+    assert d.action == Action.monitor and d.would_action == Action.block
+
+
+async def test_engine_controls_see_their_policy() -> None:
+    loaded = load_policy_dir(POLICY_DIR)
+    engine = Engine.build(loaded.policy, loaded.version)
+    assert engine.deps.get("policy") is loaded.policy
