@@ -81,6 +81,7 @@ def task_ps(args: list[str]) -> int:
 
 
 def task_test(args: list[str]) -> int:
+    """Deterministic suite (unit + YAML cases + harness self-tests); writes reports/{junit.xml,summary.json}."""
     return run(
         ["uv", "run", "pytest", "-m", "not live and not e2e", *args],
         env={"ACL_TEST_MODE": "deterministic", "ACL_DETERMINISTIC": "1"},
@@ -88,11 +89,25 @@ def task_test(args: list[str]) -> int:
 
 
 def task_test_live(args: list[str]) -> int:
-    return run(["uv", "run", "pytest", "-m", "live", *args], env={"ACL_TEST_MODE": "live", "ACL_DETERMINISTIC": "0"})
+    """Live-mode cases against the real model server: every case runs 3x, passes on 2 of 3."""
+    return run(
+        ["uv", "run", "pytest", "tests", "-m", "live", *args],
+        env={"ACL_TEST_MODE": "live", "ACL_DETERMINISTIC": "0"},
+    )
 
 
 def task_e2e(args: list[str]) -> int:
-    return run(["uv", "run", "pytest", "tests/e2e", "-m", "e2e", *args])
+    """tests/e2e against the running docker-compose stack (skips cleanly when it is down)."""
+    return run(["uv", "run", "pytest", "tests/e2e", "-m", "e2e", "-rs", *args])
+
+
+def task_bench(args: list[str]) -> int:
+    """Performance report (tests/perf); the benchmarks themselves arrive with Phase 4C."""
+    perf = ROOT / "tests" / "perf"
+    if not any(perf.glob("test_*.py")):
+        print("bench: no benchmarks in tests/perf yet (Phase 4C)")
+        return 0
+    return run(["uv", "run", "pytest", "tests/perf", "-m", "not e2e", *args])
 
 
 def task_lint(_: list[str]) -> int:
@@ -118,11 +133,6 @@ def task_seed(_: list[str]) -> int:
 
 def task_demo(args: list[str]) -> int:
     return task_up(args) or task_seed([])
-
-
-def task_bench(_: list[str]) -> int:
-    print("bench: not implemented yet (Phase 4C)")
-    return 0
 
 
 TASKS = {name[5:].replace("_", "-"): fn for name, fn in globals().items() if name.startswith("task_")}
