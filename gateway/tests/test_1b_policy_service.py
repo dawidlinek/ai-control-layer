@@ -491,7 +491,14 @@ async def test_locked_control_cannot_be_weakened_from_the_panel(tmp_path: Path) 
         # ... and even with the org lock gone, the control's own `locked: true` keeps it from being removed
         g = await s.file("groups.yaml")
         no_lock = g["content"].replace("    controls: [SEC-SECRET-01]\n", "    controls: [SEC-NORM-01]\n", 1)
-        assert (await s.put("groups.yaml", no_lock, g["version"])).status_code == 200
+        # (changing an org lock is itself refused from the panel, so the judge does it on disk)
+        assert (await s.put("groups.yaml", no_lock, g["version"])).status_code == 422
+        n = len(s.events(EventType.policy_change))
+        s.write("groups.yaml", no_lock)
+        await wait_for(lambda: len(s.events(EventType.policy_change)) == n + 1)
+        assert s.events(EventType.policy_change)[-1]["org_lock_modified"] == [
+            {"lock_id": "LOCK-02", "changes": ["controls"]}
+        ]
         r = await s.put("controls.yaml", removed, f["version"])
         assert r.status_code == 422 and r.json()["error"] == "locked_control"
         assert r.json()["details"]["violations"] == [{"control_id": "SEC-SECRET-01", "changes": ["removed"]}]
@@ -500,7 +507,7 @@ async def test_locked_control_cannot_be_weakened_from_the_panel(tmp_path: Path) 
         assert v["valid"] is False and "locked control SEC-SECRET-01" in v["errors"][0]["message"]
         ok = await s.put(
             "controls.yaml",
-            base.replace("timeout_ms: 20\n    action: block", "timeout_ms: 30\n    action: block", 1),
+            base.replace("description: Secrets and credentials", "description: Edited - secrets and credentials", 1),
             f["version"],
         )
         assert ok.status_code == 200, ok.text

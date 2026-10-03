@@ -40,7 +40,7 @@ from acl.policy.compiler import Compiled, compile_texts
 from acl.policy.config import PolicyOptions
 from acl.policy.errors import FileNotFound, InvalidFileName, LockedControl, Unavailable, ValidationFailed
 from acl.policy.loader import LoadedPolicy, PolicyLoadError, compute_version
-from acl.policy.locks import LockViolation, locked_violations
+from acl.policy.locks import lock_report
 from acl.policy.source import PolicySource, SourceFile, normalise_text, valid_file_name
 from acl.policy.versions import VersionStore
 
@@ -198,10 +198,10 @@ class PolicyService:
         except PolicyLoadError as exc:
             raise ValidationFailed(exc.errors) from exc
         if check_locks and self._loaded is not None:
-            violations = locked_violations(self._loaded.policy, compiled.policy)
-            if violations:
+            report = lock_report(self._loaded.policy, compiled.policy, panel=True)
+            if report:
                 await compiled.discard()
-                raise LockedControl(violations)
+                raise LockedControl(report)
         return compiled
 
     async def validate(self, files: dict[str, str]) -> ValidateResponse:
@@ -214,7 +214,7 @@ class PolicyService:
         except ValidationFailed as exc:
             return ValidateResponse(valid=False, errors=exc.errors)
         except LockedControl as exc:
-            return ValidateResponse(valid=False, errors=_lock_errors(exc.violations))
+            return ValidateResponse(valid=False, errors=exc.errors())
         await compiled.discard()
         return ValidateResponse(valid=True, candidate_version=compiled.version)
 
@@ -273,7 +273,9 @@ class PolicyService:
         if old_engine is not None and old_engine is not compiled.engine:
             self._retire(old_engine)
 
-        violations = locked_violations(previous.policy, compiled.policy) if previous else []
+        report = lock_report(previous.policy, compiled.policy, panel=False) if previous else None
+        violations = report.controls if report is not None else []
+        org_lock_changes = report.org_locks if report is not None else []
         version_id = await self._snapshot(compiled.version, texts, attribution)
         changed = sorted(n for n in set(previous_texts) | set(texts) if previous_texts.get(n) != texts.get(n))
         detail: dict[str, Any] = {
@@ -285,13 +287,14 @@ class PolicyService:
             "files_changed": changed if previous else sorted(texts),
             "version_id": version_id,
             "locked_control_modified": [v.as_dict() for v in violations],
+            "org_lock_modified": [v.as_dict() for v in org_lock_changes],
         }
         log.info(
             "policy %s active (source=%s, files=%s)", compiled.version, attribution.source, detail["files_changed"]
         )
         await self._emit(
             EventType.policy_change,
-            Severity.high if violations else Severity.info,
+            Severity.high if violations or org_lock_changes else Severity.info,
             detail,
             attribution.principal,
         )
@@ -372,16 +375,6 @@ class PolicyService:
             await engine.aclose()
         except Exception:
             log.exception("closing retired engine failed")
-
-
-def _lock_errors(violations: list[LockViolation]) -> list[PolicyError]:
-    return [
-        PolicyError(
-            path=f"controls.{v.control_id}",
-            message=f"locked control {v.control_id} cannot be changed from the panel ({', '.join(v.changes)})",
-        )
-        for v in violations
-    ]
 
 
 __all__ = ["Attribution", "PolicyService", "author_of"]

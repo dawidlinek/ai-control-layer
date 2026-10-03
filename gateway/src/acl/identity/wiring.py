@@ -17,6 +17,7 @@ from acl.contracts.inspection import Principal
 from acl.identity.access import DefaultAccessResolver, grant_keys
 from acl.identity.apikeys import ApiKeyService
 from acl.identity.authenticator import Authenticator
+from acl.identity.config import IdentityOptions
 from acl.identity.grants import GrantStore
 from acl.identity.tokens import JwksCache, TokenVerifier
 from acl.identity.users import UserStore
@@ -44,7 +45,11 @@ def build_services(app: FastAPI, settings: Settings) -> IdentityServices:
         return None if engine is None else (engine.policy, engine.policy_version)
 
     users = UserStore(sessions)
-    keys = ApiKeyService(sessions, settings.api_key_pepper.get_secret_value().encode("utf-8"))
+    keys = ApiKeyService(
+        sessions,
+        settings.api_key_pepper.get_secret_value().encode("utf-8"),
+        max_group_age=IdentityOptions().api_key_max_group_age,
+    )
     grants = GrantStore(sessions, audit=lambda: getattr(app.state, "audit", None))
     access = DefaultAccessResolver(policy_view, grants)
     jwks = JwksCache(settings.jwks_url)

@@ -383,10 +383,13 @@ async def test_effective_preset_resolution(env: Env) -> None:
     both = make_principal("x", ["developers", "credit-analysts"])
     assert await r.effective_preset(both) == Preset.strict  # strictest group wins
     assert await r.effective_preset(make_principal("nobody", [])) == env.policy.global_.default_preset
-    g = await grant(env, resource="smart", constraints=GrantConstraints(preset=Preset.balanced))
-    assert await r.effective_preset(jan()) == Preset.balanced  # user grant beats the (stricter) group
+    g = await grant(env, resource="smart", constraints=GrantConstraints(preset=Preset.paranoid))
+    assert await r.effective_preset(jan()) == Preset.paranoid  # a user grant can tighten the group preset ...
     eff = await r.effective_access(jan())
-    assert eff.preset == Preset.balanced and eff.preset_source == f"grant:{g.id}"
+    assert eff.preset == Preset.paranoid and eff.preset_source == f"grant:{g.id}"
+    lax = await grant(env, resource="local", constraints=GrantConstraints(preset=Preset.balanced))
+    assert await r.effective_preset(jan()) == Preset.paranoid  # ... but never loosen it (test_sec_identity_*)
+    await env.grants.revoke(lax.id, ADMIN, "x")
     await env.grants.revoke(g.id, ADMIN, "x")
     assert await r.effective_preset(jan()) == Preset.strict
     assert (await r.effective_access(jan())).preset_source == "group:credit-analysts"

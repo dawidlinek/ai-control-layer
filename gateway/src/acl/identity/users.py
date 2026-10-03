@@ -15,6 +15,7 @@ from acl.contracts.admin import User
 from acl.contracts.common import PrincipalKind
 from acl.contracts.inspection import Principal
 from acl.identity.db_models import UserRow, utcnow
+from acl.identity.tokens import AGENT_CLIENT_PREFIX, SERVICE_ACCOUNT_PREFIX
 
 SessionMaker = Callable[[], async_sessionmaker[AsyncSession]]
 
@@ -35,18 +36,24 @@ def user_from_row(row: UserRow) -> User:
     )
 
 
+def agent_id_for(row: UserRow) -> str | None:
+    """Agent id of an agent principal's user row (kind `agent`, or a Keycloak service-account user
+    `service-account-agent-<id>`), derived from the stored username; None for people."""
+    if PrincipalKind(row.kind) != PrincipalKind.agent and not row.username.startswith(SERVICE_ACCOUNT_PREFIX):
+        return None
+    return row.username.removeprefix(SERVICE_ACCOUNT_PREFIX).removeprefix(AGENT_CLIENT_PREFIX) or None
+
+
 def principal_from_row(row: UserRow) -> Principal:
     """The identity an admin sees when inspecting a user (no auth method: nobody is authenticating)."""
-    kind = PrincipalKind(row.kind)
+    agent_id = agent_id_for(row)
     return Principal(
         subject=row.subject,
-        kind=kind,
+        kind=PrincipalKind.agent if agent_id else PrincipalKind(row.kind),
         username=row.username,
         groups=list(row.groups or []),
         roles=list(row.roles or []),
-        agent_id=row.username.removeprefix("service-account-").removeprefix("agent-")
-        if kind == PrincipalKind.agent
-        else None,
+        agent_id=agent_id,
     )
 
 

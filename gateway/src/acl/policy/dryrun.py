@@ -70,8 +70,7 @@ async def run_dry_run(service: PolicyService, req: DryRunRequest) -> DryRunRespo
     except ValidationFailed as exc:
         return DryRunResponse(candidate_version=version, evaluated=0, changed=0, errors=exc.errors)
     except LockedControl as exc:
-        errors = [PolicyError(path=f"controls.{v.control_id}", message=str(exc.message)) for v in exc.violations]
-        return DryRunResponse(candidate_version=version, evaluated=0, changed=0, errors=errors)
+        return DryRunResponse(candidate_version=version, evaluated=0, changed=0, errors=exc.errors())
 
     try:
         buffer = getattr(service.app.state, "replay_buffer", None)

@@ -6,7 +6,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from acl.contracts.admin import ErrorResponse, PolicyError
-from acl.policy.locks import LockViolation
+from acl.policy.locks import LockReport
 
 
 class PolicyServiceError(Exception):
@@ -67,14 +67,49 @@ class LockedControl(PolicyServiceError):
     status_code = 422
     code = "locked_control"
 
-    def __init__(self, violations: list[LockViolation]) -> None:
-        super().__init__(
-            "locked controls cannot be disabled, removed or changed from the panel: " + "; ".join(map(str, violations))
-        )
-        self.violations = violations
+    def __init__(self, report: LockReport) -> None:
+        parts: list[str] = []
+        if report.controls:
+            parts.append(
+                "locked controls cannot be disabled, removed or changed from the panel (only their description): "
+                + "; ".join(map(str, report.controls))
+            )
+        if report.org_locks:
+            parts.append(
+                "org locks cannot be removed or changed from the panel: " + "; ".join(map(str, report.org_locks))
+            )
+        if report.restricted:
+            parts.append("; ".join(map(str, report.restricted)))
+        super().__init__(" | ".join(parts))
+        self.report = report
+        self.violations = report.controls
 
     def details(self) -> dict[str, object]:
-        return {"violations": [v.as_dict() for v in self.violations]}
+        out: dict[str, object] = {"violations": [v.as_dict() for v in self.report.controls]}
+        if self.report.org_locks:
+            out["org_locks"] = [v.as_dict() for v in self.report.org_locks]
+        if self.report.restricted:
+            out["restricted"] = [v.as_dict() for v in self.report.restricted]
+        return out
+
+    def errors(self) -> list[PolicyError]:
+        """One `PolicyError` per violation (validate / dry-run responses)."""
+        out = [
+            PolicyError(
+                path=f"controls.{v.control_id}",
+                message=f"locked control {v.control_id} cannot be changed from the panel ({', '.join(v.changes)})",
+            )
+            for v in self.report.controls
+        ]
+        out += [
+            PolicyError(
+                path=f"org_locks.{v.lock_id}",
+                message=f"org lock {v.lock_id} cannot be removed or changed from the panel ({', '.join(v.changes)})",
+            )
+            for v in self.report.org_locks
+        ]
+        out += [PolicyError(path=r.path, message=r.message) for r in self.report.restricted]
+        return out
 
 
 class Unavailable(PolicyServiceError):
