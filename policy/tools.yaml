@@ -67,6 +67,40 @@ tools:
     default_tier: allow
     checkers:
       - {type: path, field: path}
+  files.list_files:
+    server: files
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path}
+  governed.search_docs:
+    server: governed-tools
+    labels: [touches_sensitive]
+    default_tier: allow
+  governed.list_dir:
+    server: governed-tools
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path}
+  governed.read_text:
+    server: governed-tools
+    labels: [touches_sensitive]
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path}
+  governed.shell_echo:
+    server: governed-tools
+    capabilities: [exec]
+    default_tier: allow
+  governed.http_get:
+    server: governed-tools
+    labels: [reads_untrusted, external_egress]
+    capabilities: [network]
+    default_tier: allow
+    checkers:
+      - {type: url, field: url}
   web.fetch:
     server: web
     labels: [reads_untrusted, external_egress]
@@ -92,7 +126,27 @@ tools:
     labels: [touches_sensitive]
     default_tier: allow
     checkers:
-      - {type: sql, field: sql, params: {read_only: true}}
+      # SQL checker parameters (concept §9 "Database tools"; enforced by SEC-TOOL-01's `sql` checker):
+      #   read_only          only SELECT (no DDL/DML, no PRAGMA/ATTACH)
+      #   single_statement   stacked statements (`; DROP ...`) are rejected
+      #   deny_columns       never readable by anyone (matched case-insensitively, also via `*` expansion)
+      #   groups.<g>.tables  per-group column scope `table: [columns]` (`"*"` = every column of that table);
+      #                      a table or column outside the scope blocks the query (`SELECT *` on a table whose
+      #                      scope is not `"*"` is out of scope too). Groups without an entry may read nothing.
+      #   groups.<g>.pseudonymise_columns  informational: values are pseudonymised on the way out by SEC-PII-01
+      - type: sql
+        field: sql
+        params:
+          read_only: true
+          single_statement: true
+          deny_columns: [internal_risk_notes]
+          groups:
+            credit-analysts:
+              tables:
+                clients: [id, name, pesel, city]
+                accounts: [id, client_id, balance, currency]
+                loans: ["*"]
+              pseudonymise_columns: [clients.pesel]
   rugpull.get_weather:
     server: rugpull-demo
     name: get_weather

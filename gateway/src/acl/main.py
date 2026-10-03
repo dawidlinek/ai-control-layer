@@ -45,6 +45,7 @@ INSTALLERS: list[str] = [
     "acl.controls.pii.wiring:install",  # 1D: pseudonymisation vault (control service "vault")
     "acl.feed.wiring:install",  # 1D: signature store + feed sync (control service "signatures")
     "acl.budgets.wiring:install",  # 2D: budget ledger, breakers, loop tracker, flow hooks (service "budgets")
+    "acl.mcp_proxy.wiring:install",  # 2A: MCP proxy `/mcp/{server_id}` + pinned tool manifests
     "acl.policy.wiring:install",  # 1B: policy service builds/swaps the engine; keep last
 ]
 

@@ -26,6 +26,7 @@ HF_CACHE="${HF_CACHE:-}"
 SERVED_NAME="${SERVED_NAME:-qwen3.8-27b}"
 PORT="${PORT:-$((20000 + SLURM_JOB_ID % 10000))}"   # per job: a GPU node is shared by up to 4 jobs
 MAX_LEN="${MAX_LEN:-131072}"
+MAX_SEQS="${MAX_SEQS:-256}"                 # hybrid Mamba models (Qwen3.8): <= the Mamba cache blocks vLLM reports
 TOOL_PARSER="${TOOL_PARSER:-qwen3_coder}"
 REASONING_PARSER="${REASONING_PARSER:-qwen3}"
 mkdir -p "$PD/runs" "$PD/serve"
@@ -68,6 +69,7 @@ VLLM_API_KEY="$(cat "$PD/.llm_api_key")" exec "${VLLM[@]}" serve "$MODEL" \
     --served-model-name "$SERVED_NAME" \
     --host 0.0.0.0 --port "$PORT" \
     --max-model-len "$MAX_LEN" \
+    --max-num-seqs "$MAX_SEQS" \
     --gpu-memory-utilization 0.90 \
     --enable-auto-tool-choice --tool-call-parser "$TOOL_PARSER" \
     --reasoning-parser "$REASONING_PARSER" \

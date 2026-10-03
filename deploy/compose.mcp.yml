@@ -1,2 +1,79 @@
-# Compose fragment included by docker-compose.yml (owner: Phase 2A). Services join the default network.
-services: {}
+# Compose fragment included by docker-compose.yml (owner: Phase 2A): the demo MCP servers.
+#
+# Service names and port match the URLs in policy/tools.yaml (http://mcp-<name>:8000/mcp). No ports are
+# published: the servers are reachable only from the compose network, i.e. through the gateway's /mcp proxy.
+# Hardening: non-root, read-only root filesystem (tmpfs /tmp), no capabilities, no privilege escalation.
+#
+# Egress: the servers make no outbound calls except `mcp-mail`, which delivers mail addressed to an attacker
+# domain to `attacker-sink` (the oracle that proves exfiltration happened). For hard network isolation attach
+# the gateway to an `internal: true` network shared with these services (needs a one-line change to the gateway
+# service in docker-compose.yml, which this fragment cannot make); policy `mcp_servers.<id>.egress_allow`
+# documents the intended per-server allowlist.
+
+x-mcp-server: &mcp-server
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  healthcheck:
+    test:
+      - CMD
+      - python
+      - -c
+      - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"
+    interval: 10s
+    timeout: 3s
+    retries: 6
+    start_period: 5s
+
+services:
+  mcp-governed:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: governed-tools}
+
+  mcp-files:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: files}
+    environment:
+      FILES_ALLOW_OUTSIDE: ${MCP_FILES_ALLOW_OUTSIDE:-0}   # 1 = simulate a path-traversal-vulnerable server
+
+  mcp-mail:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: mail}
+    environment:
+      ATTACKER_SINK_URL: http://attacker-sink:8080/mail    # tests/oracle/sink.py (service in docker-compose.yml)
+
+  mcp-web:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: web}
+
+  mcp-core-banking:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: core-banking}
+
+  mcp-rugpull:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: rugpull-demo}
+    environment:
+      RUGPULL_AFTER_CALLS: ${RUGPULL_AFTER_CALLS:-3}       # 0 = only via POST /trigger

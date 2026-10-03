@@ -1,0 +1,3 @@
+- add rounding tests for vat()
+- document the CSV export format
+- ask finance about the 2027 rate change

@@ -170,22 +170,33 @@ controls:
 
   - id: SEC-MCP-01
     type: mcp_pinning
-    enabled: false
+    enabled: true
     description: tools/list hash pinning, description scan, name collisions; drift → quarantine
     stages: [mcp_tools_list]
     cost_tier: deterministic
     timeout_ms: 20
     taxonomy: {owasp_mcp: ["MCP03"]}
     params:
-      on_drift: quarantine
+      on_drift: quarantine        # quarantine | monitor (record only, tool stays callable)
+      recheck_interval_s: 2.0     # the proxy re-lists the upstream before a call if the last pin check is older
 
   - id: SEC-MCP-02
     type: mcp_protocol
-    enabled: false
+    enabled: true
     description: initialize allowlist, sampling denied, header/body consistency, OAuth metadata URL checks
     stages: [mcp_initialize, tool_call]
     cost_tier: deterministic
     timeout_ms: 10
+    params:
+      deny_methods: [sampling/createMessage, elicitation/create]
+      # Canary values planted in demo data (core-banking `clients`/`accounts` canary rows, mcp-servers/core-banking/data.py):
+      # if a tool result ever contains one, the proxy redacts it and raises a critical incident.
+      canaries:
+        - Kanarek Zxq7f3Lm
+        - ZN-Qx7Zk2Vm9Rb4Ty8Wc
+        - kanarek.zxq7f3@canary.invalid
+        - "68071977755"
+        - PL31109010140000071234567890
 
   # ---- stage 1b / 2 / 3: semantic (Phase 3A) -------------------------------------------
   - id: SEC-SIM-01
