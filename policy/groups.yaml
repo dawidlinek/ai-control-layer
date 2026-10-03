@@ -19,7 +19,7 @@ groups:
   admins:
     description: Platform administrators
     preset: balanced
-    models: [auto, local, smart]
+    models: [auto, local, smart, smart-pro]
 
   security-analysts:
     description: Security team (panel analysts)
@@ -27,19 +27,28 @@ groups:
     models: [auto, local]
 
   credit-analysts:
-    description: Bank credit analysts (LibreChat)
+    description: Bank credit analysts (LibreChat + OpenCode)
     preset: strict
-    models: [auto, local-pl, local/loan-memo-pl]
+    models: [auto, local, local/loan-memo]
     skills: [skill/loan-memo-summary]
+    # Tool ids: OpenCode built-ins as `opencode.<tool>`, MCP tools as `<server>.<tool>` (tools.yaml).
     tools:
       bank.query: {}
+      opencode.read: {path_deny: ["**/.ssh/**", "**/.env", "**/.aws/**"]}
+      opencode.edit: {}
+      opencode.bash: {}
     mcp_servers: [core-banking]
     max_external_data_class: internal
 
-  developers:
-    description: Developers (OpenCode)
+  operations:
+    description: Operations (LibreChat)
     preset: balanced
-    models: [auto, local-coder, local, smart]
+    models: [auto, local, smart]
+
+  developers:
+    description: Developers (OpenCode). No cloud model by default; a personal grant (e.g. `smart`) adds one.
+    preset: balanced
+    models: [auto, local]
     tools:
       opencode.read: {path_deny: ["**/.ssh/**", "**/.env", "**/.aws/**"]}
       opencode.write: {}
@@ -60,7 +69,7 @@ groups:
       mail.send: {recipients_allow: ["@corp.example"]}
     mcp_servers: [governed-tools, files, web, mail, rugpull-demo]
     repos:
-      "confidential/*": {models: [local-coder], data_class: confidential}
+      "confidential/*": {models: [local], data_class: confidential}
 
   agents/research-bot:
     description: Autonomous research agent (client credentials)

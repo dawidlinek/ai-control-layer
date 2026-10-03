@@ -5172,7 +5172,7 @@ components:
         model:
           type: string
           title: Model
-          description: Resolved public model id, e.g. `local/general`.
+          description: Resolved public model id, e.g. `local/qwen3.8-27b`.
         connector:
           type: string
           title: Connector
@@ -5182,7 +5182,7 @@ components:
           type: string
           title: Reason
           examples:
-          - 'auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local'
+          - 'auto → local/loan-memo: task=loan_memo (0.91), data=confidential → local'
         degraded:
           type: boolean
           title: Degraded

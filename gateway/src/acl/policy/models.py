@@ -36,7 +36,7 @@ from acl.contracts.common import (
 from acl.contracts.feed import SignatureEntry
 
 EnvRef = Annotated[str, Field(pattern=r"^env:[A-Z_][A-Z0-9_]*$")]
-ModelId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]*/[A-Za-z0-9._:/-]+$", examples=["local/general"])]
+ModelId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9._-]*/[A-Za-z0-9._:/-]+$", examples=["local/qwen3.8-27b"])]
 ToolId = Annotated[str, Field(pattern=r"^[a-z0-9_-]+\.[a-z0-9_./-]+$", examples=["opencode.bash", "mail.send"])]
 GroupName = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$")]
 

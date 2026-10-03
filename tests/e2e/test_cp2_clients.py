@@ -233,7 +233,7 @@ def test_managed_config_matches_concept_5_1(oc: Exec) -> None:
     company = cfg["provider"]["company"]
     assert company["npm"] == "@ai-sdk/openai-compatible"
     assert company["options"]["baseURL"] == "http://gateway:8000/v1"
-    assert {"auto", "local-coder"} <= set(company["models"])
+    assert {"auto", "local"} <= set(company["models"])
     assert cfg["model"] == "company/auto"
     assert cfg["share"] == "disabled"
     assert cfg["autoupdate"] is False

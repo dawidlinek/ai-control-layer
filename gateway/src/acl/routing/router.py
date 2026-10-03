@@ -5,8 +5,11 @@ Resolution of the requested name:
     alias declared on a model        → that model
     `aliases[x]` strategy `fixed`    → its target
     `aliases[x]` auto/rules          → data class → routing.data_class_sensitivity → routing.sensitivity:
-                                       local_only → targets.local; otherwise targets.ext_small if the
-                                       principal may use it for this data class, else targets.local
+                                       local_only → targets.local; otherwise by complexity band
+                                       (`acl.routing.complexity`): below `local_max` → targets.local, above
+                                       `ext_small_max` → targets.ext_large, else targets.ext_small — each only if
+                                       the principal may use it for this data class, else the next smaller one,
+                                       finally targets.local
     `skill/<x>`                      → the skill's model (template handling is Phase 3B)
 
 Then, in order:
@@ -54,6 +57,8 @@ class RouteRequest:
     force_reason: str = ""
     capability: str = "chat"
     sensitive_external_action: Action = Action.route_local
+    complexity: float | None = None
+    """Deterministic request complexity 0..1 (`acl.routing.complexity`); only chooses between permitted models."""
     budget_exhausted: str | None = None
     """Why the cloud budget is spent (SEC-BUDGET-01 `route_local`). When unset the router falls back to the
     request-scoped signal of `acl.budgets.signal`; the chat flow may fill this field directly."""
@@ -165,9 +170,25 @@ class Router:
                 steps.append(f"{name} → {model_id}: data={req.data_class.value} → sensitivity {sens} → local_only")
             else:
                 ext = self._ref(targets.ext_small)
-                if ext is not None and req.data_class in req.usable.get(ext, ()):
+                large = self._ref(targets.ext_large)
+                bands = policy.routing.complexity_bands
+                cx = req.complexity
+                if cx is not None:
+                    factors["complexity"] = cx
+                band = ""
+                if cx is not None and cx > bands.ext_small_max and large is not None and large != ext:
+                    if req.data_class in req.usable.get(large, ()):
+                        ext, band = large, f", complexity {cx:.2f} > {bands.ext_small_max} → strong model"
+                    else:
+                        band = f", complexity {cx:.2f} but {targets.ext_large} not usable for this principal"
+                if rule == "by_complexity" and cx is not None and cx < bands.local_max:
+                    model_id = local
+                    steps.append(f"{name} → {model_id}: complexity {cx:.2f} < {bands.local_max} → local")
+                elif ext is not None and req.data_class in req.usable.get(ext, ()):
                     model_id = ext
-                    steps.append(f"{name} → {model_id}: data={req.data_class.value} → sensitivity {sens} → {rule}")
+                    steps.append(
+                        f"{name} → {model_id}: data={req.data_class.value} → sensitivity {sens} → {rule}{band}"
+                    )
                 else:
                     model_id = local
                     steps.append(

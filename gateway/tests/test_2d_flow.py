@@ -125,9 +125,9 @@ def test_exhausted_budget_degrades_to_a_local_model_and_says_so(make_client) -> 
     second = chat(client, "hello again")  # same user, same cloud model, budget now spent
     assert second.status_code == 200
     assert second.headers["x-acl-degraded"] == "true"  # never silent
-    assert second.headers["x-acl-model"] == "local/general"
+    assert second.headers["x-acl-model"] == "local/qwen3.8-27b"
     assert second.headers["x-acl-decision"] == "route_local"
-    assert second.json()["model"] == "local/general"
+    assert second.json()["model"] == "local/qwen3.8-27b"
 
     # another user is unaffected
     other = chat(client, "hello", user="bob")

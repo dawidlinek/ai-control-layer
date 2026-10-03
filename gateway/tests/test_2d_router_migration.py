@@ -37,7 +37,7 @@ def setup():  # type: ignore[no-untyped-def]
 
 async def test_budget_exhausted_serves_a_local_model_and_marks_it_degraded(setup) -> None:  # type: ignore[no-untyped-def]
     r = await setup("smart", budget_exhausted="tokens_day 510/500 on user:jan")
-    assert r.info.model == "local/general" and r.info.tier == ConnectorTier.local
+    assert r.info.model == "local/qwen3.8-27b" and r.info.tier == ConnectorTier.local
     assert r.info.degraded is True
     assert "budget exhausted" in r.info.reason and "tokens_day" in r.info.reason
     assert r.info.factors["budget_exhausted"].startswith("tokens_day")
@@ -52,7 +52,7 @@ async def test_budget_exhausted_leaves_local_requests_alone(setup) -> None:  # t
 
 async def test_budget_exhausted_composes_with_the_route_local_obligation(setup) -> None:  # type: ignore[no-untyped-def]
     r = await setup("smart", budget_exhausted="usd_day", force_local=True, force_reason="route_local")
-    assert r.info.model == "local/general" and r.info.degraded
+    assert r.info.model == "local/qwen3.8-27b" and r.info.degraded
 
 
 TABLES = ("budget_nodes", "budget_counters", "budget_breakers")

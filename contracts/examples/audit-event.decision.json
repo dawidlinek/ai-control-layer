@@ -30,7 +30,7 @@
   "tool": null,
   "server": null,
   "model_requested": "auto",
-  "model": "local/pl",
+  "model": "local/qwen3.8-27b",
   "connector": "local",
   "args_hash": null,
   "payload_hash": "5e2a0c7d9b1f3a64",
@@ -89,10 +89,10 @@
   "risk_factors": [],
   "route": {
     "model_requested": "auto",
-    "model": "local/pl",
+    "model": "local/qwen3.8-27b",
     "connector": "local",
     "tier": "local",
-    "reason": "auto → local/pl: data=confidential → local_only (LOCK-01)",
+    "reason": "auto → local/qwen3.8-27b: data=confidential → local_only (LOCK-01)",
     "degraded": false,
     "factors": {}
   },
@@ -131,5 +131,5 @@
   "redacted_payload": "Klient PESEL <PESEL_1>, IBAN <IBAN_1> prosi o kredyt 200 000 zł.",
   "detail": {},
   "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-  "hash": "36a43fb01c0db969cdf5e46985b78b174ca7f1bb337f9fe4a9dc0fc4cf1278fc"
+  "hash": "d27736acd977e53338717e9c1126941ed13e98bf11adda9585d75ef2efd8b816"
 }

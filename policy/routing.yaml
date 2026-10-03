@@ -5,12 +5,12 @@
 routing:
   sensitivity: {high: local_only, medium: redact_then_external, low: by_complexity}
   data_class_sensitivity: {public: low, internal: low, confidential: high, restricted: high}
-  complexity_bands: {local_max: 0.3, ext_small_max: 0.7}
+  complexity_bands: {local_max: 0.0, ext_small_max: 0.6}   # below local_max → local; up to ext_small_max → Flash; above → Pro
   targets:
-    local: local/general
+    local: local/qwen3.8-27b
     ext_small: gemini/flash
-    ext_large: gemini/flash
-    degraded: local/general
+    ext_large: gemini/pro
+    degraded: local/qwen3.8-27b
     embeddings: local/embed
     judge: local/judge
   escalation_scales_with_remaining_budget: true

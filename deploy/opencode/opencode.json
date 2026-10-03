@@ -8,8 +8,7 @@
       "options": { "baseURL": "http://gateway:8000/v1" },
       "models": {
         "auto": { "name": "Auto (policy router)" },
-        "local-coder": { "name": "Local coder" },
-        "local": { "name": "Local general" },
+        "local": { "name": "Local (Qwen3.8-27B)" },
         "smart": { "name": "Smart (cloud, if granted)" }
       }
     }

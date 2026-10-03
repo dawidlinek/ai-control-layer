@@ -194,7 +194,7 @@ async def test_deny_resource_lock_beats_group_grant_and_user_grant(env: Env) -> 
 async def test_tier_lock_caps_group_cloud_access_to_ceiling(env: Env) -> None:
     usable = await env.resolver.usable_models(anna())
     assert usable["gemini/flash"] == [DataClass.public, DataClass.internal]  # max_external_data_class + LOCK-01
-    assert usable["local/general"] == [
+    assert usable["local/qwen3.8-27b"] == [
         DataClass.public,
         DataClass.internal,
         DataClass.confidential,
@@ -230,8 +230,8 @@ async def test_grant_with_only_locked_classes_is_denied_by_the_lock(env: Env) ->
 
 async def test_local_model_grant_is_not_capped(env: Env) -> None:
     kim = make_principal("kim", [])
-    await grant(env, subject="kim", resource_type=GrantResourceType.model, resource="local/general")
-    assert (await env.resolver.usable_models(kim))["local/general"] == list(DataClass)
+    await grant(env, subject="kim", resource_type=GrantResourceType.model, resource="local/qwen3.8-27b")
+    assert (await env.resolver.usable_models(kim))["local/qwen3.8-27b"] == list(DataClass)
 
 
 # ---------------------------------------------------------------- DB grants
@@ -367,7 +367,11 @@ async def test_visible_names_and_usable_models_for_developers(env: Env) -> None:
     names = await env.resolver.visible_names(anna())
     assert names == ["auto", "local", "local-coder", "smart"]
     usable = await env.resolver.usable_models(anna())
-    assert set(usable) == {"local/general", "local/coder", "gemini/flash"}  # auto → routing targets, aliases resolved
+    assert set(usable) == {
+        "local/qwen3.8-27b",
+        "local/coder",
+        "gemini/flash",
+    }  # auto → routing targets, aliases resolved
 
 
 async def test_visible_names_follow_grants(env: Env) -> None:
@@ -460,7 +464,7 @@ async def test_agent_group_tools(env: Env) -> None:
     assert not (await env.resolver.check_tool(bot, "opencode.bash")).allowed
     assert (await env.resolver.check_model(bot, "local")).allowed
     assert not (await env.resolver.check_model(bot, "auto")).allowed
-    assert set(await env.resolver.usable_models(bot)) == {"local/general"}
+    assert set(await env.resolver.usable_models(bot)) == {"local/qwen3.8-27b"}
 
 
 # ---------------------------------------------------------------- grant validation (admin API uses it)
