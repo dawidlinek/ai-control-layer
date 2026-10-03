@@ -1,0 +1,45 @@
+{
+  "subject": "5f3c9a51-0000-4000-8000-00000000a001",
+  "username": "jan",
+  "groups": [
+    "credit-analysts"
+  ],
+  "preset": "strict",
+  "preset_source": "group:credit-analysts",
+  "items": [
+    {
+      "resource_type": "alias",
+      "resource": "auto",
+      "effect": "allow",
+      "source": "group",
+      "source_ref": "credit-analysts",
+      "expires_at": null,
+      "constraints": {
+        "data_classes": null,
+        "budget_share": null,
+        "preset": null
+      },
+      "capped_by_lock": null
+    },
+    {
+      "resource_type": "alias",
+      "resource": "smart",
+      "effect": "allow",
+      "source": "user",
+      "source_ref": "grant-7f1",
+      "expires_at": "2026-10-10T00:00:00Z",
+      "constraints": {
+        "data_classes": [
+          "public",
+          "internal"
+        ],
+        "budget_share": null,
+        "preset": null
+      },
+      "capped_by_lock": "LOCK-01"
+    }
+  ],
+  "budgets": {},
+  "policy_version": "f2ea2e81c6b4",
+  "grants_version": "12"
+}

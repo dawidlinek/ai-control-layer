@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "bundle_version": 3,
+  "issued_at": "2026-10-03T12:00:00Z",
+  "issuer": "acl-feed-server",
+  "entries": [
+    {
+      "id": "SIG-PKG-LITELLM-01",
+      "type": "package_version",
+      "pattern": "pypi:litellm",
+      "severity": "critical",
+      "action": "block",
+      "stages": [],
+      "description": "Backdoored LiteLLM releases (Mar 2026)",
+      "atlas_technique": [],
+      "owasp": [],
+      "cve": [],
+      "source": "osv",
+      "expires": null,
+      "metadata": {
+        "versions": [
+          "1.82.7",
+          "1.82.8"
+        ]
+      }
+    },
+    {
+      "id": "SIG-CMD-CURL-PIPE-SH",
+      "type": "arg_pattern",
+      "pattern": "(?i)\\b(curl|wget)\\b[^|]*\\|\\s*(ba|z)?sh\\b",
+      "severity": "high",
+      "action": "block",
+      "stages": [
+        "tool_call"
+      ],
+      "description": "Remote script piped to a shell",
+      "atlas_technique": [],
+      "owasp": [
+        "LLM06:2025"
+      ],
+      "cve": [],
+      "source": "internal",
+      "expires": null,
+      "metadata": {}
+    }
+  ],
+  "signature": {
+    "alg": "sha256",
+    "key_id": null,
+    "value": "f1902d6097fdda027e55f6fe2d0aaa08b51d442286442b90ad598a93d0e94581"
+  }
+}

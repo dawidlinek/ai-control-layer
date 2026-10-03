@@ -1,0 +1,111 @@
+{
+  "decision_id": "dec-0001",
+  "trace_id": "tr-0001",
+  "point": "ingress",
+  "action": "route_local",
+  "applied": [
+    "pseudonymise",
+    "route_local"
+  ],
+  "would_action": null,
+  "final": false,
+  "decided_by": "SEC-PII-01",
+  "decided_phase": "deterministic",
+  "rule_ids": [
+    "SEC-PII-01",
+    "LOCK-01"
+  ],
+  "risk_score": 0.0,
+  "risk_factors": [],
+  "reason": "confidential data → local model",
+  "verdicts": [
+    {
+      "control_id": "SEC-PII-01",
+      "control_type": "pii",
+      "phase": "deterministic",
+      "cost_tier": "deterministic",
+      "action": "pseudonymise",
+      "final": false,
+      "score": null,
+      "rule_ids": [
+        "SEC-PII-01"
+      ],
+      "findings": [
+        {
+          "entity_type": "PESEL",
+          "field": "messages[0].content",
+          "start": 13,
+          "end": 24,
+          "score": 1.0,
+          "value_hash": "3b1f0e9a77c2d410",
+          "replacement": "<PESEL_1>",
+          "rule_id": "SEC-PII-01"
+        },
+        {
+          "entity_type": "IBAN",
+          "field": "messages[0].content",
+          "start": 31,
+          "end": 59,
+          "score": 1.0,
+          "value_hash": "9c0d2f4e1a7b3c55",
+          "replacement": "<IBAN_1>",
+          "rule_id": "SEC-PII-01"
+        }
+      ],
+      "risk_factors": [],
+      "labels": null,
+      "data_class": "confidential",
+      "taxonomy": {
+        "owasp_llm": [
+          "LLM02:2025"
+        ],
+        "owasp_agentic": [],
+        "owasp_mcp": [],
+        "atlas": [],
+        "cve": []
+      },
+      "reason": "2 direct identifiers (PESEL, IBAN)",
+      "status": "ok",
+      "fail_mode_applied": null,
+      "latency_ms": 0.42
+    }
+  ],
+  "route": {
+    "model_requested": "auto",
+    "model": "local/pl",
+    "connector": "local",
+    "tier": "local",
+    "reason": "auto → local/pl: data=confidential → local_only (LOCK-01)",
+    "degraded": false,
+    "factors": {}
+  },
+  "approval": null,
+  "labels_after": {
+    "integrity": "trusted",
+    "confidentiality": "confidential",
+    "taint": [
+      "sensitive"
+    ],
+    "sources": [
+      "SEC-PII-01"
+    ]
+  },
+  "taxonomy": {
+    "owasp_llm": [
+      "LLM02:2025"
+    ],
+    "owasp_agentic": [],
+    "owasp_mcp": [],
+    "atlas": [],
+    "cve": []
+  },
+  "versions": {
+    "policy": "f2ea2e81c6b4",
+    "grants": "12",
+    "signatures": "3",
+    "classifiers": {},
+    "judges": {},
+    "gateway": "0.1.0"
+  },
+  "latency_ms": 1.9
+}

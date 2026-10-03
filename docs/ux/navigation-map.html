@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel Navigation Map</title>
+<style>
+:root {
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --surface-2: #efefea;
+  --text: #1c1c1a;
+  --muted: #66665f;
+  --border: #d9d9d1;
+  --accent: #3554c8;
+  --accent-soft: rgba(53, 84, 200, 0.10);
+  --in: #0a7f62;
+  --flow: #c2410c;
+  --flow-soft: rgba(194, 65, 12, 0.10);
+  --edge: #c3c3b9;
+  --dim: 0.28;
+  --pri-m: #1c1c1a;
+  --pri-s: #66665f;
+  --pri-c: #9a9a92;
+  --radius: 8px;
+  --mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141413;
+    --surface: #1d1d1b;
+    --surface-2: #262623;
+    --text: #ececE6;
+    --muted: #a3a39a;
+    --border: #36362f;
+    --accent: #8ea2ff;
+    --accent-soft: rgba(142, 162, 255, 0.14);
+    --in: #4fd1a8;
+    --flow: #fb923c;
+    --flow-soft: rgba(251, 146, 60, 0.14);
+    --edge: #4a4a42;
+    --pri-m: #ececE6;
+    --pri-s: #a3a39a;
+    --pri-c: #77776f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141413; --surface: #1d1d1b; --surface-2: #262623; --text: #ececE6; --muted: #a3a39a;
+  --border: #36362f; --accent: #8ea2ff; --accent-soft: rgba(142, 162, 255, 0.14); --in: #4fd1a8;
+  --flow: #fb923c; --flow-soft: rgba(251, 146, 60, 0.14); --edge: #4a4a42;
+  --pri-m: #ececE6; --pri-s: #a3a39a; --pri-c: #77776f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 var(--sans);
+}
+header {
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+h1 { font-size: 18px; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin: 0; max-width: 980px; }
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 14px; }
+.ctl-label { font-size: 12px; color: var(--muted); margin-right: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg button {
+  font: inherit; font-size: 13px; padding: 5px 10px; background: var(--surface); color: var(--text);
+  border: 0; border-right: 1px solid var(--border); cursor: pointer;
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+select {
+  font: inherit; font-size: 13px; padding: 5px 8px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); max-width: 100%;
+}
+button:focus-visible, select:focus-visible, .node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 0; align-items: start; }
+.map-wrap { padding: 20px 24px 28px; overflow-x: auto; }
+.map {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
+  column-gap: 28px;
+  padding-right: 44px; /* room for same-lane arcs on the last lane */
+  min-width: 1030px;
+}
+.map svg.edges { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 0; }
+.lane { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
+.lane h2 {
+  font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin: 0 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.node {
+  position: relative;
+  text-align: left; font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 10px 8px; cursor: pointer; width: 100%;
+  transition: opacity 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.node .t { font-weight: 600; font-size: 13.5px; display: flex; gap: 6px; align-items: baseline; justify-content: space-between; }
+.node .r { font-family: var(--mono); font-size: 11px; color: var(--muted); word-break: break-all; }
+.node .c { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.pri { font-size: 10px; font-weight: 700; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; line-height: 15px; flex: none; }
+.pri.M { color: var(--pri-m); } .pri.S { color: var(--pri-s); } .pri.C { color: var(--pri-c); border-style: dashed; }
+.node .acc {
+  display: none; position: absolute; top: -8px; right: -6px; font-size: 10.5px; font-weight: 700;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 0 6px; line-height: 16px;
+}
+.map.role .node .acc { display: block; }
+.node .steps { display: none; position: absolute; top: -9px; left: -8px; gap: 2px; }
+.node .steps span {
+  background: var(--flow); color: var(--surface); font-size: 10.5px; font-weight: 700; border-radius: 9px;
+  min-width: 18px; height: 18px; line-height: 18px; text-align: center; padding: 0 4px;
+}
+.map.flow .node.inflow .steps { display: flex; }
+
+.map.hl .node { opacity: var(--dim); }
+.map.hl .node.sel { opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.map.hl .node.out, .map.hl .node.in { opacity: 1; }
+.map.hl .node.out { border-color: var(--accent); }
+.map.hl .node.in { border-color: var(--in); }
+.map.flow .node { opacity: var(--dim); }
+.map.flow .node.inflow { opacity: 1; border-color: var(--flow); background: linear-gradient(var(--flow-soft), var(--flow-soft)), var(--surface); }
+.map.role .node.noaccess { opacity: 0.35; border-style: dashed; }
+.map.role .node.noaccess .t span:first-child { text-decoration: line-through; }
+
+path.e { fill: none; stroke: var(--edge); stroke-width: 1.2; }
+.map.hl path.e { opacity: 0.12; }
+.map.hl path.e.out { opacity: 1; stroke: var(--accent); stroke-width: 2; }
+.map.hl path.e.in { opacity: 1; stroke: var(--in); stroke-width: 2; }
+.map.flow path.e { opacity: 0.08; }
+path.f { fill: none; stroke: var(--flow); stroke-width: 2.4; }
+text.lbl {
+  font: 600 10.5px var(--sans); fill: var(--text);
+  paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round;
+}
+.map:not(.hl) text.lbl { display: none; }
+.map.hl text.lbl:not(.on) { display: none; }
+
+aside {
+  position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto;
+  border-left: 1px solid var(--border); background: var(--surface); padding: 20px 20px 28px;
+}
+aside h3 { margin: 0 0 2px; font-size: 16px; }
+aside h4 { margin: 18px 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+aside p { margin: 6px 0; }
+aside .route { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+aside ul { list-style: none; margin: 0; padding: 0; }
+aside li { padding: 4px 0; border-bottom: 1px solid var(--surface-2); }
+aside li:last-child { border-bottom: 0; }
+.linkbtn {
+  font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.linkbtn.in { color: var(--in); }
+.lbl-sm { color: var(--muted); font-size: 12px; }
+table.acc { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+table.acc td { padding: 3px 0; border-bottom: 1px solid var(--surface-2); }
+table.acc td:last-child { text-align: right; font-weight: 600; font-family: var(--mono); }
+.legend { display: grid; grid-template-columns: 26px 1fr; gap: 6px 8px; align-items: center; font-size: 12.5px; }
+.sw { height: 0; border-top: 2px solid; width: 24px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 11.5px; border: 1px solid var(--border); border-radius: 10px; padding: 0 7px; background: var(--surface-2); }
+
+section.concept { padding: 4px 24px 40px; }
+section.concept h2 { font-size: 15px; margin: 8px 0 10px; }
+table.ct { border-collapse: collapse; width: 100%; max-width: 1200px; font-size: 13px; }
+table.ct th, table.ct td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.ct th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 650; }
+table.ct td:first-child { font-family: var(--mono); white-space: nowrap; width: 70px; }
+table.ct .chip { cursor: pointer; }
+table.ct .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+  aside { position: static; max-height: none; border-left: 0; border-top: 1px solid var(--border); }
+}
+@media (max-width: 760px) {
+  header { padding: 16px 16px 10px; }
+  .map-wrap { padding: 16px; }
+  .map { grid-template-columns: 1fr; min-width: 0; row-gap: 20px; }
+  .map svg.edges { display: none; }
+  aside, section.concept { padding-left: 16px; padding-right: 16px; }
+  table.ct td:first-child { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) { .node { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Admin panel — concept navigation map</h1>
+  <p class="sub">Every view of the AI Control Layer panel, how they link to each other, which <code>CONCEPT.md</code> sections they make visible, and who can use them. Click a view to see its links; pick a role to see access; pick a flow to trace its path.</p>
+  <div class="controls">
+    <div><span class="ctl-label">Role</span>
+      <span class="seg" id="roles" role="group" aria-label="Filter by role"></span>
+    </div>
+    <div><label class="ctl-label" for="flow">Flow</label>
+      <select id="flow"><option value="">— none —</option></select>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="map-wrap">
+    <div class="map" id="map">
+      <svg class="edges" id="edges" aria-hidden="true"></svg>
+    </div>
+  </div>
+  <aside id="panel" aria-live="polite"></aside>
+</div>
+
+<section class="concept">
+  <h2>Concept → panel</h2>
+  <table class="ct" id="concept"></table>
+</section>
+
+<script>
+const ROLES = [
+  { id: "", label: "All" },
+  { id: "pa", label: "Policy admin" },
+  { id: "sa", label: "Analyst" },
+  { id: "ga", label: "Group admin" },
+  { id: "mv", label: "Mgmt viewer" },
+  { id: "emp", label: "Employee" },
+  { id: "j", label: "Judge" }
+];
+const ACCESS_LEGEND = { W: "read + write", R: "read", A: "act (triage / decide)", S: "scoped (own group / own data)", "Σ": "aggregated only", "—": "hidden" };
+
+// access order: pa, sa, ga, mv, emp, j
+const N = {
+  ov:          { l: "Overview", r: "/", p: "M", c: ["§12", "§8", "§6.6"], a: "R R S R — R", d: "Answers in 5 seconds: are we safe, what is happening, what is it costing. Posture score with its deductions, live decision strip, top OWASP risks, spend vs budget, honest numbers (block rate next to FPR and estimated miss rate)." },
+  me:          { l: "My home", r: "/me", p: "M", c: ["§5.2", "§14"], a: "S S S S S S", d: "Employee self-service: my usage and budget share, my access with plain-language sources, my approval requests, my API keys, recent blocks, personal insights." },
+  traffic:     { l: "Live traffic", r: "/traffic", p: "M", c: ["§6.1", "§12", "§13"], a: "R R S — — R", d: "Streaming table of every inspected hop (ingress, egress, tool call, tool result, embeddings). Filters in URL, pause, 'N new events' pill, saved views." },
+  trace:       { l: "Decision trace", r: "/traces/:id", p: "M", c: ["§6.2", "§6.5", "§7.3", "§13"], a: "R R S — S R", d: "The hero. Plain-language summary, decision + taint + risk, redacted content with typed placeholders, why this model, risk factors, stage rows with every control, versions and hash-chain integrity." },
+  rule:        { l: "Rule chip", r: "any rule ID", p: "M", c: ["§6.2", "§11.1", "§11.2", "§9.2"], a: "R R S — — R", d: "Hub of the evidence chain. Resolves SEC-* to the policy line, LOCK-* to org locks, FEED-* to the feed entry, AUTHZ-* to the grant, BUDGET-* to the budget node. Shows hits and suite metrics." },
+  session:     { l: "Session rail", r: "/sessions/:id", p: "S", c: ["§3", "§9"], a: "R R S — S R", d: "All hops of one session with taint propagation: which hop made the session untrusted or sensitive." },
+  incidents:   { l: "Incidents", r: "/incidents", p: "M", c: ["§12", "§9", "§8", "§10"], a: "R W S Σ — W", d: "Triage list and detail with type-specific evidence: MCP rug pull (description diff), budget breach (breaker), forbidden model, plugin bypass, break-glass. Timeline, notes, evidence export." },
+  approvals:   { l: "Approvals", r: "/approvals", p: "M", c: ["§6.3", "§9"], a: "A A S — S A", d: "Held actions with who / what / why held (taint sources, tier, risk) and command or diff preview. Deny, approve once, approve with time-boxed elevation." },
+  users:       { l: "Users & groups", r: "/users", p: "M", c: ["§5.2", "§12"], a: "W R S — — W", d: "Users provisioned from Keycloak, groups with their YAML permissions, risk vs group baseline." },
+  user360:     { l: "User 360", r: "/users/:id", p: "M", c: ["§7.1", "§9", "§12"], a: "W R S — S W", d: "Effective access with source (group / user grant / org lock) and expiry, inline grants, /v1/models preview; redacted activity history; risk vs baseline; API keys." },
+  group:       { l: "Group · My team", r: "/groups/:id", p: "S", c: ["§7.1", "§8", "§11.0"], a: "W R S — — W", d: "Group permissions (read-only YAML block), members, budget split and member access within the group ceiling (group admin home)." },
+  agents:      { l: "Agents", r: "/agents", p: "S", c: ["§9", "§5"], a: "W R S — — W", d: "Agent identities, scopes, delegation chains with narrowing scopes, limits, task-scoped policy, recent runs." },
+  grants:      { l: "Grants (DB)", r: "/grants", p: "M", c: ["§7.1", "§11.0", "§11.1"], a: "W R S — S W", d: "All per-user and temporary grants with reason, expiry and change history. Answers 'who has Gemini?'." },
+  policies:    { l: "Policies", r: "/policies", p: "M", c: ["§11", "§6.4", "§16"], a: "W R S — — W", d: "Forms + schema-aware YAML editor, version history with source panel/file, diff, dry-run impact with suite deltas, second approver, GitOps, rollback, invalid-file and conflict states." },
+  locks:       { l: "Org locks", r: "/policies/locks", p: "M", c: ["§7.1", "§11.2"], a: "R R R — — R", d: "Read-only org locks (LOCK-01, LOCK-02) with where they applied; locked ranges in the YAML editor." },
+  models:      { l: "Models & connectors", r: "/models", p: "M", c: ["§7", "§7.1", "§7.2"], a: "W A R Σ — W", d: "Connector health, latency, spend and kill switch; model registry (tier, prices, data classes, tags, specialist, scan status); access matrix." },
+  tools:       { l: "Tools & MCP", r: "/tools", p: "M", c: ["§9", "§10"], a: "W A S — — W", d: "MCP servers and tools with tiers, labels, pinned hashes, drift and collision alerts, quarantine / re-approve; OpenCode built-ins via /v1/decide." },
+  feed:        { l: "Feed & artifacts", r: "/feed", p: "M", c: ["§9.2"], a: "W R — — — W", d: "Signed signature bundle: version, verification, sync, rules by type with live hit counters, add-rule (demo feed server). Model artifact scan results." },
+  budgets:     { l: "Budgets & spend", r: "/budgets", p: "M", c: ["§8", "§7"], a: "W A S R S W", d: "Org → group → user → agent → session with tokens, USD, GPU-s; forecast; breaker states with reset; cause of spikes; savings vs always-cloud; guard spend line." },
+  quality:     { l: "Guard quality", r: "/quality", p: "M", c: ["§16", "§6.6", "§12", "§15"], a: "R R — Σ — R", d: "ASR with CIs next to FPR per call and per task and utility, per preset and per control; strictness matrix; leak rate per channel; layer attribution; judge κ; shadow-judge miss rate." },
+  performance: { l: "Performance", r: "/performance", p: "S", c: ["§6.2", "§12"], a: "R R — — — R", d: "Overhead vs direct Ollama; p50/p95/p99 per stage and control; cache hit rate; judge escalation rate; fail-open events." },
+  audit:       { l: "Audit & exports", r: "/audit", p: "M", c: ["§13", "§12"], a: "R R — Σ — R", d: "Record search, hash-chain verification, JSONL / OCSF / CSV exports with manifest, management reports, break-glass log." },
+  insights:    { l: "Automation Insights", r: "/insights", p: "S", c: ["§14"], a: "W R S Σ S W", d: "Recurring-task clusters (k-anonymity), task card, draft skill → review → publish as skill/<name>." },
+  specialists: { l: "Specialists", r: "/insights/specialists", p: "C", c: ["§15.1", "§7.3"], a: "W R — — — W", d: "Train (offline WCSS) → artifact scan → register → evaluate vs general and Gemini → enable in auto → savings." }
+};
+
+const LANES = [
+  { label: "Start", nodes: ["ov", "me"] },
+  { label: "Monitor", nodes: ["traffic", "trace", "rule", "session", "incidents", "approvals"] },
+  { label: "Access", nodes: ["users", "user360", "group", "agents", "grants"] },
+  { label: "Govern", nodes: ["policies", "locks", "models", "tools", "feed", "budgets"] },
+  { label: "Assure", nodes: ["quality", "performance", "audit"] },
+  { label: "Optimise", nodes: ["insights", "specialists"] }
+];
+
+const E = [
+  ["ov", "traffic", "decision counts · notable events"],
+  ["ov", "incidents", "incident tiles"],
+  ["ov", "approvals", "needs a human"],
+  ["ov", "budgets", "spend · breakers"],
+  ["ov", "policies", "posture deductions · external edit"],
+  ["ov", "quality", "honest numbers"],
+  ["ov", "audit", "chain · break-glass count"],
+  ["traffic", "trace", "open row"],
+  ["trace", "rule", "rule chip"],
+  ["trace", "session", "hop rail"],
+  ["trace", "user360", "principal"],
+  ["trace", "agents", "agent principal"],
+  ["trace", "models", "why this model"],
+  ["trace", "tools", "tool / MCP server"],
+  ["trace", "incidents", "create / add to incident"],
+  ["trace", "policies", "version badge · replay"],
+  ["trace", "audit", "integrity · break-glass"],
+  ["rule", "policies", "SEC-* → policy line"],
+  ["rule", "locks", "LOCK-*"],
+  ["rule", "feed", "FEED-*"],
+  ["rule", "grants", "AUTHZ-* → grant"],
+  ["rule", "budgets", "BUDGET-* → node"],
+  ["rule", "traffic", "hits in traffic"],
+  ["rule", "quality", "suite metrics"],
+  ["incidents", "trace", "linked traces"],
+  ["incidents", "tools", "rug pull: quarantine / re-approve"],
+  ["incidents", "budgets", "breach: breaker"],
+  ["incidents", "user360", "principal"],
+  ["incidents", "audit", "export evidence"],
+  ["approvals", "trace", "held request"],
+  ["approvals", "user360", "elevation shows up"],
+  ["users", "user360", "row"],
+  ["users", "group", "group"],
+  ["group", "policies", "group YAML block"],
+  ["group", "grants", "member access · budget split"],
+  ["user360", "grants", "grant drawer"],
+  ["user360", "traffic", "activity"],
+  ["user360", "policies", "group source line"],
+  ["user360", "locks", "lock source"],
+  ["user360", "audit", "break-glass history"],
+  ["agents", "budgets", "session limits"],
+  ["agents", "policies", "agent YAML block"],
+  ["grants", "user360", "principal"],
+  ["policies", "traffic", "first decision on vN · dry-run samples"],
+  ["policies", "quality", "suite on draft"],
+  ["policies", "locks", "locked ranges"],
+  ["models", "policies", "kill switch → new version"],
+  ["models", "feed", "artifact scan status"],
+  ["models", "grants", "access matrix cell"],
+  ["tools", "incidents", "drift alert"],
+  ["tools", "grants", "who has access"],
+  ["feed", "traffic", "rule hits"],
+  ["budgets", "incidents", "breach"],
+  ["budgets", "policies", "raise limit"],
+  ["budgets", "trace", "spike traces"],
+  ["quality", "trace", "case → trace"],
+  ["quality", "policies", "control → rule"],
+  ["performance", "trace", "fail-open events"],
+  ["audit", "trace", "record → trace"],
+  ["insights", "policies", "publish skill → draft"],
+  ["insights", "specialists", "train specialist"],
+  ["specialists", "models", "registered model"],
+  ["specialists", "budgets", "savings"],
+  ["me", "trace", "own trace (simplified)"],
+  ["me", "approvals", "my requests"]
+];
+
+const FLOWS = {
+  F1:  { t: "F1 — PESEL in LibreChat → pseudonymised, routed local", p: ["ov", "traffic", "trace", "models"] },
+  F2:  { t: "F2 — Investigate a block → loosen threshold → re-run", p: ["traffic", "trace", "rule", "policies", "traffic", "trace"] },
+  F3:  { t: "F3 — Hand-edited / invalid YAML", p: ["ov", "policies", "traffic", "trace"] },
+  F4:  { t: "F4 — Temporary Gemini grant for Jan", p: ["users", "user360", "grants", "user360", "traffic", "trace"] },
+  F5:  { t: "F5 — Revoke bash from Anna", p: ["user360", "grants", "traffic", "trace", "rule", "grants"] },
+  F6:  { t: "F6 — Approval: git push after untrusted + secret", p: ["ov", "approvals", "trace", "user360"] },
+  F7:  { t: "F7 — MCP rug pull", p: ["ov", "incidents", "tools"] },
+  F8:  { t: "F8 — Budget breach trips the breaker", p: ["ov", "budgets", "policies", "incidents"] },
+  F9:  { t: "F9 — Break-glass reveal raw", p: ["trace", "audit", "ov"] },
+  F10: { t: "F10 — Insight → skill → specialist → savings", p: ["insights", "policies", "specialists", "models", "traffic", "budgets"] },
+  F11: { t: "F11 — Add feed rule → next request blocked", p: ["feed", "traffic", "trace", "rule", "feed"] },
+  F12: { t: "F12 — Monthly management report", p: ["ov", "audit"] }
+};
+
+const CONCEPT = [
+  ["§3", "Design principles (explainability, honest metrics, session state)"],
+  ["§5", "Clients and entry points"],
+  ["§5.2", "Keycloak for authentication, panel for authorisation"],
+  ["§6.1", "Inspection points"],
+  ["§6.2", "Pipeline stages"],
+  ["§6.3", "Actions"],
+  ["§6.4", "Strictness presets"],
+  ["§6.5", "Graded risk scoring"],
+  ["§6.6", "Shadow judge and calibration"],
+  ["§7", "Routing and models"],
+  ["§7.1", "Connectors and per-user model access"],
+  ["§7.2", "Model line-up"],
+  ["§7.3", "auto with fine-tuned specialists"],
+  ["§8", "Budgets and resource governance"],
+  ["§9", "Tool, MCP and agent governance"],
+  ["§9.2", "Signature feed and artifact scanner"],
+  ["§10", "Data-exfiltration lockdown"],
+  ["§11", "Centralised policy engine"],
+  ["§11.0", "Rules as code, assignments in the DB"],
+  ["§11.1", "Editing, reloading, versions, dry-run"],
+  ["§11.2", "Sample policy, org locks"],
+  ["§12", "Admin panel views, break-glass"],
+  ["§13", "Audit, telemetry and reporting"],
+  ["§14", "Automation Insights"],
+  ["§15", "Fine-tuned guard / router model"],
+  ["§15.1", "Fine-tuned specialist LLMs"],
+  ["§16", "Self-testing suite"]
+];
+
+const ROLE_IDX = { pa: 0, sa: 1, ga: 2, mv: 3, emp: 4, j: 5 };
+const state = { sel: null, role: "", flow: "" };
+const map = document.getElementById("map");
+const svg = document.getElementById("edges");
+const panel = document.getElementById("panel");
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function access(id, role) { return N[id].a.split(" ")[ROLE_IDX[role]]; }
+function esc(s) { return String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch])); }
+
+// Build lanes and nodes
+for (const lane of LANES) {
+  const col = document.createElement("div");
+  col.className = "lane";
+  col.innerHTML = "<h2>" + esc(lane.label) + "</h2>";
+  for (const id of lane.nodes) {
+    const n = N[id];
+    const b = document.createElement("button");
+    b.className = "node";
+    b.dataset.id = id;
+    b.type = "button";
+    b.innerHTML =
+      '<span class="steps"></span><span class="acc"></span>' +
+      '<div class="t"><span>' + esc(n.l) + '</span><span class="pri ' + n.p + '" title="priority: ' +
+      ({ M: "must", S: "should", C: "could" })[n.p] + '">' + n.p + "</span></div>" +
+      '<div class="r">' + esc(n.r) + "</div>" +
+      '<div class="c">' + n.c.map(esc).join(" · ") + "</div>";
+    b.addEventListener("click", () => select(state.sel === id ? null : id));
+    col.appendChild(b);
+  }
+  map.appendChild(col);
+}
+
+// Role buttons
+const rolesEl = document.getElementById("roles");
+for (const r of ROLES) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = r.label;
+  b.setAttribute("aria-pressed", r.id === state.role ? "true" : "false");
+  b.addEventListener("click", () => {
+    state.role = r.id;
+    for (const x of rolesEl.children) x.setAttribute("aria-pressed", x === b ? "true" : "false");
+    render();
+  });
+  rolesEl.appendChild(b);
+}
+
+// Flow select
+const flowSel = document.getElementById("flow");
+for (const [k, f] of Object.entries(FLOWS)) {
+  const o = document.createElement("option");
+  o.value = k; o.textContent = f.t;
+  flowSel.appendChild(o);
+}
+flowSel.addEventListener("change", () => { state.flow = flowSel.value; if (state.flow) state.sel = null; render(); });
+
+function nodeEl(id) { return map.querySelector('.node[data-id="' + id + '"]'); }
+
+function rectOf(id) {
+  const m = map.getBoundingClientRect();
+  const r = nodeEl(id).getBoundingClientRect();
+  return { l: r.left - m.left, r: r.right - m.left, t: r.top - m.top, b: r.bottom - m.top, cx: (r.left + r.right) / 2 - m.left, cy: (r.top + r.bottom) / 2 - m.top };
+}
+
+function curve(a, b, laneOffset) {
+  const A = rectOf(a), B = rectOf(b);
+  let x1, y1 = A.cy, x2, y2 = B.cy, d;
+  if (B.cx > A.cx + 10) {
+    x1 = A.r; x2 = B.l;
+    const dx = Math.max(24, (x2 - x1) / 2);
+    d = `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+  } else if (B.cx < A.cx - 10) {
+    x1 = A.l; x2 = B.r;
+    const dx = Math.max(24, (x1 - x2) / 2);
+    d = `M${x1},${y1} C${x1 - dx},${y1} ${x2 + dx},${y2} ${x2},${y2}`;
+  } else {
+    x1 = A.r; x2 = B.r;
+    const bulge = 22 + (laneOffset || 0);
+    d = `M${x1},${y1} C${x1 + bulge},${y1} ${x2 + bulge},${y2} ${x2},${y2}`;
+  }
+  return d;
+}
+
+function drawEdges() {
+  svg.innerHTML = "";
+  if (getComputedStyle(svg).display === "none") return;
+  const labels = [];
+  E.forEach(([a, b, label], i) => {
+    const p = document.createElementNS(SVGNS, "path");
+    p.setAttribute("d", curve(a, b, (i % 3) * 6));
+    p.setAttribute("class", "e");
+    if (state.sel && a === state.sel) p.classList.add("out");
+    if (state.sel && b === state.sel) p.classList.add("in");
+    svg.appendChild(p);
+    if (state.sel && (a === state.sel || b === state.sel)) labels.push([p, label]);
+  });
+  // flow path on top
+  if (state.flow) {
+    const path = FLOWS[state.flow].p;
+    for (let i = 0; i < path.length - 1; i++) {
+      const p = document.createElementNS(SVGNS, "path");
+      p.setAttribute("d", curve(path[i], path[i + 1], 10));
+      p.setAttribute("class", "f");
+      svg.appendChild(p);
+    }
+  }
+  // labels last so they sit above paths
+  for (const [p, label] of labels) {
+    const len = p.getTotalLength();
+    const pt = p.getPointAtLength(len / 2);
+    const t = document.createElementNS(SVGNS, "text");
+    t.setAttribute("x", pt.x);
+    t.setAttribute("y", pt.y - 3);
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("class", "lbl on");
+    t.textContent = label;
+    svg.appendChild(t);
+  }
+}
+
+function select(id) {
+  state.sel = id;
+  if (id) { state.flow = ""; flowSel.value = ""; }
+  render();
+}
+
+function render() {
+  map.classList.toggle("hl", !!state.sel);
+  map.classList.toggle("flow", !!state.flow);
+  map.classList.toggle("role", !!state.role);
+  const outs = new Set(E.filter(e => e[0] === state.sel).map(e => e[1]));
+  const ins = new Set(E.filter(e => e[1] === state.sel).map(e => e[0]));
+  const flowPath = state.flow ? FLOWS[state.flow].p : [];
+  for (const el of map.querySelectorAll(".node")) {
+    const id = el.dataset.id;
+    el.classList.toggle("sel", id === state.sel);
+    el.classList.toggle("out", outs.has(id));
+    el.classList.toggle("in", ins.has(id));
+    el.setAttribute("aria-pressed", id === state.sel ? "true" : "false");
+    const steps = flowPath.map((x, i) => (x === id ? i + 1 : null)).filter(Boolean);
+    el.classList.toggle("inflow", steps.length > 0);
+    el.querySelector(".steps").innerHTML = steps.map(s => "<span>" + s + "</span>").join("");
+    const acc = state.role ? access(id, state.role) : "";
+    el.querySelector(".acc").textContent = acc;
+    el.querySelector(".acc").title = acc ? ACCESS_LEGEND[acc] : "";
+    el.classList.toggle("noaccess", acc === "—");
+  }
+  drawEdges();
+  renderPanel();
+}
+
+function linkList(items, cls) {
+  if (!items.length) return '<p class="lbl-sm">none</p>';
+  return "<ul>" + items.map(([id, label]) =>
+    '<li><button class="linkbtn ' + cls + '" data-go="' + id + '">' + esc(N[id].l) + '</button> <span class="lbl-sm">— ' + esc(label) + "</span></li>").join("") + "</ul>";
+}
+
+function renderPanel() {
+  let h = "";
+  if (state.sel) {
+    const n = N[state.sel];
+    const flows = Object.entries(FLOWS).filter(([, f]) => f.p.includes(state.sel));
+    h += "<h3>" + esc(n.l) + '</h3><div class="route">' + esc(n.r) + "</div>";
+    h += "<p>" + esc(n.d) + "</p>";
+    h += '<h4>Concept</h4><div class="chips">' + n.c.map(c => '<span class="chip">' + esc(c) + "</span>").join("") + "</div>";
+    h += '<h4>Priority</h4><p>' + ({ M: "Must — demo-critical", S: "Should", C: "Could" })[n.p] + "</p>";
+    h += '<h4>Access</h4><table class="acc">' + ROLES.slice(1).map(r => {
+      const a = access(state.sel, r.id);
+      return "<tr><td>" + esc(r.label) + ' <span class="lbl-sm">(' + esc(ACCESS_LEGEND[a]) + ")</span></td><td>" + esc(a) + "</td></tr>";
+    }).join("") + "</table>";
+    h += '<h4 style="color:var(--accent)">Links out →</h4>' + linkList(E.filter(e => e[0] === state.sel).map(e => [e[1], e[2]]), "");
+    h += '<h4 style="color:var(--in)">← Reached from</h4>' + linkList(E.filter(e => e[1] === state.sel).map(e => [e[0], e[2]]), "in");
+    if (flows.length) h += "<h4>Flows through here</h4><ul>" + flows.map(([k, f]) => '<li><button class="linkbtn" data-flow="' + k + '">' + esc(f.t) + "</button></li>").join("") + "</ul>";
+  } else if (state.flow) {
+    const f = FLOWS[state.flow];
+    h += "<h3>" + esc(f.t) + "</h3><p class=\"lbl-sm\">Step-by-step wireframes in <code>02-flows.md</code>.</p><h4>Path</h4><ul>";
+    h += f.p.map((id, i) => '<li><strong>' + (i + 1) + '.</strong> <button class="linkbtn" data-go="' + id + '">' + esc(N[id].l) + '</button> <span class="lbl-sm">' + esc(N[id].r) + "</span></li>").join("");
+    h += "</ul>";
+  } else {
+    h += "<h3>How to read this map</h3>";
+    h += "<p>Columns are the sidebar groups. Lines are links between views; click a view to highlight them and see their labels.</p>";
+    h += '<h4>Legend</h4><div class="legend">' +
+      '<span class="sw" style="border-color:var(--accent)"></span><span>links out of the selected view</span>' +
+      '<span class="sw" style="border-color:var(--in)"></span><span>links into the selected view</span>' +
+      '<span class="sw" style="border-color:var(--flow)"></span><span>path of the selected flow (numbered steps)</span>' +
+      '<span class="pri M" style="justify-self:start">M</span><span>must · <b>S</b> should · <i>C</i> could</span>' +
+      "</div>";
+    h += "<h4>Access codes (with a role selected)</h4><ul>" + Object.entries(ACCESS_LEGEND).map(([k, v]) => "<li><strong>" + esc(k) + "</strong> " + esc(v) + "</li>").join("") + "</ul>";
+    h += "<h4>The spine</h4><p>Overview → Live traffic → Decision trace → Rule chip → Policies (line) → publish → back to Live traffic. Every number leads right, towards evidence; every setting leads left, towards the traffic it affects.</p>";
+  }
+  panel.innerHTML = h;
+  for (const b of panel.querySelectorAll("[data-go]")) b.addEventListener("click", () => { select(b.dataset.go); nodeEl(b.dataset.go).focus({ preventScroll: false }); });
+  for (const b of panel.querySelectorAll("[data-flow]")) b.addEventListener("click", () => { state.flow = b.dataset.flow; flowSel.value = state.flow; state.sel = null; render(); });
+}
+
+// Concept table
+(function () {
+  const t = document.getElementById("concept");
+  let h = "<thead><tr><th>§</th><th>Topic</th><th>Visible in</th></tr></thead><tbody>";
+  for (const [sec, topic] of CONCEPT) {
+    const ids = Object.keys(N).filter(id => N[id].c.includes(sec));
+    h += "<tr><td>" + esc(sec) + "</td><td>" + esc(topic) + '</td><td><div class="chips">' +
+      (ids.length ? ids.map(id => '<span class="chip" role="button" tabindex="0" data-go="' + id + '">' + esc(N[id].l) + "</span>").join("") : '<span class="lbl-sm">—</span>') +
+      "</div></td></tr>";
+  }
+  t.innerHTML = h + "</tbody>";
+  for (const c of t.querySelectorAll("[data-go]")) {
+    const go = () => { select(c.dataset.go); nodeEl(c.dataset.go).scrollIntoView({ block: "center", behavior: "smooth" }); };
+    c.addEventListener("click", go);
+    c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  }
+})();
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") { state.sel = null; state.flow = ""; flowSel.value = ""; render(); } });
+new ResizeObserver(() => drawEdges()).observe(map);
+render();
+</script>
+</body>
+</html>

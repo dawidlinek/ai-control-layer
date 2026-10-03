@@ -1,0 +1,93 @@
+# AI Control Layer – local stack. Run from the repo root: `make up` (or `uv run python scripts/dev.py up`).
+# Model servers (vLLM / SGLang / Ollama) run elsewhere; set LOCAL_LLM_BASE_URL in .env.
+# The admin panel is out of scope for now (admin API only).
+name: acl
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: acl
+      POSTGRES_USER: acl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run `make env`}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acl -d acl"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    command: ["start-dev", "--import-realm", "--http-port=8080", "--health-enabled=true"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?run `make env`}
+      # Tokens always carry this issuer; the gateway fetches JWKS over the internal network.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?run `make env`}
+      KC_PANEL_SECRET: ${KC_PANEL_SECRET:?run `make env`}
+      KC_LIBRECHAT_SECRET: ${KC_LIBRECHAT_SECRET:?run `make env`}
+      KC_AGENT_RESEARCH_BOT_SECRET: ${KC_AGENT_RESEARCH_BOT_SECRET:?run `make env`}
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "${KEYCLOAK_PORT:-8180}:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  feed-server:
+    build: ../feed-server
+    ports:
+      - "${FEED_PORT:-8090}:8080"
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    depends_on:
+      postgres: {condition: service_healthy}
+      feed-server: {condition: service_started}
+    environment:
+      ACL_DATABASE_URL: postgresql+asyncpg://acl:${POSTGRES_PASSWORD}@postgres:5432/acl
+      ACL_OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8180}/realms/acl
+      ACL_OIDC_JWKS_URL: http://keycloak:8080/realms/acl/protocol/openid-connect/certs
+      ACL_OIDC_AUDIENCE: gateway
+      ACL_FEED_URL: http://feed-server:8080/bundle.json
+      ACL_DETERMINISTIC: ${ACL_DETERMINISTIC:-0}
+      ACL_LOG_LEVEL: ${ACL_LOG_LEVEL:-INFO}
+      ACL_VALUE_HASH_SALT: ${ACL_VALUE_HASH_SALT:?run `make env`}
+      ACL_API_KEY_PEPPER: ${ACL_API_KEY_PEPPER:?run `make env`}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-}
+      LOCAL_LLM_API_KEY: ${LOCAL_LLM_API_KEY:-}
+      LOCAL_GENERAL_MODEL: ${LOCAL_GENERAL_MODEL:-}
+      LOCAL_PL_MODEL: ${LOCAL_PL_MODEL:-}
+      LOCAL_CODER_MODEL: ${LOCAL_CODER_MODEL:-}
+      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-}
+      LOCAL_JUDGE_MODEL: ${LOCAL_JUDGE_MODEL:-}
+    volumes:
+      - ../policy:/policy            # single writer = the gateway's policy service
+      - audit:/data/audit
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  audit:

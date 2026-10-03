@@ -1,0 +1,2594 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acl.local/contracts/policy.schema.json",
+  "title": "Policy file (policy/*.yaml)",
+  "x-contract-version": "1.0.0",
+  "$defs": {
+    "Action": {
+      "description": "Decision actions (concept §6.3).",
+      "enum": [
+        "allow",
+        "monitor",
+        "redact",
+        "pseudonymise",
+        "sanitize",
+        "route_local",
+        "downgrade",
+        "require_approval",
+        "block"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "AliasConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "enum": [
+            "fixed",
+            "rules",
+            "specialist_then_rules"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Model id for `fixed`.",
+          "title": "Target"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "title": "AliasConfig",
+      "type": "object"
+    },
+    "ArgChecker": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "path",
+            "sql",
+            "command",
+            "url",
+            "recipient",
+            "package"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "field": {
+          "description": "Argument name (dot path) the checker applies to.",
+          "title": "Field",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "field"
+      ],
+      "title": "ArgChecker",
+      "type": "object"
+    },
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "scan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scan Id"
+        }
+      },
+      "required": [
+        "sha256"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "AuditSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "default": "logs/audit.jsonl",
+          "title": "Path",
+          "type": "string"
+        },
+        "format": {
+          "default": "jsonl",
+          "enum": [
+            "jsonl",
+            "ocsf"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "hash_chain": {
+          "const": true,
+          "default": true,
+          "title": "Hash Chain",
+          "type": "boolean"
+        },
+        "store_raw_payloads": {
+          "default": false,
+          "title": "Store Raw Payloads",
+          "type": "boolean"
+        },
+        "raw_retention_hours": {
+          "default": 24,
+          "minimum": 0,
+          "title": "Raw Retention Hours",
+          "type": "integer"
+        },
+        "value_hash_salt": {
+          "default": "env:ACL_VALUE_HASH_SALT",
+          "title": "Value Hash Salt",
+          "type": "string"
+        }
+      },
+      "title": "AuditSettings",
+      "type": "object"
+    },
+    "BreakerSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "cooldown_s": {
+          "default": 300,
+          "minimum": 1,
+          "title": "Cooldown S",
+          "type": "integer"
+        },
+        "half_open_probes": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Half Open Probes",
+          "type": "integer"
+        }
+      },
+      "title": "BreakerSettings",
+      "type": "object"
+    },
+    "BudgetLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "tokens_minute": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Minute"
+        },
+        "tokens_day": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Day"
+        },
+        "tokens_month": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Month"
+        },
+        "tokens_session": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tokens Session"
+        },
+        "usd_day": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usd Day"
+        },
+        "usd_month": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usd Month"
+        },
+        "usd_session": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usd Session"
+        },
+        "gpu_seconds_day": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Seconds Day"
+        },
+        "gpu_seconds_month": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Seconds Month"
+        },
+        "gpu_seconds_session": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gpu Seconds Session"
+        },
+        "requests_per_minute": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requests Per Minute"
+        },
+        "tool_calls_session": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Calls Session"
+        }
+      },
+      "title": "BudgetLimits",
+      "type": "object"
+    },
+    "Budgets": {
+      "additionalProperties": false,
+      "properties": {
+        "org": {
+          "$ref": "#/$defs/BudgetLimits"
+        },
+        "groups": {
+          "patternProperties": {
+            "^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$": {
+              "$ref": "#/$defs/BudgetLimits"
+            }
+          },
+          "title": "Groups",
+          "type": "object"
+        },
+        "users": {
+          "additionalProperties": {
+            "$ref": "#/$defs/BudgetLimits"
+          },
+          "title": "Users",
+          "type": "object"
+        },
+        "agents": {
+          "additionalProperties": {
+            "$ref": "#/$defs/BudgetLimits"
+          },
+          "title": "Agents",
+          "type": "object"
+        },
+        "default_user": {
+          "$ref": "#/$defs/BudgetLimits"
+        },
+        "on_exceed": {
+          "$ref": "#/$defs/OnExceed"
+        },
+        "stream": {
+          "$ref": "#/$defs/StreamCaps"
+        },
+        "loops": {
+          "$ref": "#/$defs/LoopSettings"
+        },
+        "guard": {
+          "$ref": "#/$defs/GuardBudget"
+        },
+        "cache": {
+          "$ref": "#/$defs/CacheSettings"
+        }
+      },
+      "title": "Budgets",
+      "type": "object"
+    },
+    "CacheSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "ttl_s": {
+          "default": 300,
+          "minimum": 0,
+          "title": "Ttl S",
+          "type": "integer"
+        }
+      },
+      "title": "CacheSettings",
+      "type": "object"
+    },
+    "Capability": {
+      "enum": [
+        "network",
+        "filesystem",
+        "env",
+        "exec",
+        "libraries"
+      ],
+      "title": "Capability",
+      "type": "string"
+    },
+    "ComplexityBands": {
+      "additionalProperties": false,
+      "properties": {
+        "local_max": {
+          "default": 0.3,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Local Max",
+          "type": "number"
+        },
+        "ext_small_max": {
+          "default": 0.7,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ext Small Max",
+          "type": "number"
+        }
+      },
+      "title": "ComplexityBands",
+      "type": "object"
+    },
+    "ConnectorConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "ollama",
+            "openai_compatible",
+            "mock"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Url"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "pattern": "^env:[A-Z_][A-Z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Key"
+        },
+        "tier": {
+          "$ref": "#/$defs/ConnectorTier"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "timeout_s": {
+          "default": 60,
+          "exclusiveMinimum": 0,
+          "title": "Timeout S",
+          "type": "number"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Headers",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "tier"
+      ],
+      "title": "ConnectorConfig",
+      "type": "object"
+    },
+    "ConnectorTier": {
+      "enum": [
+        "local",
+        "cloud"
+      ],
+      "title": "ConnectorTier",
+      "type": "string"
+    },
+    "ControlConfig": {
+      "additionalProperties": false,
+      "description": "One configured control instance. `type` selects the implementation in the registry.",
+      "properties": {
+        "id": {
+          "description": "Stable rule/control identifier, e.g. SEC-PII-01.",
+          "examples": [
+            "SEC-PII-01"
+          ],
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "examples": [
+            "pii",
+            "secrets",
+            "rule_of_two"
+          ],
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Type",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/InspectionPoint"
+          },
+          "minItems": 1,
+          "title": "Stages",
+          "type": "array"
+        },
+        "cost_tier": {
+          "$ref": "#/$defs/CostTier"
+        },
+        "fail_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null → global.fail_mode by cost tier."
+        },
+        "timeout_ms": {
+          "maximum": 60000,
+          "minimum": 1,
+          "title": "Timeout Ms",
+          "type": "integer"
+        },
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Action"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override the action the control emits on a hit."
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Per-control shadow mode."
+        },
+        "presets": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Preset"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Only active under these presets; null = all.",
+          "title": "Presets"
+        },
+        "locked": {
+          "default": false,
+          "description": "Cannot be disabled or edited from the panel.",
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "taxonomy": {
+          "$ref": "#/$defs/Taxonomy"
+        },
+        "params": {
+          "additionalProperties": true,
+          "description": "Type-specific parameters, validated by the control's Params model.",
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "stages",
+        "cost_tier",
+        "timeout_ms"
+      ],
+      "title": "ControlConfig",
+      "type": "object"
+    },
+    "ControlLock": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "control_locked",
+          "default": "control_locked",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable rule/control identifier, e.g. SEC-PII-01.",
+          "examples": [
+            "SEC-PII-01"
+          ],
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "controls": {
+          "items": {
+            "description": "Stable rule/control identifier, e.g. SEC-PII-01.",
+            "examples": [
+              "SEC-PII-01"
+            ],
+            "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Controls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "controls"
+      ],
+      "title": "ControlLock",
+      "type": "object"
+    },
+    "CostTier": {
+      "enum": [
+        "deterministic",
+        "similarity",
+        "l1",
+        "l2"
+      ],
+      "title": "CostTier",
+      "type": "string"
+    },
+    "DataClass": {
+      "description": "Confidentiality classes, ordered from least to most sensitive.",
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
+      "title": "DataClass",
+      "type": "string"
+    },
+    "DataClassTierLock": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "data_class_tier",
+          "default": "data_class_tier",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable rule/control identifier, e.g. SEC-PII-01.",
+          "examples": [
+            "SEC-PII-01"
+          ],
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "data_classes": {
+          "items": {
+            "$ref": "#/$defs/DataClass"
+          },
+          "minItems": 1,
+          "title": "Data Classes",
+          "type": "array"
+        },
+        "allowed_tiers": {
+          "items": {
+            "$ref": "#/$defs/ConnectorTier"
+          },
+          "minItems": 1,
+          "title": "Allowed Tiers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "data_classes",
+        "allowed_tiers"
+      ],
+      "title": "DataClassTierLock",
+      "type": "object"
+    },
+    "DenyResourceLock": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "deny_resource",
+          "default": "deny_resource",
+          "title": "Kind",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable rule/control identifier, e.g. SEC-PII-01.",
+          "examples": [
+            "SEC-PII-01"
+          ],
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "resource_type": {
+          "$ref": "#/$defs/GrantResourceType"
+        },
+        "resources": {
+          "description": "Glob patterns.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Resources",
+          "type": "array"
+        },
+        "except_groups": {
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$",
+            "type": "string"
+          },
+          "title": "Except Groups",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "resource_type",
+        "resources"
+      ],
+      "title": "DenyResourceLock",
+      "type": "object"
+    },
+    "FailMode": {
+      "enum": [
+        "closed",
+        "open",
+        "open_with_alert"
+      ],
+      "title": "FailMode",
+      "type": "string"
+    },
+    "FailModeSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "deterministic": {
+          "$ref": "#/$defs/FailMode",
+          "default": "closed"
+        },
+        "semantic": {
+          "$ref": "#/$defs/FailMode",
+          "default": "open_with_alert"
+        }
+      },
+      "title": "FailModeSettings",
+      "type": "object"
+    },
+    "FeedSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "poll_s": {
+          "default": 30,
+          "minimum": 1,
+          "title": "Poll S",
+          "type": "integer"
+        },
+        "verify": {
+          "default": "sha256",
+          "enum": [
+            "sha256",
+            "ed25519"
+          ],
+          "title": "Verify",
+          "type": "string"
+        },
+        "public_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Public Key"
+        },
+        "on_fail": {
+          "const": "keep_last_good",
+          "default": "keep_last_good",
+          "title": "On Fail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "FeedSettings",
+      "type": "object"
+    },
+    "GlobalSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/PolicyMode",
+          "default": "enforce"
+        },
+        "default_preset": {
+          "$ref": "#/$defs/Preset",
+          "default": "balanced"
+        },
+        "fail_mode": {
+          "$ref": "#/$defs/FailModeSettings"
+        },
+        "latency_budget_ms": {
+          "$ref": "#/$defs/LatencyBudget"
+        },
+        "store_redacted_payloads": {
+          "default": true,
+          "title": "Store Redacted Payloads",
+          "type": "boolean"
+        },
+        "unknown_principal": {
+          "const": "deny",
+          "default": "deny",
+          "title": "Unknown Principal",
+          "type": "string"
+        }
+      },
+      "title": "GlobalSettings",
+      "type": "object"
+    },
+    "GrantResourceType": {
+      "enum": [
+        "model",
+        "alias",
+        "connector",
+        "skill",
+        "tool",
+        "mcp_server"
+      ],
+      "title": "GrantResourceType",
+      "type": "string"
+    },
+    "GroupLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_steps": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Steps"
+        },
+        "max_tool_depth": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tool Depth"
+        },
+        "max_fanout": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Fanout"
+        },
+        "repeat_call": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RepeatCall"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "requests_per_minute": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requests Per Minute"
+        }
+      },
+      "title": "GroupLimits",
+      "type": "object"
+    },
+    "GroupPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "preset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Preset"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "models": {
+          "description": "Model ids, aliases, skills, or `connector:<id>`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "tools": {
+          "patternProperties": {
+            "^[a-z0-9_-]+\\.[a-z0-9_./-]+$": {
+              "$ref": "#/$defs/ToolGrant"
+            }
+          },
+          "propertyNames": {
+            "examples": [
+              "opencode.bash",
+              "mail.send"
+            ]
+          },
+          "title": "Tools",
+          "type": "object"
+        },
+        "mcp_servers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Mcp Servers",
+          "type": "array"
+        },
+        "max_external_data_class": {
+          "$ref": "#/$defs/DataClass",
+          "default": "internal"
+        },
+        "limits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GroupLimits"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "repos": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RepoRule"
+          },
+          "title": "Repos",
+          "type": "object"
+        }
+      },
+      "title": "GroupPolicy",
+      "type": "object"
+    },
+    "GuardBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "tokens_per_request": {
+          "default": 4000,
+          "minimum": 0,
+          "title": "Tokens Per Request",
+          "type": "integer"
+        },
+        "gpu_seconds_per_request": {
+          "default": 5.0,
+          "minimum": 0,
+          "title": "Gpu Seconds Per Request",
+          "type": "number"
+        }
+      },
+      "title": "GuardBudget",
+      "type": "object"
+    },
+    "InspectionPoint": {
+      "description": "Where in the traffic flow a payload is inspected (concept §6.1).",
+      "enum": [
+        "ingress",
+        "egress",
+        "tool_call",
+        "tool_result",
+        "embeddings",
+        "agent_message",
+        "artifact_load",
+        "mcp_initialize",
+        "mcp_tools_list"
+      ],
+      "title": "InspectionPoint",
+      "type": "string"
+    },
+    "LatencyBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "semantic": {
+          "default": 150,
+          "minimum": 1,
+          "title": "Semantic",
+          "type": "integer"
+        },
+        "total": {
+          "default": 400,
+          "minimum": 1,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "title": "LatencyBudget",
+      "type": "object"
+    },
+    "LoopSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "repeat_call": {
+          "$ref": "#/$defs/RepeatCall"
+        },
+        "max_steps": {
+          "default": 50,
+          "minimum": 1,
+          "title": "Max Steps",
+          "type": "integer"
+        },
+        "max_tool_depth": {
+          "default": 8,
+          "minimum": 1,
+          "title": "Max Tool Depth",
+          "type": "integer"
+        },
+        "spend_spike_factor": {
+          "default": 5.0,
+          "exclusiveMinimum": 1,
+          "title": "Spend Spike Factor",
+          "type": "number"
+        }
+      },
+      "title": "LoopSettings",
+      "type": "object"
+    },
+    "McpServerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "transport": {
+          "enum": [
+            "streamable_http",
+            "stdio"
+          ],
+          "title": "Transport",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Expected server identity/origin bound at initialize.",
+          "title": "Origin"
+        },
+        "allowed": {
+          "default": true,
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "egress_allow": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Egress Allow",
+          "type": "array"
+        }
+      },
+      "required": [
+        "transport"
+      ],
+      "title": "McpServerConfig",
+      "type": "object"
+    },
+    "ModelEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "examples": [
+            "local/general"
+          ],
+          "pattern": "^[a-z0-9][a-z0-9._-]*/[A-Za-z0-9._:/-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "connector": {
+          "title": "Connector",
+          "type": "string"
+        },
+        "upstream_model": {
+          "description": "Name sent upstream, or `env:NAME`.",
+          "title": "Upstream Model",
+          "type": "string"
+        },
+        "aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "tags": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "object"
+        },
+        "capabilities": {
+          "items": {
+            "enum": [
+              "chat",
+              "tools",
+              "embeddings",
+              "vision",
+              "reasoning"
+            ],
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "data_classes": {
+          "items": {
+            "$ref": "#/$defs/DataClass"
+          },
+          "minItems": 1,
+          "title": "Data Classes",
+          "type": "array"
+        },
+        "pricing": {
+          "$ref": "#/$defs/Pricing"
+        },
+        "specialist": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpecialistConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "system_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Prepended system prompt (prompt-configured specialist stand-ins).",
+          "title": "System Prompt"
+        },
+        "artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "context_window": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Window"
+        },
+        "max_output_tokens": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Output Tokens"
+        }
+      },
+      "required": [
+        "id",
+        "connector",
+        "upstream_model",
+        "data_classes"
+      ],
+      "title": "ModelEntry",
+      "type": "object"
+    },
+    "OnExceed": {
+      "additionalProperties": false,
+      "properties": {
+        "soft_pct": {
+          "default": 80,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Soft Pct",
+          "type": "integer"
+        },
+        "soft_action": {
+          "const": "alert",
+          "default": "alert",
+          "title": "Soft Action",
+          "type": "string"
+        },
+        "hard_action": {
+          "default": "block",
+          "enum": [
+            "block",
+            "degrade_to_local"
+          ],
+          "title": "Hard Action",
+          "type": "string"
+        },
+        "circuit_breaker": {
+          "$ref": "#/$defs/BreakerSettings"
+        }
+      },
+      "title": "OnExceed",
+      "type": "object"
+    },
+    "PolicyMode": {
+      "enum": [
+        "enforce",
+        "monitor"
+      ],
+      "title": "PolicyMode",
+      "type": "string"
+    },
+    "Preset": {
+      "enum": [
+        "monitor",
+        "balanced",
+        "strict",
+        "paranoid"
+      ],
+      "title": "Preset",
+      "type": "string"
+    },
+    "PresetSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "injection_threshold": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Injection Threshold",
+          "type": "number"
+        },
+        "judge_band": {
+          "default": [
+            0.3,
+            0.8
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Judge Band",
+          "type": "array"
+        },
+        "judge_on": {
+          "default": "sinks",
+          "enum": [
+            "none",
+            "sinks",
+            "outbound",
+            "all"
+          ],
+          "title": "Judge On",
+          "type": "string"
+        },
+        "pii_action": {
+          "$ref": "#/$defs/Action",
+          "default": "pseudonymise"
+        },
+        "secret_action": {
+          "$ref": "#/$defs/Action",
+          "default": "block"
+        },
+        "sensitive_external_action": {
+          "$ref": "#/$defs/Action",
+          "default": "route_local",
+          "description": "Sensitive data sent to a model not allowed for its class."
+        },
+        "risk_cutoffs": {
+          "$ref": "#/$defs/RiskCutoffs"
+        },
+        "tool_mode": {
+          "default": "tiers",
+          "enum": [
+            "tiers",
+            "allowlist"
+          ],
+          "title": "Tool Mode",
+          "type": "string"
+        },
+        "taint_mode": {
+          "default": "rule_of_two",
+          "enum": [
+            "rule_of_two",
+            "full"
+          ],
+          "title": "Taint Mode",
+          "type": "string"
+        },
+        "rule_of_two_action": {
+          "$ref": "#/$defs/Action",
+          "default": "require_approval"
+        },
+        "never_block": {
+          "default": false,
+          "description": "True for `monitor`: log + tag only.",
+          "title": "Never Block",
+          "type": "boolean"
+        },
+        "shadow_sample_rate": {
+          "default": 0.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Shadow Sample Rate",
+          "type": "number"
+        },
+        "approval_on_writes": {
+          "default": false,
+          "title": "Approval On Writes",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "injection_threshold"
+      ],
+      "title": "PresetSettings",
+      "type": "object"
+    },
+    "Pricing": {
+      "additionalProperties": false,
+      "properties": {
+        "in_per_1k": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "In Per 1K",
+          "type": "number"
+        },
+        "out_per_1k": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Out Per 1K",
+          "type": "number"
+        },
+        "usd_per_gpu_second": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Usd Per Gpu Second",
+          "type": "number"
+        },
+        "gpu_seconds_per_1k_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Estimate used when the upstream reports no timings (vLLM/SGLang).",
+          "title": "Gpu Seconds Per 1K Tokens"
+        }
+      },
+      "title": "Pricing",
+      "type": "object"
+    },
+    "RepeatCall": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "default": 3,
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "window_s": {
+          "default": 60,
+          "minimum": 1,
+          "title": "Window S",
+          "type": "integer"
+        }
+      },
+      "title": "RepeatCall",
+      "type": "object"
+    },
+    "RepeatNgram": {
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "default": 8,
+          "minimum": 2,
+          "title": "N",
+          "type": "integer"
+        },
+        "max_repeats": {
+          "default": 6,
+          "minimum": 2,
+          "title": "Max Repeats",
+          "type": "integer"
+        }
+      },
+      "title": "RepeatNgram",
+      "type": "object"
+    },
+    "RepoRule": {
+      "additionalProperties": false,
+      "properties": {
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "data_class": {
+          "$ref": "#/$defs/DataClass",
+          "default": "confidential"
+        }
+      },
+      "title": "RepoRule",
+      "type": "object"
+    },
+    "ReportingSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "audit_log": {
+          "$ref": "#/$defs/AuditSettings"
+        }
+      },
+      "title": "ReportingSettings",
+      "type": "object"
+    },
+    "RiskCutoffs": {
+      "additionalProperties": false,
+      "description": "Composite risk score → graded action (concept §6.5). Must be ascending.",
+      "properties": {
+        "sanitize": {
+          "default": 0.4,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Sanitize",
+          "type": "number"
+        },
+        "approval": {
+          "default": 0.7,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Approval",
+          "type": "number"
+        },
+        "block": {
+          "default": 0.9,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Block",
+          "type": "number"
+        }
+      },
+      "title": "RiskCutoffs",
+      "type": "object"
+    },
+    "RoutingSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "sensitivity": {
+          "additionalProperties": {
+            "enum": [
+              "local_only",
+              "redact_then_external",
+              "by_complexity"
+            ],
+            "type": "string"
+          },
+          "propertyNames": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "title": "Sensitivity",
+          "type": "object"
+        },
+        "data_class_sensitivity": {
+          "additionalProperties": {
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/DataClass"
+          },
+          "title": "Data Class Sensitivity",
+          "type": "object"
+        },
+        "complexity_bands": {
+          "$ref": "#/$defs/ComplexityBands"
+        },
+        "targets": {
+          "$ref": "#/$defs/RoutingTargets"
+        },
+        "escalation_scales_with_remaining_budget": {
+          "default": true,
+          "title": "Escalation Scales With Remaining Budget",
+          "type": "boolean"
+        },
+        "on_budget_exhausted": {
+          "default": "degrade_to_local",
+          "enum": [
+            "degrade_to_local",
+            "block"
+          ],
+          "title": "On Budget Exhausted",
+          "type": "string"
+        },
+        "specialist": {
+          "$ref": "#/$defs/SpecialistRouting"
+        },
+        "task_scoped_policy": {
+          "$ref": "#/$defs/TaskScopedPolicy"
+        }
+      },
+      "required": [
+        "targets"
+      ],
+      "title": "RoutingSettings",
+      "type": "object"
+    },
+    "RoutingTargets": {
+      "additionalProperties": false,
+      "properties": {
+        "local": {
+          "title": "Local",
+          "type": "string"
+        },
+        "ext_small": {
+          "title": "Ext Small",
+          "type": "string"
+        },
+        "ext_large": {
+          "title": "Ext Large",
+          "type": "string"
+        },
+        "degraded": {
+          "description": "Local fallback when budgets are exhausted or a cloud connector is down.",
+          "title": "Degraded",
+          "type": "string"
+        },
+        "embeddings": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Embeddings"
+        },
+        "judge": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Judge"
+        }
+      },
+      "required": [
+        "local",
+        "ext_small",
+        "ext_large",
+        "degraded"
+      ],
+      "title": "RoutingTargets",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SignatureEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "examples": [
+            "SIG-PKG-LITELLM-01"
+          ],
+          "pattern": "^SIG-[A-Z0-9][A-Z0-9-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SignatureType"
+        },
+        "pattern": {
+          "description": "regex/arg_pattern/url_path: RE2-compatible regex; yara: rule source; ioc_domain: domain (subdomains match); *_hash: sha256 hex; opcode: `module.attr` glob; package_version: `<ecosystem>:<name>` with versions in metadata.versions.",
+          "title": "Pattern",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "high"
+        },
+        "action": {
+          "$ref": "#/$defs/Action",
+          "default": "block"
+        },
+        "stages": {
+          "description": "Where to match; empty = every stage applicable to the type.",
+          "items": {
+            "$ref": "#/$defs/InspectionPoint"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "atlas_technique": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Atlas Technique",
+          "type": "array"
+        },
+        "owasp": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp",
+          "type": "array"
+        },
+        "cve": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cve",
+          "type": "array"
+        },
+        "source": {
+          "default": "internal",
+          "examples": [
+            "osv",
+            "ghsa",
+            "cisa-kev",
+            "garak",
+            "internal"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "expires": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "pattern"
+      ],
+      "title": "SignatureEntry",
+      "type": "object"
+    },
+    "SignatureSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "feed": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedSettings"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "local_rules": {
+          "description": "Rules that apply even when the feed is unreachable.",
+          "items": {
+            "$ref": "#/$defs/SignatureEntry"
+          },
+          "title": "Local Rules",
+          "type": "array"
+        }
+      },
+      "title": "SignatureSettings",
+      "type": "object"
+    },
+    "SignatureType": {
+      "enum": [
+        "regex",
+        "yara",
+        "package_version",
+        "url_path",
+        "tool_desc_hash",
+        "manifest_hash",
+        "opcode",
+        "arg_pattern",
+        "ioc_domain"
+      ],
+      "title": "SignatureType",
+      "type": "string"
+    },
+    "SkillConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "template": {
+          "description": "Prompt template with `{field}` placeholders from input_schema.",
+          "title": "Template",
+          "type": "string"
+        },
+        "input_schema": {
+          "additionalProperties": true,
+          "title": "Input Schema",
+          "type": "object"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "tools": {
+          "items": {
+            "examples": [
+              "opencode.bash",
+              "mail.send"
+            ],
+            "pattern": "^[a-z0-9_-]+\\.[a-z0-9_./-]+$",
+            "type": "string"
+          },
+          "title": "Tools",
+          "type": "array"
+        },
+        "preset": {
+          "$ref": "#/$defs/Preset",
+          "default": "strict"
+        },
+        "data_classes": {
+          "items": {
+            "$ref": "#/$defs/DataClass"
+          },
+          "title": "Data Classes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "template",
+        "model"
+      ],
+      "title": "SkillConfig",
+      "type": "object"
+    },
+    "SpecialistConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "task": {
+          "examples": [
+            "loan_memo"
+          ],
+          "title": "Task",
+          "type": "string"
+        },
+        "min_confidence": {
+          "default": 0.8,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Min Confidence",
+          "type": "number"
+        },
+        "examples": {
+          "description": "Example prompts for kNN task matching.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Examples",
+          "type": "array"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "title": "SpecialistConfig",
+      "type": "object"
+    },
+    "SpecialistRouting": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "method": {
+          "default": "knn",
+          "enum": [
+            "tags",
+            "knn",
+            "classifier"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "default_min_confidence": {
+          "default": 0.8,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Default Min Confidence",
+          "type": "number"
+        }
+      },
+      "title": "SpecialistRouting",
+      "type": "object"
+    },
+    "StreamCaps": {
+      "additionalProperties": false,
+      "properties": {
+        "max_output_tokens": {
+          "default": 4096,
+          "minimum": 1,
+          "title": "Max Output Tokens",
+          "type": "integer"
+        },
+        "max_reasoning_tokens": {
+          "default": 2048,
+          "minimum": 0,
+          "title": "Max Reasoning Tokens",
+          "type": "integer"
+        },
+        "repeat_ngram": {
+          "$ref": "#/$defs/RepeatNgram"
+        },
+        "holdback_chars": {
+          "default": 256,
+          "description": "Egress hold-back window for streaming moderation.",
+          "minimum": 0,
+          "title": "Holdback Chars",
+          "type": "integer"
+        }
+      },
+      "title": "StreamCaps",
+      "type": "object"
+    },
+    "TaskScopedPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "presets": {
+          "items": {
+            "$ref": "#/$defs/Preset"
+          },
+          "title": "Presets",
+          "type": "array"
+        },
+        "planner_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Planner Model"
+        },
+        "on_violation": {
+          "$ref": "#/$defs/Action",
+          "default": "block"
+        }
+      },
+      "title": "TaskScopedPolicy",
+      "type": "object"
+    },
+    "Taxonomy": {
+      "additionalProperties": false,
+      "description": "Framework tags attached to rules and events (concept §13).",
+      "properties": {
+        "owasp_llm": {
+          "examples": [
+            [
+              "LLM01:2025"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp Llm",
+          "type": "array"
+        },
+        "owasp_agentic": {
+          "examples": [
+            [
+              "ASI01"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp Agentic",
+          "type": "array"
+        },
+        "owasp_mcp": {
+          "examples": [
+            [
+              "MCP03"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp Mcp",
+          "type": "array"
+        },
+        "atlas": {
+          "examples": [
+            [
+              "AML.T0051"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Atlas",
+          "type": "array"
+        },
+        "cve": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cve",
+          "type": "array"
+        }
+      },
+      "title": "Taxonomy",
+      "type": "object"
+    },
+    "ToolDef": {
+      "additionalProperties": false,
+      "properties": {
+        "server": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MCP server id; null = client built-in tool.",
+          "title": "Server"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Upstream tool name if different from the id suffix.",
+          "title": "Name"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/ToolLabel"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/Capability"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "default_tier": {
+          "$ref": "#/$defs/ToolTier",
+          "default": "confirm"
+        },
+        "schema_pin": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema Pin"
+        },
+        "arguments_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pinned argument JSON Schema; unknown fields are always rejected.",
+          "title": "Arguments Schema"
+        },
+        "checkers": {
+          "items": {
+            "$ref": "#/$defs/ArgChecker"
+          },
+          "title": "Checkers",
+          "type": "array"
+        }
+      },
+      "title": "ToolDef",
+      "type": "object"
+    },
+    "ToolGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolTier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Override the tool's default tier for this group."
+        },
+        "path_allow": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Path Allow",
+          "type": "array"
+        },
+        "path_deny": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Path Deny",
+          "type": "array"
+        },
+        "recipients_allow": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recipients Allow",
+          "type": "array"
+        },
+        "domains_allow": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains Allow",
+          "type": "array"
+        },
+        "max_calls_session": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Calls Session"
+        }
+      },
+      "title": "ToolGrant",
+      "type": "object"
+    },
+    "ToolLabel": {
+      "enum": [
+        "reads_untrusted",
+        "touches_sensitive",
+        "external_egress",
+        "irreversible"
+      ],
+      "title": "ToolLabel",
+      "type": "string"
+    },
+    "ToolTier": {
+      "description": "Tool policy tiers (concept §9).",
+      "enum": [
+        "deny",
+        "must",
+        "allow",
+        "confirm"
+      ],
+      "title": "ToolTier",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One policy file. Every section is optional; a section may appear in only one file.",
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "global": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GlobalSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "presets": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/PresetSettings"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/Preset"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Presets"
+    },
+    "controls": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ControlConfig"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Controls"
+    },
+    "signatures": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SignatureSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "reporting": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportingSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "connectors": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/ConnectorConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Connectors"
+    },
+    "models": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ModelEntry"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Models"
+    },
+    "aliases": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/AliasConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Aliases"
+    },
+    "skills": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/SkillConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Skills"
+    },
+    "org_locks": {
+      "anyOf": [
+        {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "control_locked": "#/$defs/ControlLock",
+                "data_class_tier": "#/$defs/DataClassTierLock",
+                "deny_resource": "#/$defs/DenyResourceLock"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/DataClassTierLock"
+              },
+              {
+                "$ref": "#/$defs/ControlLock"
+              },
+              {
+                "$ref": "#/$defs/DenyResourceLock"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Org Locks"
+    },
+    "groups": {
+      "anyOf": [
+        {
+          "patternProperties": {
+            "^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$": {
+              "$ref": "#/$defs/GroupPolicy"
+            }
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Groups"
+    },
+    "mcp_servers": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/McpServerConfig"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mcp Servers"
+    },
+    "tools": {
+      "anyOf": [
+        {
+          "patternProperties": {
+            "^[a-z0-9_-]+\\.[a-z0-9_./-]+$": {
+              "$ref": "#/$defs/ToolDef"
+            }
+          },
+          "propertyNames": {
+            "examples": [
+              "opencode.bash",
+              "mail.send"
+            ]
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tools"
+    },
+    "budgets": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Budgets"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "routing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RoutingSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "type": "object"
+}

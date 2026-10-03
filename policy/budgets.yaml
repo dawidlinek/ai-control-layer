@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../contracts/policy.schema.json
+#
+# Budgets and resource governance (concept §8). Hierarchy: org → group → user → agent → session.
+
+budgets:
+  org: {usd_month: 100, gpu_seconds_day: 3600}
+  default_user: {tokens_day: 500000, requests_per_minute: 60}
+  groups:
+    developers: {tokens_day: 2000000, usd_day: 5}
+    credit-analysts: {tokens_day: 1000000, usd_day: 2}
+  agents:
+    research-bot: {tokens_session: 50000, gpu_seconds_session: 120, tool_calls_session: 40}
+  on_exceed:
+    soft_pct: 80
+    soft_action: alert
+    hard_action: block
+    circuit_breaker: {cooldown_s: 300, half_open_probes: 1}
+  stream:
+    max_output_tokens: 4096
+    max_reasoning_tokens: 2048
+    repeat_ngram: {n: 8, max_repeats: 6}
+    holdback_chars: 256
+  loops:
+    repeat_call: {count: 3, window_s: 60}
+    max_steps: 50
+    max_tool_depth: 8
+    spend_spike_factor: 5.0
+  guard: {tokens_per_request: 4000, gpu_seconds_per_request: 5.0}
+  cache: {enabled: true, ttl_s: 300}

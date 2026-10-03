@@ -1,0 +1,22 @@
+{
+  "candidate_version": "9a1b2c3d4e5f",
+  "evaluated": 500,
+  "changed": 14,
+  "transitions": {
+    "allow->block": 14
+  },
+  "samples": [
+    {
+      "event_id": "evt-0310",
+      "timestamp": "2026-10-03T12:00:00Z",
+      "subject": "anna",
+      "before_action": "allow",
+      "after_action": "block",
+      "before_rule_ids": [],
+      "after_rule_ids": [
+        "SEC-PI-01"
+      ]
+    }
+  ],
+  "errors": []
+}

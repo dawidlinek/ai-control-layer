@@ -1,0 +1,260 @@
+# yaml-language-server: $schema=../contracts/policy.schema.json
+#
+# Controls, presets and global settings (concept §6, §11).
+# Edit freely: the gateway validates, compiles and hot-swaps this file; an invalid edit keeps
+# the last good version. Every control declares id, stages, cost_tier, fail_mode, timeout_ms.
+# Controls start disabled and are switched on by the phase that implements them.
+
+global:
+  mode: enforce                  # enforce | monitor
+  default_preset: balanced       # monitor | balanced | strict | paranoid
+  fail_mode: {deterministic: closed, semantic: open_with_alert}
+  latency_budget_ms: {semantic: 150, total: 400}
+  store_redacted_payloads: true
+
+presets:
+  monitor:
+    injection_threshold: 0.80
+    judge_band: [0.3, 0.8]
+    judge_on: none
+    pii_action: monitor
+    secret_action: monitor
+    rule_of_two_action: monitor
+    never_block: true
+  balanced:
+    injection_threshold: 0.80
+    judge_band: [0.3, 0.8]
+    judge_on: sinks
+    pii_action: pseudonymise
+    secret_action: block
+    rule_of_two_action: require_approval
+    shadow_sample_rate: 0.05
+    risk_cutoffs: {sanitize: 0.4, approval: 0.7, block: 0.9}
+  strict:
+    injection_threshold: 0.50
+    judge_band: [0.2, 0.9]
+    judge_on: outbound
+    pii_action: route_local
+    secret_action: block
+    tool_mode: allowlist
+    rule_of_two_action: block
+    risk_cutoffs: {sanitize: 0.3, approval: 0.5, block: 0.8}
+  paranoid:
+    injection_threshold: 0.30
+    judge_band: [0.1, 0.95]
+    judge_on: all
+    pii_action: route_local
+    secret_action: block
+    tool_mode: allowlist
+    taint_mode: full
+    rule_of_two_action: block
+    approval_on_writes: true
+    risk_cutoffs: {sanitize: 0.2, approval: 0.4, block: 0.6}
+
+controls:
+  # ---- stage 0: normalise --------------------------------------------------------------
+  - id: SEC-NORM-01
+    type: normalise
+    enabled: false
+    description: NFKC, zero-width/tag stripping, decode b64/hex/url and rescan, strip chat-template tokens, typed tool-call intent
+    stages: [ingress, egress, tool_call, tool_result, embeddings, mcp_tools_list]
+    cost_tier: deterministic
+    timeout_ms: 20
+
+  # ---- stage 1: deterministic ----------------------------------------------------------
+  - id: SEC-MODEL-01
+    type: model_access
+    enabled: false
+    description: Model allowlist + data-class ceiling per model (forbidden → block, sensitive → route_local)
+    stages: [ingress, embeddings]
+    cost_tier: deterministic
+    timeout_ms: 10
+    taxonomy: {owasp_llm: ["LLM06:2025"]}
+
+  - id: SEC-PII-01
+    type: pii
+    enabled: false
+    description: PII tier T0 – regex + validators (PESEL, NIP, REGON, PL ID card, IBAN mod-97, Luhn, email, phone)
+    stages: [ingress, egress, tool_call, tool_result, embeddings]
+    cost_tier: deterministic
+    timeout_ms: 20
+    taxonomy: {owasp_llm: ["LLM02:2025"]}
+    params:
+      entities: [PESEL, NIP, REGON, PL_ID_CARD, IBAN, CREDIT_CARD, EMAIL, PHONE]
+
+  - id: SEC-SECRET-01
+    type: secrets
+    enabled: false
+    locked: true
+    description: Secrets and credentials (gitleaks-style rules, key prefixes, entropy) never leave
+    stages: [ingress, egress, tool_call, tool_result, embeddings]
+    cost_tier: deterministic
+    timeout_ms: 20
+    action: block
+    taxonomy: {owasp_llm: ["LLM02:2025"]}
+
+  - id: SEC-EXFIL-01
+    type: url_egress
+    enabled: false
+    description: Markdown-image / link exfiltration, high-entropy query strings, domain allowlist
+    stages: [egress, tool_call]
+    cost_tier: deterministic
+    timeout_ms: 10
+    taxonomy: {owasp_llm: ["LLM02:2025"], atlas: ["AML.T0057"]}
+    params:
+      allow_domains: ["*.corp.example", "localhost"]
+      strip_markdown_images: true
+      max_query_entropy: 3.5
+
+  - id: SEC-SIG-01
+    type: signatures
+    enabled: false
+    description: Signature feed matching (regex/yara, url paths, package versions, IOC domains, hashes)
+    stages: [ingress, tool_call, tool_result, mcp_initialize, mcp_tools_list, artifact_load]
+    cost_tier: deterministic
+    timeout_ms: 20
+
+  - id: SEC-HYG-01
+    type: egress_hygiene
+    enabled: false
+    description: Strip logprobs/reasoning, system-prompt canary check, hallucinated placeholder check
+    stages: [egress]
+    cost_tier: deterministic
+    timeout_ms: 10
+    taxonomy: {owasp_llm: ["LLM07:2025"]}
+
+  - id: SEC-TOOL-01
+    type: tool_policy
+    enabled: false
+    description: Tool tiers (deny/must/allow/confirm), pinned argument schemas, path/SQL/command/recipient checkers
+    stages: [tool_call]
+    cost_tier: deterministic
+    timeout_ms: 15
+    taxonomy: {owasp_agentic: ["ASI02"]}
+
+  - id: SEC-FLOW-01
+    type: rule_of_two
+    enabled: false
+    description: Rule of Two / lethal trifecta (untrusted input + sensitive data + external egress)
+    stages: [tool_call]
+    cost_tier: deterministic
+    timeout_ms: 10
+    taxonomy: {owasp_llm: ["LLM01:2025"], owasp_agentic: ["ASI01"]}
+
+  - id: SEC-BUDGET-01
+    type: budget
+    enabled: false
+    description: Hierarchical budgets, rate limits, circuit breaker, guard spend
+    stages: [ingress, embeddings, tool_call]
+    cost_tier: deterministic
+    timeout_ms: 15
+    taxonomy: {owasp_llm: ["LLM10:2025"]}
+
+  - id: SEC-LOOP-01
+    type: loop_detector
+    enabled: false
+    description: Repeated (tool, args-hash), step/depth limits, spend derivative
+    stages: [ingress, tool_call]
+    cost_tier: deterministic
+    timeout_ms: 10
+    taxonomy: {owasp_llm: ["LLM10:2025"]}
+
+  - id: SEC-MCP-01
+    type: mcp_pinning
+    enabled: false
+    description: tools/list hash pinning, description scan, name collisions; drift → quarantine
+    stages: [mcp_tools_list]
+    cost_tier: deterministic
+    timeout_ms: 20
+    taxonomy: {owasp_mcp: ["MCP03"]}
+    params:
+      on_drift: quarantine
+
+  - id: SEC-MCP-02
+    type: mcp_protocol
+    enabled: false
+    description: initialize allowlist, sampling denied, header/body consistency, OAuth metadata URL checks
+    stages: [mcp_initialize, tool_call]
+    cost_tier: deterministic
+    timeout_ms: 10
+
+  # ---- stage 1b / 2 / 3: semantic (Phase 3A) -------------------------------------------
+  - id: SEC-SIM-01
+    type: attack_similarity
+    enabled: false
+    description: kNN against the known-attack corpus (bge-m3, mean + n-gram pooling)
+    stages: [ingress, tool_result]
+    cost_tier: similarity
+    timeout_ms: 60
+
+  - id: SEC-NER-01
+    type: pii_ner
+    enabled: false
+    description: PII tier T1 – Presidio + multilingual GLiNER
+    stages: [ingress, tool_result, egress]
+    cost_tier: l1
+    timeout_ms: 120
+
+  - id: SEC-PI-01
+    type: injection_classifier
+    enabled: false
+    description: Small injection/jailbreak classifier (ONNX) on prompts and tool results
+    stages: [ingress, tool_result]
+    cost_tier: l1
+    timeout_ms: 80
+    taxonomy: {owasp_llm: ["LLM01:2025"], atlas: ["AML.T0051"]}
+
+  - id: SEC-SAFE-PL-01
+    type: content_safety_pl
+    enabled: false
+    description: Bielik Guard – Polish content safety
+    stages: [ingress, egress]
+    cost_tier: l1
+    timeout_ms: 80
+
+  - id: SEC-JUDGE-ALIGN-01
+    type: judge_alignment
+    enabled: false
+    description: L2 – does this tool call serve the user's original intent (isolated context)
+    stages: [tool_call]
+    cost_tier: l2
+    timeout_ms: 1500
+
+  - id: SEC-JUDGE-CI-01
+    type: judge_contextual_integrity
+    enabled: false
+    description: L2 – contextual-integrity check before send-type actions
+    stages: [tool_call]
+    cost_tier: l2
+    timeout_ms: 1500
+
+  - id: SEC-JUDGE-SAN-01
+    type: judge_sanitize
+    enabled: false
+    description: L2 – detect-and-remove injected spans in tool results
+    stages: [tool_result]
+    cost_tier: l2
+    timeout_ms: 1500
+
+  - id: SEC-PLAN-01
+    type: task_plan
+    enabled: false
+    description: Task-scoped policy (plan from trusted request ∩ static policy), strict/paranoid only
+    stages: [tool_call]
+    cost_tier: deterministic
+    timeout_ms: 10
+    presets: [strict, paranoid]
+
+signatures:
+  feed:
+    url: http://feed-server:8080/bundle.json
+    poll_s: 30
+    verify: sha256
+    on_fail: keep_last_good
+
+reporting:
+  audit_log:
+    path: logs/audit.jsonl
+    format: jsonl
+    hash_chain: true
+    store_raw_payloads: false

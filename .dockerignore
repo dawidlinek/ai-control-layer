@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.git
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+**/.next
+logs
+reports
+training
+docs
+panel
+*.db

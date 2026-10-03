@@ -1,0 +1,14 @@
+# Phase 0 smoke cases: with no controls enabled the pipeline allows everything.
+- id: smoke-benign-chat-allowed
+  control: none
+  kind: positive
+  point: ingress
+  input: "Napisz krótki wiersz o jesieni."
+  expect: {action: allow, rule_id: null}
+
+- id: smoke-benign-tool-result-allowed
+  control: none
+  kind: positive
+  point: tool_result
+  input: {tool: files.read_file, content: "README: run `make test` to execute the suite."}
+  expect: {action: allow, rule_id: null}

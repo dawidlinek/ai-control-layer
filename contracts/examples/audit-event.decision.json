@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0",
+  "event_id": "evt-0001",
+  "seq": 0,
+  "timestamp": "2026-10-03T12:00:00Z",
+  "event_type": "decision",
+  "severity": "medium",
+  "trace_id": "tr-0001",
+  "session_id": "sess-jan-1",
+  "request_id": "req-0001",
+  "principal": {
+    "subject": "5f3c9a51-0000-4000-8000-00000000a001",
+    "kind": "user",
+    "username": "jan",
+    "groups": [
+      "credit-analysts"
+    ],
+    "agent_id": null,
+    "client_id": "librechat",
+    "auth_method": "jwt",
+    "api_key_id": null,
+    "delegation_chain": []
+  },
+  "client": {
+    "app": "librechat",
+    "version": "0.8",
+    "device_id": null
+  },
+  "point": "ingress",
+  "tool": null,
+  "server": null,
+  "model_requested": "auto",
+  "model": "local/pl",
+  "connector": "local",
+  "args_hash": null,
+  "payload_hash": "5e2a0c7d9b1f3a64",
+  "response_hash": null,
+  "decision": {
+    "action": "route_local",
+    "applied": [
+      "pseudonymise",
+      "route_local"
+    ],
+    "would_action": null,
+    "final": false,
+    "decided_by": "SEC-PII-01",
+    "decided_phase": "deterministic",
+    "rule_ids": [
+      "SEC-PII-01",
+      "LOCK-01"
+    ],
+    "risk_score": 0.0,
+    "reason": "confidential data → local model"
+  },
+  "verdicts": [
+    {
+      "control_id": "SEC-PII-01",
+      "control_type": "pii",
+      "phase": "deterministic",
+      "action": "pseudonymise",
+      "final": false,
+      "score": null,
+      "status": "ok",
+      "latency_ms": 0.42,
+      "rule_ids": [
+        "SEC-PII-01"
+      ],
+      "findings": [
+        {
+          "entity_type": "PESEL",
+          "field": "messages[0].content",
+          "start": 13,
+          "end": 24,
+          "value_hash": "3b1f0e9a77c2d410",
+          "rule_id": "SEC-PII-01"
+        },
+        {
+          "entity_type": "IBAN",
+          "field": "messages[0].content",
+          "start": 31,
+          "end": 59,
+          "value_hash": "9c0d2f4e1a7b3c55",
+          "rule_id": "SEC-PII-01"
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "risk_factors": [],
+  "route": {
+    "model_requested": "auto",
+    "model": "local/pl",
+    "connector": "local",
+    "tier": "local",
+    "reason": "auto → local/pl: data=confidential → local_only (LOCK-01)",
+    "degraded": false,
+    "factors": {}
+  },
+  "approval": null,
+  "labels_after": {
+    "integrity": "trusted",
+    "confidentiality": "confidential",
+    "taint": [
+      "sensitive"
+    ],
+    "sources": [
+      "SEC-PII-01"
+    ]
+  },
+  "versions": {
+    "policy": "f2ea2e81c6b4",
+    "grants": "12",
+    "signatures": "3",
+    "classifiers": {},
+    "judges": {},
+    "gateway": "0.1.0"
+  },
+  "taxonomy": {
+    "owasp_llm": [
+      "LLM02:2025"
+    ],
+    "owasp_agentic": [],
+    "owasp_mcp": [],
+    "atlas": [],
+    "cve": []
+  },
+  "usage": null,
+  "latency": null,
+  "seed": null,
+  "redacted_payload": "Klient PESEL <PESEL_1>, IBAN <IBAN_1> prosi o kredyt 200 000 zł.",
+  "detail": {},
+  "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "hash": "c4b6641fd97f4b98a011835de858e77b64e84b80304ce9dca89cc424eb3b7fc2"
+}

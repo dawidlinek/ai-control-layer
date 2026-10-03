@@ -1,0 +1,496 @@
+openapi: 3.1.0
+info:
+  title: AI Control Layer – Decide API
+  description: Client-side action checks (OpenCode plugin).
+  version: 1.0.0
+  x-gateway-version: 0.1.0
+paths:
+  /v1/decide:
+    post:
+      tags:
+      - decide
+      summary: Decide
+      description: Ask whether a client-local action (tool call) may run. Fail closed on any error.
+      operationId: decide
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecideResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /v1/approvals/{approval_id}:
+    get:
+      tags:
+      - decide
+      summary: Get Approval
+      description: Poll an approval created by a `require_approval` decision (only the requester or an admin).
+      operationId: getApproval
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Approval Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStatusResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/approvals/{approval_id}/decision:
+    post:
+      tags:
+      - decide
+      summary: Decide As User
+      description: User-level approval (approver_scope=user only). Admin-scope approvals require the admin API.
+      operationId: decideApprovalAsUser
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Approval Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalStatusResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Action:
+      type: string
+      enum:
+      - allow
+      - monitor
+      - redact
+      - pseudonymise
+      - sanitize
+      - route_local
+      - downgrade
+      - require_approval
+      - block
+      title: Action
+      description: Decision actions (concept §6.3).
+    ApprovalDecisionRequest:
+      properties:
+        decision:
+          type: string
+          enum:
+          - approve
+          - deny
+          title: Decision
+        elevation_minutes:
+          anyOf:
+          - type: integer
+            maximum: 240.0
+            minimum: 0.0
+          - type: 'null'
+          title: Elevation Minutes
+        note:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - decision
+      title: ApprovalDecisionRequest
+    ApprovalRef:
+      properties:
+        approval_id:
+          type: string
+          title: Approval Id
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+          default: pending
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        approver_scope:
+          type: string
+          title: Approver Scope
+          default: admin
+          examples:
+          - user
+          - admin
+      additionalProperties: false
+      type: object
+      required:
+      - approval_id
+      title: ApprovalRef
+    ApprovalStatus:
+      type: string
+      enum:
+      - pending
+      - approved
+      - denied
+      - expired
+      title: ApprovalStatus
+    ApprovalStatusResponse:
+      properties:
+        approval_id:
+          type: string
+          title: Approval Id
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        reason:
+          type: string
+          title: Reason
+          default: ''
+        decided_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decided By
+        decided_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Decided At
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        elevation:
+          anyOf:
+          - $ref: '#/components/schemas/Elevation'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - approval_id
+      - status
+      title: ApprovalStatusResponse
+    ClientInfo:
+      properties:
+        app:
+          type: string
+          title: App
+          default: unknown
+          examples:
+          - opencode
+          - librechat
+          - sdk
+          - agent
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+        device_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Device Id
+      additionalProperties: false
+      type: object
+      title: ClientInfo
+    DataClass:
+      type: string
+      enum:
+      - public
+      - internal
+      - confidential
+      - restricted
+      title: DataClass
+      description: Confidentiality classes, ordered from least to most sensitive.
+    DecideAction:
+      properties:
+        kind:
+          type: string
+          const: tool_call
+          title: Kind
+          default: tool_call
+        tool:
+          type: string
+          title: Tool
+          description: 'Tool id: client built-ins as `opencode.<name>` (read, write, edit, bash, webfetch), MCP tools as `<server>.<tool>`.'
+          examples:
+          - opencode.bash
+          - opencode.read
+          - files.read_file
+        arguments:
+          additionalProperties: true
+          type: object
+          title: Arguments
+        tool_call_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool Call Id
+          description: Id of the model tool_call this action executes (used for bypass detection).
+        server:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+        cwd:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cwd
+        workspace_root:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace Root
+      additionalProperties: false
+      type: object
+      required:
+      - tool
+      title: DecideAction
+    DecideRequest:
+      properties:
+        session_id:
+          type: string
+          title: Session Id
+        action:
+          $ref: '#/components/schemas/DecideAction'
+        client:
+          anyOf:
+          - $ref: '#/components/schemas/ClientInfo'
+          - type: 'null'
+        user_request:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Request
+          description: Trusted original user request, if the client knows it.
+      additionalProperties: false
+      type: object
+      required:
+      - session_id
+      - action
+      title: DecideRequest
+    DecideResponse:
+      properties:
+        decision_id:
+          type: string
+          title: Decision Id
+        trace_id:
+          type: string
+          title: Trace Id
+        action:
+          $ref: '#/components/schemas/Action'
+          description: Clients must treat anything other than allow/redact/monitor as not-allowed. `require_approval` → 
+            poll the approval; `redact` → run with `modified_arguments`.
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        reason:
+          type: string
+          title: Reason
+          default: ''
+        risk_score:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Risk Score
+          default: 0.0
+        modified_arguments:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Modified Arguments
+        approval:
+          anyOf:
+          - $ref: '#/components/schemas/ApprovalRef'
+          - type: 'null'
+        labels:
+          $ref: '#/components/schemas/SessionLabels'
+        policy_version:
+          type: string
+          title: Policy Version
+      additionalProperties: false
+      type: object
+      required:
+      - decision_id
+      - trace_id
+      - action
+      - policy_version
+      title: DecideResponse
+    Elevation:
+      properties:
+        scope:
+          type: string
+          title: Scope
+          examples:
+          - tool:opencode.write
+        until:
+          type: string
+          format: date-time
+          title: Until
+      additionalProperties: false
+      type: object
+      required:
+      - scope
+      - until
+      title: Elevation
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Integrity:
+      type: string
+      enum:
+      - trusted
+      - untrusted
+      title: Integrity
+    SessionLabels:
+      properties:
+        integrity:
+          $ref: '#/components/schemas/Integrity'
+          default: trusted
+        confidentiality:
+          $ref: '#/components/schemas/DataClass'
+          default: public
+        taint:
+          items:
+            $ref: '#/components/schemas/TaintFlag'
+          type: array
+          title: Taint
+        sources:
+          items:
+            type: string
+          type: array
+          title: Sources
+          description: Rule ids that raised the labels.
+      additionalProperties: false
+      type: object
+      title: SessionLabels
+      description: IFC labels carried by a session (concept §9). Only ever raised without approval.
+    TaintFlag:
+      type: string
+      enum:
+      - untrusted
+      - sensitive
+      - egress_used
+      title: TaintFlag
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      description: Keycloak access token (JWT) or personal API key (`acl_...`).
+      scheme: bearer
+servers:
+- url: http://localhost:8000

@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "bundle_version": 1,
+  "issued_at": "2026-10-03T12:00:00Z",
+  "issuer": "acl-feed-server",
+  "entries": [],
+  "signature": {"alg": "sha256", "key_id": null, "value": "computed-by-server"}
+}

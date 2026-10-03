@@ -1,0 +1,19 @@
+{
+  "decision_id": "dec-0042",
+  "trace_id": "tr-0042",
+  "action": "block",
+  "rule_ids": [
+    "SIG-CMD-CURL-PIPE-SH"
+  ],
+  "reason": "remote script piped to shell",
+  "risk_score": 1.0,
+  "modified_arguments": null,
+  "approval": null,
+  "labels": {
+    "integrity": "trusted",
+    "confidentiality": "public",
+    "taint": [],
+    "sources": []
+  },
+  "policy_version": "f2ea2e81c6b4"
+}

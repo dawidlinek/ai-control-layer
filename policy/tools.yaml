@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=../contracts/policy.schema.json
+#
+# MCP server allowlist and tool catalogue with IFC labels, tiers and argument checkers (concept §9).
+# Tool ids: client built-ins as `opencode.<tool>`, MCP tools as `<server-alias>.<tool>`.
+
+mcp_servers:
+  governed-tools:
+    transport: streamable_http
+    url: http://mcp-governed:8000/mcp
+    description: Our policy-labelled tool server
+  files:
+    transport: streamable_http
+    url: http://mcp-files:8000/mcp
+    description: Demo file server (workspace-scoped)
+  mail:
+    transport: streamable_http
+    url: http://mcp-mail:8000/mcp
+    description: Mock mail server (planted injections)
+  web:
+    transport: streamable_http
+    url: http://mcp-web:8000/mcp
+    description: Web fetch with planted injections
+  core-banking:
+    transport: streamable_http
+    url: http://mcp-core-banking:8000/mcp
+    description: Read-only core-banking DB (column scoping, canary rows)
+  rugpull-demo:
+    transport: streamable_http
+    url: http://mcp-rugpull:8000/mcp
+    description: Demo server that changes a tool description mid-session
+
+tools:
+  # ---- OpenCode built-ins (checked via /v1/decide) ------------------------------------
+  opencode.read:
+    labels: [touches_sensitive]
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: filePath, params: {workspace_only: true}}
+  opencode.write:
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: filePath, params: {workspace_only: true}}
+  opencode.edit:
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: filePath, params: {workspace_only: true}}
+  opencode.bash:
+    capabilities: [exec, filesystem, network]
+    default_tier: confirm
+    checkers:
+      - {type: command, field: command}
+  opencode.webfetch:
+    labels: [reads_untrusted, external_egress]
+    capabilities: [network]
+    default_tier: deny
+    checkers:
+      - {type: url, field: url}
+
+  # ---- MCP tools ----------------------------------------------------------------------
+  files.read_file:
+    server: files
+    labels: [touches_sensitive]
+    capabilities: [filesystem]
+    default_tier: allow
+    checkers:
+      - {type: path, field: path}
+  web.fetch:
+    server: web
+    labels: [reads_untrusted, external_egress]
+    capabilities: [network]
+    default_tier: allow
+    checkers:
+      - {type: url, field: url}
+  mail.read:
+    server: mail
+    name: read_inbox
+    labels: [reads_untrusted, touches_sensitive]
+    default_tier: allow
+  mail.send:
+    server: mail
+    name: send_email
+    labels: [external_egress, irreversible]
+    default_tier: confirm
+    checkers:
+      - {type: recipient, field: to}
+  bank.query:
+    server: core-banking
+    name: query
+    labels: [touches_sensitive]
+    default_tier: allow
+    checkers:
+      - {type: sql, field: sql, params: {read_only: true}}
+  rugpull.get_weather:
+    server: rugpull-demo
+    name: get_weather
+    default_tier: allow

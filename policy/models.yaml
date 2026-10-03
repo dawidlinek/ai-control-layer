@@ -1,0 +1,101 @@
+# yaml-language-server: $schema=../contracts/policy.schema.json
+#
+# Connectors, model registry, aliases and skills (concept §7).
+# Upstream model names come from the environment (`env:NAME`) so the same policy works against
+# vLLM, SGLang or Ollama on any box. Credentials live only in the gateway environment.
+
+connectors:
+  local:
+    type: openai_compatible            # vLLM / SGLang / Ollama's /v1 endpoint
+    base_url: env:LOCAL_LLM_BASE_URL
+    api_key: env:LOCAL_LLM_API_KEY
+    tier: local
+    timeout_s: 120
+  gemini:
+    type: openai_compatible
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    api_key: env:GEMINI_API_KEY        # paid key; never leaves the gateway
+    tier: cloud
+    timeout_s: 60
+
+models:
+  - id: local/general
+    connector: local
+    upstream_model: env:LOCAL_GENERAL_MODEL
+    aliases: [local, fast]
+    capabilities: [chat, tools]
+    data_classes: [public, internal, confidential, restricted]
+    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
+
+  - id: local/pl
+    connector: local
+    upstream_model: env:LOCAL_PL_MODEL
+    aliases: [local-pl]
+    tags: {lang: pl}
+    data_classes: [public, internal, confidential, restricted]
+    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.6}
+
+  - id: local/coder
+    connector: local
+    upstream_model: env:LOCAL_CODER_MODEL
+    aliases: [local-coder]
+    tags: {task: code}
+    capabilities: [chat, tools]
+    data_classes: [public, internal, confidential, restricted]
+    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
+
+  # Prompt-configured specialist stand-in (fine-tuning is out of scope): same upstream as
+  # local/pl with a fixed system prompt; `auto` routes here for task=loan_memo.
+  - id: local/loan-memo-pl
+    connector: local
+    upstream_model: env:LOCAL_PL_MODEL
+    tags: {task: loan_memo, lang: pl}
+    data_classes: [public, internal, confidential]
+    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.3}
+    specialist:
+      task: loan_memo
+      min_confidence: 0.8
+      examples:
+        - "Podsumuj wniosek kredytowy klienta i przygotuj notatkę kredytową."
+        - "Przygotuj memo kredytowe na podstawie wniosku o kredyt hipoteczny."
+        - "Summarise this loan application into a credit memo."
+    system_prompt: >-
+      Jesteś analitykiem kredytowym. Na podstawie wniosku przygotuj zwięzłą notatkę kredytową
+      po polsku: wnioskodawca (pseudonim), kwota, cel, dochód, zobowiązania, DTI, ryzyka, rekomendacja.
+
+  - id: local/embed
+    connector: local
+    upstream_model: env:LOCAL_EMBED_MODEL
+    capabilities: [embeddings]
+    data_classes: [public, internal, confidential, restricted]
+
+  - id: local/judge
+    connector: local
+    upstream_model: env:LOCAL_JUDGE_MODEL
+    data_classes: [public, internal, confidential, restricted]
+
+  - id: gemini/flash
+    connector: gemini
+    upstream_model: env:GEMINI_MODEL
+    aliases: [smart]
+    capabilities: [chat, tools]
+    data_classes: [public, internal]   # confidential/restricted never go to the cloud (LOCK-01)
+    pricing: {in_per_1k: 0.0003, out_per_1k: 0.0025}   # illustrative
+
+aliases:
+  auto:
+    strategy: specialist_then_rules
+    description: Specialist by task, else sensitivity × complexity × budget rules
+
+skills:
+  skill/loan-memo-summary:
+    description: Turn a loan application into a structured credit memo (Polish)
+    template: "Przygotuj notatkę kredytową dla poniższego wniosku:\n\n{application}"
+    input_schema:
+      type: object
+      properties: {application: {type: string, maxLength: 20000}}
+      required: [application]
+      additionalProperties: false
+    model: local/loan-memo-pl
+    preset: strict
+    data_classes: [public, internal, confidential]

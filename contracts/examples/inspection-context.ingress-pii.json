@@ -1,0 +1,72 @@
+{
+  "trace_id": "tr-0001",
+  "request_id": "req-0001",
+  "session_id": "sess-jan-1",
+  "timestamp": "2026-10-03T12:00:00Z",
+  "point": "ingress",
+  "principal": {
+    "subject": "5f3c9a51-0000-4000-8000-00000000a001",
+    "kind": "user",
+    "username": "jan",
+    "groups": [
+      "credit-analysts"
+    ],
+    "roles": [
+      "acl-user"
+    ],
+    "agent_id": null,
+    "client_id": "librechat",
+    "auth_method": "jwt",
+    "api_key_id": null,
+    "delegation_chain": []
+  },
+  "client": {
+    "app": "librechat",
+    "version": "0.8",
+    "device_id": null
+  },
+  "preset": "strict",
+  "mode": "enforce",
+  "model_requested": "auto",
+  "payload": {
+    "kind": "chat",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Klient PESEL 44051401359, IBAN PL61109010140000071219812874 prosi o kredyt 200 000 zł.",
+        "name": null,
+        "tool_calls": null,
+        "tool_call_id": null
+      }
+    ],
+    "tools": null,
+    "params": {
+      "stream": false
+    }
+  },
+  "session": {
+    "session_id": "sess-jan-1",
+    "labels": {
+      "integrity": "trusted",
+      "confidentiality": "public",
+      "taint": [],
+      "sources": []
+    },
+    "step": 0,
+    "tool_depth": 0,
+    "downgraded": false,
+    "allowed_tools": null,
+    "plan_id": null
+  },
+  "versions": {
+    "policy": "f2ea2e81c6b4",
+    "grants": "12",
+    "signatures": "3",
+    "classifiers": {},
+    "judges": {},
+    "gateway": "0.1.0"
+  },
+  "user_request": null,
+  "seed": null,
+  "attributes": {}
+}

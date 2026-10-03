@@ -1,0 +1,37 @@
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.acl-dev.db*
+.coverage
+htmlcov/
+
+# runtime output
+logs/
+reports/
+*.jsonl.lock
+
+# node
+node_modules/
+.next/
+.pnpm-store/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# training artifacts
+training/**/outputs/
+*.safetensors
+*.gguf
+*.onnx

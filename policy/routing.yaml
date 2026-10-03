@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../contracts/policy.schema.json
+#
+# Router: sensitivity × complexity × budget (concept §7).
+
+routing:
+  sensitivity: {high: local_only, medium: redact_then_external, low: by_complexity}
+  data_class_sensitivity: {public: low, internal: low, confidential: high, restricted: high}
+  complexity_bands: {local_max: 0.3, ext_small_max: 0.7}
+  targets:
+    local: local/general
+    ext_small: gemini/flash
+    ext_large: gemini/flash
+    degraded: local/general
+    embeddings: local/embed
+    judge: local/judge
+  escalation_scales_with_remaining_budget: true
+  on_budget_exhausted: degrade_to_local
+  specialist: {enabled: true, method: knn, default_min_confidence: 0.8}
+  task_scoped_policy:
+    presets: [strict, paranoid]
+    planner_model: local/judge
+    on_violation: block

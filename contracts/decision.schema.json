@@ -1,0 +1,1908 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acl.local/contracts/decision.schema.json",
+  "title": "InspectionContext, Verdict and Decision",
+  "x-contract-version": "1.0.0",
+  "description": "Use #/$defs/InspectionContext, #/$defs/Verdict or #/$defs/Decision. Root validates a Decision.",
+  "$ref": "#/$defs/Decision",
+  "$defs": {
+    "Action": {
+      "description": "Decision actions (concept §6.3).",
+      "enum": [
+        "allow",
+        "monitor",
+        "redact",
+        "pseudonymise",
+        "sanitize",
+        "route_local",
+        "downgrade",
+        "require_approval",
+        "block"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "ApprovalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_id": {
+          "title": "Approval Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ApprovalStatus",
+          "default": "pending"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "approver_scope": {
+          "default": "admin",
+          "examples": [
+            "user",
+            "admin"
+          ],
+          "title": "Approver Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "approval_id"
+      ],
+      "title": "ApprovalRef",
+      "type": "object"
+    },
+    "ApprovalStatus": {
+      "enum": [
+        "pending",
+        "approved",
+        "denied",
+        "expired"
+      ],
+      "title": "ApprovalStatus",
+      "type": "string"
+    },
+    "ArtifactPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "artifact",
+          "default": "artifact",
+          "title": "Kind",
+          "type": "string"
+        },
+        "filename": {
+          "title": "Filename",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size": {
+          "title": "Size",
+          "type": "integer"
+        },
+        "declared_format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Declared Format"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. `hf:org/repo@<revision-sha>`.",
+          "title": "Source"
+        },
+        "local_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Server-side path of the uploaded file.",
+          "title": "Local Path"
+        }
+      },
+      "required": [
+        "filename",
+        "sha256",
+        "size"
+      ],
+      "title": "ArtifactPayload",
+      "type": "object"
+    },
+    "AuthMethod": {
+      "enum": [
+        "jwt",
+        "api_key",
+        "client_credentials",
+        "none"
+      ],
+      "title": "AuthMethod",
+      "type": "string"
+    },
+    "ChatMessage": {
+      "additionalProperties": true,
+      "description": "OpenAI chat message. `content` may be a string or a list of content parts.",
+      "properties": {
+        "role": {
+          "enum": [
+            "system",
+            "developer",
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "tool_calls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ToolCall"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Calls"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        }
+      },
+      "required": [
+        "role"
+      ],
+      "title": "ChatMessage",
+      "type": "object"
+    },
+    "ChatPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "chat",
+          "default": "chat",
+          "title": "Kind",
+          "type": "string"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/ChatMessage"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "tools": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tools"
+        },
+        "params": {
+          "additionalProperties": true,
+          "description": "Sampling params (max_tokens, temperature, stream, ...).",
+          "title": "Params",
+          "type": "object"
+        }
+      },
+      "required": [
+        "messages"
+      ],
+      "title": "ChatPayload",
+      "type": "object"
+    },
+    "ClientInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "default": "unknown",
+          "examples": [
+            "opencode",
+            "librechat",
+            "sdk",
+            "agent"
+          ],
+          "title": "App",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "device_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Id"
+        }
+      },
+      "title": "ClientInfo",
+      "type": "object"
+    },
+    "CompletionPayload": {
+      "additionalProperties": false,
+      "description": "Model output inspected at egress (buffered window when streaming).",
+      "properties": {
+        "kind": {
+          "const": "completion",
+          "default": "completion",
+          "title": "Kind",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "tool_calls": {
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        },
+        "finish_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finish Reason"
+        },
+        "reasoning": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Upstream reasoning trace, if any (stripped by default).",
+          "title": "Reasoning"
+        },
+        "has_logprobs": {
+          "default": false,
+          "title": "Has Logprobs",
+          "type": "boolean"
+        },
+        "is_partial": {
+          "default": false,
+          "description": "True for a streaming hold-back window.",
+          "title": "Is Partial",
+          "type": "boolean"
+        }
+      },
+      "title": "CompletionPayload",
+      "type": "object"
+    },
+    "ConnectorTier": {
+      "enum": [
+        "local",
+        "cloud"
+      ],
+      "title": "ConnectorTier",
+      "type": "string"
+    },
+    "CostTier": {
+      "enum": [
+        "deterministic",
+        "similarity",
+        "l1",
+        "l2"
+      ],
+      "title": "CostTier",
+      "type": "string"
+    },
+    "DataClass": {
+      "description": "Confidentiality classes, ordered from least to most sensitive.",
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ],
+      "title": "DataClass",
+      "type": "string"
+    },
+    "Decision": {
+      "additionalProperties": false,
+      "properties": {
+        "decision_id": {
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "trace_id": {
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "point": {
+          "$ref": "#/$defs/InspectionPoint"
+        },
+        "action": {
+          "$ref": "#/$defs/Action",
+          "description": "Primary (most severe) action actually enforced."
+        },
+        "applied": {
+          "description": "All non-allow actions applied, e.g. [pseudonymise, route_local].",
+          "items": {
+            "$ref": "#/$defs/Action"
+          },
+          "title": "Applied",
+          "type": "array"
+        },
+        "would_action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Action"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What enforce mode would have done (set when running in monitor mode)."
+        },
+        "final": {
+          "default": false,
+          "title": "Final",
+          "type": "boolean"
+        },
+        "decided_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Control id that determined the primary action.",
+          "title": "Decided By"
+        },
+        "decided_phase": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Phase"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rule_ids": {
+          "items": {
+            "description": "Rule identifier (control id, or control id + sub-rule, or signature id).",
+            "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$",
+            "type": "string"
+          },
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "risk_score": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Risk Score",
+          "type": "number"
+        },
+        "risk_factors": {
+          "items": {
+            "$ref": "#/$defs/RiskFactor"
+          },
+          "title": "Risk Factors",
+          "type": "array"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "verdicts": {
+          "items": {
+            "$ref": "#/$defs/Verdict"
+          },
+          "title": "Verdicts",
+          "type": "array"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RouteInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "labels_after": {
+          "$ref": "#/$defs/SessionLabels"
+        },
+        "taxonomy": {
+          "$ref": "#/$defs/Taxonomy"
+        },
+        "versions": {
+          "$ref": "#/$defs/Versions"
+        },
+        "latency_ms": {
+          "default": 0.0,
+          "title": "Latency Ms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "decision_id",
+        "trace_id",
+        "point",
+        "action",
+        "versions"
+      ],
+      "title": "Decision",
+      "type": "object"
+    },
+    "EmbeddingsPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "embeddings",
+          "default": "embeddings",
+          "title": "Kind",
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Inputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "inputs"
+      ],
+      "title": "EmbeddingsPayload",
+      "type": "object"
+    },
+    "FailMode": {
+      "enum": [
+        "closed",
+        "open",
+        "open_with_alert"
+      ],
+      "title": "FailMode",
+      "type": "string"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "description": "A detected span. Never contains the raw value.",
+      "properties": {
+        "entity_type": {
+          "examples": [
+            "PESEL",
+            "IBAN",
+            "AWS_ACCESS_KEY",
+            "INJECTION"
+          ],
+          "title": "Entity Type",
+          "type": "string"
+        },
+        "field": {
+          "default": "",
+          "description": "Location in the payload, e.g. `messages[2].content`, `arguments.command`.",
+          "title": "Field",
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Salted SHA-256 (truncated hex) of the value, for correlation without exposure.",
+          "title": "Value Hash"
+        },
+        "replacement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Mask or placeholder to substitute, e.g. `<PESEL_1>` or `[REDACTED:IBAN]`.",
+          "title": "Replacement"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "description": "Rule identifier (control id, or control id + sub-rule, or signature id).",
+              "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        }
+      },
+      "required": [
+        "entity_type"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "FunctionCall": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "arguments": {
+          "default": "{}",
+          "description": "JSON-encoded arguments, as sent by the model.",
+          "title": "Arguments",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "FunctionCall",
+      "type": "object"
+    },
+    "InspectionContext": {
+      "additionalProperties": false,
+      "properties": {
+        "trace_id": {
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "point": {
+          "$ref": "#/$defs/InspectionPoint"
+        },
+        "principal": {
+          "$ref": "#/$defs/Principal"
+        },
+        "client": {
+          "$ref": "#/$defs/ClientInfo"
+        },
+        "preset": {
+          "$ref": "#/$defs/Preset",
+          "default": "balanced"
+        },
+        "mode": {
+          "$ref": "#/$defs/PolicyMode",
+          "default": "enforce"
+        },
+        "model_requested": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Requested"
+        },
+        "payload": {
+          "discriminator": {
+            "mapping": {
+              "artifact": "#/$defs/ArtifactPayload",
+              "chat": "#/$defs/ChatPayload",
+              "completion": "#/$defs/CompletionPayload",
+              "embeddings": "#/$defs/EmbeddingsPayload",
+              "mcp": "#/$defs/McpPayload",
+              "tool_call": "#/$defs/ToolCallPayload",
+              "tool_result": "#/$defs/ToolResultPayload"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ChatPayload"
+            },
+            {
+              "$ref": "#/$defs/CompletionPayload"
+            },
+            {
+              "$ref": "#/$defs/ToolCallPayload"
+            },
+            {
+              "$ref": "#/$defs/ToolResultPayload"
+            },
+            {
+              "$ref": "#/$defs/EmbeddingsPayload"
+            },
+            {
+              "$ref": "#/$defs/McpPayload"
+            },
+            {
+              "$ref": "#/$defs/ArtifactPayload"
+            }
+          ],
+          "title": "Payload"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionState"
+        },
+        "versions": {
+          "$ref": "#/$defs/Versions"
+        },
+        "user_request": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Trusted original user request (for alignment / task-scoped policy).",
+          "title": "User Request"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        },
+        "attributes": {
+          "additionalProperties": true,
+          "description": "In-process scratch space: outputs of earlier phases (e.g. normalised text). Never audited.",
+          "title": "Attributes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "trace_id",
+        "request_id",
+        "session_id",
+        "point",
+        "principal",
+        "payload",
+        "session",
+        "versions"
+      ],
+      "title": "InspectionContext",
+      "type": "object"
+    },
+    "InspectionPoint": {
+      "description": "Where in the traffic flow a payload is inspected (concept §6.1).",
+      "enum": [
+        "ingress",
+        "egress",
+        "tool_call",
+        "tool_result",
+        "embeddings",
+        "agent_message",
+        "artifact_load",
+        "mcp_initialize",
+        "mcp_tools_list"
+      ],
+      "title": "InspectionPoint",
+      "type": "string"
+    },
+    "Integrity": {
+      "enum": [
+        "trusted",
+        "untrusted"
+      ],
+      "title": "Integrity",
+      "type": "string"
+    },
+    "LabelUpdate": {
+      "additionalProperties": false,
+      "description": "Monotonic raise of session labels requested by a control (taint, data class).",
+      "properties": {
+        "integrity_untrusted": {
+          "default": false,
+          "title": "Integrity Untrusted",
+          "type": "boolean"
+        },
+        "confidentiality": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "taint": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Taint",
+          "type": "array"
+        }
+      },
+      "title": "LabelUpdate",
+      "type": "object"
+    },
+    "McpPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "mcp",
+          "default": "mcp",
+          "title": "Kind",
+          "type": "string"
+        },
+        "server": {
+          "title": "Server",
+          "type": "string"
+        },
+        "method": {
+          "examples": [
+            "initialize",
+            "tools/list",
+            "tools/call",
+            "sampling/createMessage"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Mcp-Method / Mcp-Name etc. (2026-07-28).",
+          "title": "Headers",
+          "type": "object"
+        },
+        "protocol_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protocol Version"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/McpToolDescriptor"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "server",
+        "method"
+      ],
+      "title": "McpPayload",
+      "type": "object"
+    },
+    "McpToolDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "input_schema": {
+          "additionalProperties": true,
+          "title": "Input Schema",
+          "type": "object"
+        },
+        "annotations": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Annotations"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "McpToolDescriptor",
+      "type": "object"
+    },
+    "Package": {
+      "additionalProperties": false,
+      "properties": {
+        "ecosystem": {
+          "enum": [
+            "pypi",
+            "npm",
+            "other"
+          ],
+          "title": "Ecosystem",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "ecosystem",
+        "name"
+      ],
+      "title": "Package",
+      "type": "object"
+    },
+    "Phase": {
+      "description": "Pipeline phases, executed in this order (concept §6.2).",
+      "enum": [
+        "normalise",
+        "deterministic",
+        "similarity",
+        "semantic_l1",
+        "semantic_l2",
+        "decide",
+        "egress_hygiene"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "PolicyMode": {
+      "enum": [
+        "enforce",
+        "monitor"
+      ],
+      "title": "PolicyMode",
+      "type": "string"
+    },
+    "Preset": {
+      "enum": [
+        "monitor",
+        "balanced",
+        "strict",
+        "paranoid"
+      ],
+      "title": "Preset",
+      "type": "string"
+    },
+    "Principal": {
+      "additionalProperties": false,
+      "description": "Who is acting. Built by `acl.identity` from a JWT or an API key.",
+      "properties": {
+        "subject": {
+          "description": "Stable id (Keycloak `sub` or internal agent id).",
+          "title": "Subject",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PrincipalKind",
+          "default": "user"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        },
+        "groups": {
+          "description": "Normalised group paths, e.g. `developers`, `agents/research-bot`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "roles": {
+          "description": "Realm roles, e.g. `acl-admin`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "agent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Agent Id"
+        },
+        "client_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "OIDC client (azp) that obtained the token.",
+          "title": "Client Id"
+        },
+        "auth_method": {
+          "$ref": "#/$defs/AuthMethod",
+          "default": "none"
+        },
+        "api_key_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Key Id"
+        },
+        "delegation_chain": {
+          "description": "Subjects from the originating user to this actor (RFC 8693 act chain).",
+          "items": {
+            "type": "string"
+          },
+          "title": "Delegation Chain",
+          "type": "array"
+        }
+      },
+      "required": [
+        "subject"
+      ],
+      "title": "Principal",
+      "type": "object"
+    },
+    "PrincipalKind": {
+      "enum": [
+        "user",
+        "agent",
+        "service",
+        "anonymous"
+      ],
+      "title": "PrincipalKind",
+      "type": "string"
+    },
+    "RiskFactor": {
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "$ref": "#/$defs/RiskFactorName"
+        },
+        "value": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Value",
+          "type": "number"
+        },
+        "weight": {
+          "default": 1.0,
+          "minimum": 0.0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "contribution": {
+          "default": 0.0,
+          "description": "weight × value, after normalisation.",
+          "minimum": 0.0,
+          "title": "Contribution",
+          "type": "number"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Control id that produced the factor.",
+          "title": "Source"
+        }
+      },
+      "required": [
+        "factor",
+        "value"
+      ],
+      "title": "RiskFactor",
+      "type": "object"
+    },
+    "RiskFactorName": {
+      "description": "Graded risk-score factors (concept §6.5).",
+      "enum": [
+        "intent_deviation",
+        "tool_sensitivity",
+        "data_sensitivity",
+        "chain_anomaly",
+        "parameter_risk"
+      ],
+      "title": "RiskFactorName",
+      "type": "string"
+    },
+    "RouteInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "model_requested": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Requested"
+        },
+        "model": {
+          "description": "Resolved public model id, e.g. `local/general`.",
+          "title": "Model",
+          "type": "string"
+        },
+        "connector": {
+          "title": "Connector",
+          "type": "string"
+        },
+        "tier": {
+          "$ref": "#/$defs/ConnectorTier"
+        },
+        "reason": {
+          "examples": [
+            "auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "degraded": {
+          "default": false,
+          "title": "Degraded",
+          "type": "boolean"
+        },
+        "factors": {
+          "additionalProperties": true,
+          "title": "Factors",
+          "type": "object"
+        }
+      },
+      "required": [
+        "model",
+        "connector",
+        "tier",
+        "reason"
+      ],
+      "title": "RouteInfo",
+      "type": "object"
+    },
+    "SessionLabels": {
+      "additionalProperties": false,
+      "description": "IFC labels carried by a session (concept §9). Only ever raised without approval.",
+      "properties": {
+        "integrity": {
+          "$ref": "#/$defs/Integrity",
+          "default": "trusted"
+        },
+        "confidentiality": {
+          "$ref": "#/$defs/DataClass",
+          "default": "public"
+        },
+        "taint": {
+          "items": {
+            "$ref": "#/$defs/TaintFlag"
+          },
+          "title": "Taint",
+          "type": "array"
+        },
+        "sources": {
+          "description": "Rule ids that raised the labels.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "title": "SessionLabels",
+      "type": "object"
+    },
+    "SessionState": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "labels": {
+          "$ref": "#/$defs/SessionLabels"
+        },
+        "step": {
+          "default": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "tool_depth": {
+          "default": 0,
+          "title": "Tool Depth",
+          "type": "integer"
+        },
+        "downgraded": {
+          "default": false,
+          "title": "Downgraded",
+          "type": "boolean"
+        },
+        "allowed_tools": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Monotonically narrowed tool set; null = not narrowed.",
+          "title": "Allowed Tools"
+        },
+        "plan_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan Id"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "SessionState",
+      "type": "object"
+    },
+    "TaintFlag": {
+      "enum": [
+        "untrusted",
+        "sensitive",
+        "egress_used"
+      ],
+      "title": "TaintFlag",
+      "type": "string"
+    },
+    "Taxonomy": {
+      "additionalProperties": false,
+      "description": "Framework tags attached to rules and events (concept §13).",
+      "properties": {
+        "owasp_llm": {
+          "examples": [
+            [
+              "LLM01:2025"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp Llm",
+          "type": "array"
+        },
+        "owasp_agentic": {
+          "examples": [
+            [
+              "ASI01"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp Agentic",
+          "type": "array"
+        },
+        "owasp_mcp": {
+          "examples": [
+            [
+              "MCP03"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp Mcp",
+          "type": "array"
+        },
+        "atlas": {
+          "examples": [
+            [
+              "AML.T0051"
+            ]
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Atlas",
+          "type": "array"
+        },
+        "cve": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cve",
+          "type": "array"
+        }
+      },
+      "title": "Taxonomy",
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "function",
+          "default": "function",
+          "title": "Type",
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/$defs/FunctionCall"
+        }
+      },
+      "required": [
+        "id",
+        "function"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolCallPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "tool_call",
+          "default": "tool_call",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool": {
+          "description": "Policy tool id, e.g. `opencode.bash`, `mail.send`.",
+          "title": "Tool",
+          "type": "string"
+        },
+        "server": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MCP server id; null for client-local tools.",
+          "title": "Server"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        },
+        "arguments": {
+          "additionalProperties": true,
+          "title": "Arguments",
+          "type": "object"
+        },
+        "intent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolIntent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cwd"
+        },
+        "workspace_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workspace Root"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "ToolCallPayload",
+      "type": "object"
+    },
+    "ToolIntent": {
+      "additionalProperties": false,
+      "description": "Typed normalisation of a tool call (concept §6.2 stage 0). Malformed calls fail closed.",
+      "properties": {
+        "paths": {
+          "description": "Canonicalised absolute paths.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "urls": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Urls",
+          "type": "array"
+        },
+        "domains": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
+        },
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Argv",
+          "type": "array"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sql"
+        },
+        "recipients": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recipients",
+          "type": "array"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/$defs/Package"
+          },
+          "title": "Packages",
+          "type": "array"
+        }
+      },
+      "title": "ToolIntent",
+      "type": "object"
+    },
+    "ToolResultPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "tool_result",
+          "default": "tool_result",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "server": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Server"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "is_error": {
+          "default": false,
+          "title": "Is Error",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "tool",
+        "content"
+      ],
+      "title": "ToolResultPayload",
+      "type": "object"
+    },
+    "Verdict": {
+      "additionalProperties": false,
+      "properties": {
+        "control_id": {
+          "title": "Control Id",
+          "type": "string"
+        },
+        "control_type": {
+          "title": "Control Type",
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/Phase"
+        },
+        "cost_tier": {
+          "$ref": "#/$defs/CostTier"
+        },
+        "action": {
+          "$ref": "#/$defs/Action",
+          "default": "allow"
+        },
+        "final": {
+          "default": false,
+          "description": "Deterministic denial: cannot be relaxed by any later stage or score.",
+          "title": "Final",
+          "type": "boolean"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "rule_ids": {
+          "items": {
+            "description": "Rule identifier (control id, or control id + sub-rule, or signature id).",
+            "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$",
+            "type": "string"
+          },
+          "title": "Rule Ids",
+          "type": "array"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "title": "Findings",
+          "type": "array"
+        },
+        "risk_factors": {
+          "items": {
+            "$ref": "#/$defs/RiskFactor"
+          },
+          "title": "Risk Factors",
+          "type": "array"
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LabelUpdate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "data_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sensitivity class detected by this control."
+        },
+        "taxonomy": {
+          "$ref": "#/$defs/Taxonomy"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable explanation. Must not contain raw values.",
+          "title": "Reason"
+        },
+        "status": {
+          "$ref": "#/$defs/VerdictStatus",
+          "default": "ok"
+        },
+        "fail_mode_applied": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latency_ms": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Latency Ms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "control_id",
+        "control_type",
+        "phase",
+        "cost_tier"
+      ],
+      "title": "Verdict",
+      "type": "object"
+    },
+    "VerdictStatus": {
+      "enum": [
+        "ok",
+        "cached",
+        "timeout",
+        "error",
+        "skipped"
+      ],
+      "title": "VerdictStatus",
+      "type": "string"
+    },
+    "Versions": {
+      "additionalProperties": false,
+      "description": "Everything needed to replay a decision (concept §13).",
+      "properties": {
+        "policy": {
+          "description": "Compiled policy version id.",
+          "title": "Policy",
+          "type": "string"
+        },
+        "grants": {
+          "default": "0",
+          "description": "Grants-table version (monotonic).",
+          "title": "Grants",
+          "type": "string"
+        },
+        "signatures": {
+          "default": "0",
+          "description": "Signature bundle version.",
+          "title": "Signatures",
+          "type": "string"
+        },
+        "classifiers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Classifiers",
+          "type": "object"
+        },
+        "judges": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Judges",
+          "type": "object"
+        },
+        "gateway": {
+          "default": "0.1.0",
+          "title": "Gateway",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy"
+      ],
+      "title": "Versions",
+      "type": "object"
+    }
+  }
+}

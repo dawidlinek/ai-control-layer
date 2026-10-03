@@ -1,0 +1,170 @@
+{
+  "realm": "acl",
+  "displayName": "AI Control Layer (demo)",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 28800,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "roles": {
+    "realm": [
+      {"name": "acl-user", "description": "May use the AI gateway"},
+      {"name": "acl-viewer", "description": "Admin panel: read-only"},
+      {"name": "acl-analyst", "description": "Admin panel: security analyst"},
+      {"name": "acl-admin", "description": "Admin panel: administrator"}
+    ]
+  },
+  "groups": [
+    {"name": "admins", "path": "/admins", "realmRoles": ["acl-user", "acl-admin"]},
+    {"name": "security-analysts", "path": "/security-analysts", "realmRoles": ["acl-user", "acl-analyst"]},
+    {"name": "developers", "path": "/developers", "realmRoles": ["acl-user"]},
+    {"name": "credit-analysts", "path": "/credit-analysts", "realmRoles": ["acl-user"]},
+    {
+      "name": "agents",
+      "path": "/agents",
+      "subGroups": [
+        {"name": "research-bot", "path": "/agents/research-bot", "realmRoles": ["acl-user"]}
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "5f3c9a51-0000-4000-8000-00000000a001",
+      "username": "jan",
+      "email": "jan.kowalski@corp.example",
+      "firstName": "Jan",
+      "lastName": "Kowalski",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false}],
+      "groups": ["/credit-analysts"]
+    },
+    {
+      "id": "5f3c9a51-0000-4000-8000-00000000a002",
+      "username": "anna",
+      "email": "anna.nowak@corp.example",
+      "firstName": "Anna",
+      "lastName": "Nowak",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false}],
+      "groups": ["/developers"]
+    },
+    {
+      "id": "5f3c9a51-0000-4000-8000-00000000a003",
+      "username": "ola",
+      "email": "ola.wisniewska@corp.example",
+      "firstName": "Ola",
+      "lastName": "Wiśniewska",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false}],
+      "groups": ["/security-analysts"]
+    },
+    {
+      "id": "5f3c9a51-0000-4000-8000-00000000a004",
+      "username": "adam",
+      "email": "adam.admin@corp.example",
+      "firstName": "Adam",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{"type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false}],
+      "groups": ["/admins"]
+    },
+    {
+      "id": "5f3c9a51-0000-4000-8000-00000000b001",
+      "username": "service-account-agent-research-bot",
+      "enabled": true,
+      "serviceAccountClientId": "agent-research-bot",
+      "groups": ["/agents/research-bot"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "gateway",
+      "name": "AI gateway (token audience)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "panel",
+      "name": "Admin panel",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${KC_PANEL_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "http://localhost:3000/*"},
+      "protocolMappers": [
+        {"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+         "config": {"full.path": "true", "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true", "claim.name": "groups"}},
+        {"name": "aud-gateway", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+         "config": {"included.client.audience": "gateway", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
+    },
+    {
+      "clientId": "librechat",
+      "name": "LibreChat",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${KC_LIBRECHAT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3080/oauth/openid/callback"],
+      "webOrigins": ["http://localhost:3080"],
+      "protocolMappers": [
+        {"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+         "config": {"full.path": "true", "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true", "claim.name": "groups"}},
+        {"name": "aud-gateway", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+         "config": {"included.client.audience": "gateway", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
+    },
+    {
+      "clientId": "opencode",
+      "name": "OpenCode plugin (device flow)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "attributes": {"oauth2.device.authorization.grant.enabled": "true"},
+      "protocolMappers": [
+        {"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+         "config": {"full.path": "true", "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true", "claim.name": "groups"}},
+        {"name": "aud-gateway", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+         "config": {"included.client.audience": "gateway", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
+    },
+    {
+      "clientId": "agent-research-bot",
+      "name": "Agent: research-bot (client credentials)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${KC_AGENT_RESEARCH_BOT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+         "config": {"full.path": "true", "id.token.claim": "false", "access.token.claim": "true", "userinfo.token.claim": "false", "claim.name": "groups"}},
+        {"name": "aud-gateway", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+         "config": {"included.client.audience": "gateway", "access.token.claim": "true", "id.token.claim": "false"}},
+        {"name": "agent-id", "protocol": "openid-connect", "protocolMapper": "oidc-hardcoded-claim-mapper",
+         "config": {"claim.name": "agent_id", "claim.value": "research-bot", "jsonType.label": "String", "access.token.claim": "true", "id.token.claim": "false"}}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "subject_type": "user",
+  "subject": "jan",
+  "resource_type": "alias",
+  "resource": "smart",
+  "effect": "allow",
+  "constraints": {
+    "data_classes": null,
+    "budget_share": null,
+    "preset": null
+  },
+  "expires_at": "2026-10-10T00:00:00Z",
+  "reason": "Gemini pilot"
+}

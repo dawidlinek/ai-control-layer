@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../contracts/policy.schema.json
+#
+# Org locks (ceilings no grant can exceed) and group-level permissions (concept §7.1, §11).
+# Group names are Keycloak group paths without the leading slash.
+# Per-user and temporary grants are NOT here: they live in the database (admin API /grants).
+
+org_locks:
+  - id: LOCK-01
+    kind: data_class_tier
+    description: Confidential and restricted data never go to a cloud connector
+    data_classes: [confidential, restricted]
+    allowed_tiers: [local]
+  - id: LOCK-02
+    kind: control_locked
+    description: Secrets never leave; the secrets control cannot be disabled from the panel
+    controls: [SEC-SECRET-01]
+
+groups:
+  admins:
+    description: Platform administrators
+    preset: balanced
+    models: [auto, local, smart]
+
+  security-analysts:
+    description: Security team (panel analysts)
+    preset: balanced
+    models: [auto, local]
+
+  credit-analysts:
+    description: Bank credit analysts (LibreChat)
+    preset: strict
+    models: [auto, local-pl, local/loan-memo-pl]
+    skills: [skill/loan-memo-summary]
+    tools:
+      bank.query: {}
+    mcp_servers: [core-banking]
+    max_external_data_class: internal
+
+  developers:
+    description: Developers (OpenCode)
+    preset: balanced
+    models: [auto, local-coder, local, smart]
+    tools:
+      opencode.read: {path_deny: ["**/.ssh/**", "**/.env", "**/.aws/**"]}
+      opencode.write: {}
+      opencode.edit: {}
+      opencode.bash: {}
+      opencode.webfetch: {tier: deny}
+      files.read_file: {}
+      web.fetch: {}
+      mail.read: {}
+      mail.send: {recipients_allow: ["@corp.example"]}
+    mcp_servers: [governed-tools, files, web, mail, rugpull-demo]
+    repos:
+      "confidential/*": {models: [local-coder], data_class: confidential}
+
+  agents/research-bot:
+    description: Autonomous research agent (client credentials)
+    preset: strict
+    models: [local]
+    tools:
+      web.fetch: {}
+      files.read_file: {path_allow: ["/data/**"], path_deny: ["**/.ssh/**", "**/.env"]}
+      mail.send: {tier: confirm, recipients_allow: ["@corp.example"]}
+    mcp_servers: [web, files, mail]
+    limits:
+      max_steps: 25
+      max_tool_depth: 5
+      repeat_call: {count: 3, window_s: 60}

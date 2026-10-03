@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acl.local/contracts/feed-bundle.schema.json",
+  "title": "Signature feed bundle",
+  "x-contract-version": "1.0.0",
+  "$defs": {
+    "Action": {
+      "description": "Decision actions (concept §6.3).",
+      "enum": [
+        "allow",
+        "monitor",
+        "redact",
+        "pseudonymise",
+        "sanitize",
+        "route_local",
+        "downgrade",
+        "require_approval",
+        "block"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "BundleSignature": {
+      "additionalProperties": false,
+      "properties": {
+        "alg": {
+          "enum": [
+            "sha256",
+            "ed25519"
+          ],
+          "title": "Alg",
+          "type": "string"
+        },
+        "key_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key Id"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "alg",
+        "value"
+      ],
+      "title": "BundleSignature",
+      "type": "object"
+    },
+    "InspectionPoint": {
+      "description": "Where in the traffic flow a payload is inspected (concept §6.1).",
+      "enum": [
+        "ingress",
+        "egress",
+        "tool_call",
+        "tool_result",
+        "embeddings",
+        "agent_message",
+        "artifact_load",
+        "mcp_initialize",
+        "mcp_tools_list"
+      ],
+      "title": "InspectionPoint",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SignatureEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "examples": [
+            "SIG-PKG-LITELLM-01"
+          ],
+          "pattern": "^SIG-[A-Z0-9][A-Z0-9-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SignatureType"
+        },
+        "pattern": {
+          "description": "regex/arg_pattern/url_path: RE2-compatible regex; yara: rule source; ioc_domain: domain (subdomains match); *_hash: sha256 hex; opcode: `module.attr` glob; package_version: `<ecosystem>:<name>` with versions in metadata.versions.",
+          "title": "Pattern",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "default": "high"
+        },
+        "action": {
+          "$ref": "#/$defs/Action",
+          "default": "block"
+        },
+        "stages": {
+          "description": "Where to match; empty = every stage applicable to the type.",
+          "items": {
+            "$ref": "#/$defs/InspectionPoint"
+          },
+          "title": "Stages",
+          "type": "array"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "atlas_technique": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Atlas Technique",
+          "type": "array"
+        },
+        "owasp": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Owasp",
+          "type": "array"
+        },
+        "cve": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cve",
+          "type": "array"
+        },
+        "source": {
+          "default": "internal",
+          "examples": [
+            "osv",
+            "ghsa",
+            "cisa-kev",
+            "garak",
+            "internal"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "expires": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires"
+        },
+        "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "pattern"
+      ],
+      "title": "SignatureEntry",
+      "type": "object"
+    },
+    "SignatureType": {
+      "enum": [
+        "regex",
+        "yara",
+        "package_version",
+        "url_path",
+        "tool_desc_hash",
+        "manifest_hash",
+        "opcode",
+        "arg_pattern",
+        "ioc_domain"
+      ],
+      "title": "SignatureType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "bundle_version": {
+      "minimum": 1,
+      "title": "Bundle Version",
+      "type": "integer"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "issuer": {
+      "default": "acl-feed-server",
+      "title": "Issuer",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/SignatureEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "signature": {
+      "$ref": "#/$defs/BundleSignature"
+    }
+  },
+  "required": [
+    "bundle_version",
+    "issued_at",
+    "entries",
+    "signature"
+  ],
+  "type": "object"
+}

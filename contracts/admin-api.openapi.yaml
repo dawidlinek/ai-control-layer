@@ -1,0 +1,4979 @@
+openapi: 3.1.0
+info:
+  title: AI Control Layer – Admin API
+  description: Management and reporting API consumed by the admin panel.
+  version: 1.0.0
+  x-gateway-version: 0.1.0
+paths:
+  /healthz:
+    get:
+      tags:
+      - health
+      summary: Healthz
+      description: 'Liveness: the process is up.'
+      operationId: healthz
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      tags:
+      - health
+      summary: Readyz
+      description: 'Readiness: a policy is loaded and the engine is built.'
+      operationId: readyz
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /admin/v1/policy:
+    get:
+      tags:
+      - policy
+      summary: Get Status
+      operationId: getPolicyStatus
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/policy/schema:
+    get:
+      tags:
+      - policy
+      summary: Get Schema
+      description: JSON Schema for policy files (same as contracts/policy.schema.json).
+      operationId: getPolicySchema
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Getpolicyschema
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/policy/files:
+    get:
+      tags:
+      - policy
+      summary: List Files
+      operationId: listPolicyFiles
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PolicyFileInfo'
+                type: array
+                title: Response Listpolicyfiles
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/policy/files/{name}:
+    get:
+      tags:
+      - policy
+      summary: Get File
+      operationId: getPolicyFile
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyFileContent'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - policy
+      summary: Write File
+      description: 'Single-writer update: validate → round-trip write (comments preserved) → reload → snapshot.'
+      operationId: writePolicyFile
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyFileWrite'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '409':
+          description: Stale base_version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation failed or locked control edited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /admin/v1/policy/validate:
+    post:
+      tags:
+      - policy
+      summary: Validate
+      operationId: validatePolicy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /admin/v1/policy/dry-run:
+    post:
+      tags:
+      - policy
+      summary: Dry Run
+      description: Replay the last N stored requests against the candidate policy.
+      operationId: dryRunPolicy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DryRunRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DryRunResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /admin/v1/policy/versions:
+    get:
+      tags:
+      - policy
+      summary: List Versions
+      operationId: listPolicyVersions
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersion'
+                title: Response Listpolicyversions
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/policy/versions/{version_id}:
+    get:
+      tags:
+      - policy
+      summary: Get Version
+      operationId: getPolicyVersion
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDetail'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/policy/versions/{version_id}/rollback:
+    post:
+      tags:
+      - policy
+      summary: Rollback
+      operationId: rollbackPolicy
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/users:
+    get:
+      tags:
+      - access
+      summary: List Users
+      operationId: listUsers
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Q
+      - name: group
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+                title: Response Listusers
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/users/{user_id}:
+    get:
+      tags:
+      - access
+      summary: Get User
+      operationId: getUser
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/users/{user_id}/effective-access:
+    get:
+      tags:
+      - access
+      summary: Effective Access
+      description: 'Resolved access with sources: org locks → group grants → user grants (with expiry).'
+      operationId: getEffectiveAccess
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectiveAccess'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/users/{user_id}/activity:
+    get:
+      tags:
+      - access
+      summary: Activity
+      operationId: getUserActivity
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      - name: since
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSummary'
+                title: Response Getuseractivity
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/users/{user_id}/breakglass:
+    post:
+      tags:
+      - access
+      summary: Break Glass
+      description: View raw content of one event. Requires a reason; audited as its own `breakglass` event.
+      operationId: breakGlass
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BreakGlassRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BreakGlassResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/groups:
+    get:
+      tags:
+      - access
+      summary: List Groups
+      operationId: listGroups
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Group'
+                type: array
+                title: Response Listgroups
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/grants:
+    get:
+      tags:
+      - access
+      summary: List Grants
+      operationId: listGrants
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: subject
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+      - name: resource_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/GrantResourceType'
+          - type: 'null'
+          title: Resource Type
+      - name: resource
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource
+      - name: active
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: true
+          title: Active
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Grant'
+                title: Response Listgrants
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - access
+      summary: Create Grant
+      description: Create a per-user/group grant. Rejected (422) if an org lock forbids it outright.
+      operationId: createGrant
+      security:
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/grants/{grant_id}:
+    delete:
+      tags:
+      - access
+      summary: Revoke Grant
+      operationId: revokeGrant
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: grant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Grant Id
+      - name: reason
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Reason
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grant'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/grants/changes:
+    get:
+      tags:
+      - access
+      summary: Grant Changes
+      operationId: listGrantChanges
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: subject
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GrantChange'
+                title: Response Listgrantchanges
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/users/{user_id}/api-keys:
+    get:
+      tags:
+      - access
+      summary: List Keys
+      operationId: listApiKeys
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+                title: Response Listapikeys
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - access
+      summary: Create Key
+      operationId: createApiKey
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyCreated'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/api-keys/{key_id}:
+    delete:
+      tags:
+      - access
+      summary: Revoke Key
+      operationId: revokeApiKey
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: key_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/me:
+    get:
+      tags:
+      - access
+      summary: Me
+      description: "Employee self-service: the caller's own effective access."
+      operationId: getMyAccess
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectiveAccess'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/events:
+    get:
+      tags:
+      - events
+      summary: List Events
+      operationId: listEvents
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: since
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+      - name: until
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Until
+      - name: subject
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+      - name: group
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+      - name: agent
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent
+      - name: control
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Control
+      - name: rule_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Id
+      - name: action
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/Action'
+          - type: 'null'
+          title: Action
+      - name: point
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/InspectionPoint'
+          - type: 'null'
+          title: Point
+      - name: event_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Event Type
+      - name: taxonomy
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Taxonomy
+      - name: before_seq
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Before Seq
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSummary'
+                title: Response Listevents
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/events/stream:
+    get:
+      tags:
+      - events
+      summary: Stream Events
+      operationId: streamEvents
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: subject
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+      - name: action
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/Action'
+          - type: 'null'
+          title: Action
+      responses:
+        '200':
+          description: Server-sent events; each `data:` line is an EventSummary JSON object.
+          content:
+            application/json:
+              schema: {}
+            text/event-stream: {}
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/events/{event_id}:
+    get:
+      tags:
+      - events
+      summary: Get Event
+      description: Full decision trace (the audit record) for one event.
+      operationId: getEvent
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Event Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/incidents:
+    get:
+      tags:
+      - events
+      summary: List Incidents
+      operationId: listIncidents
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Incident'
+                title: Response Listincidents
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/incidents/{incident_id}:
+    get:
+      tags:
+      - events
+      summary: Get Incident
+      operationId: getIncident
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - events
+      summary: Update Incident
+      operationId: updateIncident
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Incident Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/audit/verify:
+    get:
+      tags:
+      - events
+      summary: Verify Chain
+      operationId: verifyAuditChain
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainVerifyResult'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/audit/export:
+    get:
+      tags:
+      - events
+      summary: Export Audit
+      operationId: exportAudit
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: format
+        in: query
+        required: false
+        schema:
+          enum:
+          - jsonl
+          - ocsf
+          - csv
+          type: string
+          default: jsonl
+          title: Format
+      - name: since
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+      - name: until
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Until
+      responses:
+        '200':
+          description: JSONL (raw records), OCSF JSONL, or CSV.
+          content:
+            application/json:
+              schema: {}
+            application/x-ndjson: {}
+            text/csv: {}
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/metrics/overview:
+    get:
+      tags:
+      - events
+      summary: Overview
+      operationId: getOverview
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: window
+        in: query
+        required: false
+        schema:
+          type: string
+          default: 24h
+          title: Window
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverviewSummary'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/metrics/guard-quality:
+    get:
+      tags:
+      - events
+      summary: Guard Quality
+      operationId: getGuardQuality
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardQualitySummary'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/metrics/performance:
+    get:
+      tags:
+      - events
+      summary: Performance
+      operationId: getPerformance
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: window
+        in: query
+        required: false
+        schema:
+          type: string
+          default: 1h
+          title: Window
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceSummary'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/approvals:
+    get:
+      tags:
+      - approvals
+      summary: List Approvals
+      operationId: listApprovals
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ApprovalStatus'
+          - type: 'null'
+          default: pending
+          title: Status
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Approval'
+                title: Response Listapprovals
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/approvals/{approval_id}:
+    get:
+      tags:
+      - approvals
+      summary: Get Approval
+      operationId: getApprovalAdmin
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Approval Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/approvals/{approval_id}/decision:
+    post:
+      tags:
+      - approvals
+      summary: Decide Approval
+      description: Approve (optionally with time-boxed elevation) or deny. Audited.
+      operationId: decideApproval
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Approval Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/budgets:
+    get:
+      tags:
+      - budgets
+      summary: Budgets
+      operationId: getBudgets
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetTree'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/budgets/breakers:
+    get:
+      tags:
+      - budgets
+      summary: Breakers
+      operationId: listBreakers
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/BreakerState'
+                type: array
+                title: Response Listbreakers
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/budgets/breakers/{breaker_id}/reset:
+    post:
+      tags:
+      - budgets
+      summary: Reset Breaker
+      operationId: resetBreaker
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: breaker_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Breaker Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BreakerState'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/connectors:
+    get:
+      tags:
+      - models
+      summary: Connectors
+      operationId: listConnectors
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ConnectorStatus'
+                type: array
+                title: Response Listconnectors
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/connectors/{connector_id}/kill-switch:
+    post:
+      tags:
+      - models
+      summary: Kill Switch
+      operationId: setKillSwitch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connector Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KillSwitchRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/models:
+    get:
+      tags:
+      - models
+      summary: Models
+      operationId: listModelsAdmin
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ModelInfo'
+                type: array
+                title: Response Listmodelsadmin
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/mcp/servers:
+    get:
+      tags:
+      - mcp
+      summary: Mcp Servers
+      operationId: listMcpServers
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/McpServerInfo'
+                type: array
+                title: Response Listmcpservers
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/mcp/tools:
+    get:
+      tags:
+      - mcp
+      summary: Mcp Tools
+      operationId: listMcpTools
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: server
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/McpToolInfo'
+                title: Response Listmcptools
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/mcp/tools/{tool_id}/approve:
+    post:
+      tags:
+      - mcp
+      summary: Approve Tool
+      description: Re-pin a drifted/pending tool to its current hash.
+      operationId: approveMcpTool
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tool Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpToolApprovalRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolInfo'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/mcp/tools/{tool_id}/quarantine:
+    post:
+      tags:
+      - mcp
+      summary: Quarantine Tool
+      operationId: quarantineMcpTool
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: tool_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tool Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpToolApprovalRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolInfo'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/feed:
+    get:
+      tags:
+      - feed
+      summary: Feed Status
+      operationId: getFeedStatus
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/feed/sync:
+    post:
+      tags:
+      - feed
+      summary: Feed Sync
+      operationId: syncFeed
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/artifacts/scan:
+    post:
+      tags:
+      - artifacts
+      summary: Scan Artifact
+      operationId: scanArtifact
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_scanArtifact'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactScanResult'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /admin/v1/artifacts:
+    get:
+      tags:
+      - artifacts
+      summary: List Artifacts
+      operationId: listArtifacts
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ArtifactScanResult'
+                type: array
+                title: Response Listartifacts
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/insights/clusters:
+    get:
+      tags:
+      - insights
+      summary: Insights
+      operationId: listInsights
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: group
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsightCluster'
+                title: Response Listinsights
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/insights/clusters/{cluster_id}/publish:
+    post:
+      tags:
+      - insights
+      summary: Publish
+      operationId: publishSkill
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Cluster Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishSkillRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightCluster'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Action:
+      type: string
+      enum:
+      - allow
+      - monitor
+      - redact
+      - pseudonymise
+      - sanitize
+      - route_local
+      - downgrade
+      - require_approval
+      - block
+      title: Action
+      description: Decision actions (concept §6.3).
+    ApiKey:
+      properties:
+        id:
+          type: string
+          title: Id
+        user_id:
+          type: string
+          title: User Id
+        name:
+          type: string
+          title: Name
+        prefix:
+          type: string
+          title: Prefix
+          description: First characters of the key, for identification.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        last_used_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Used At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - user_id
+      - name
+      - prefix
+      - created_at
+      title: ApiKey
+    ApiKeyCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: ApiKeyCreate
+    ApiKeyCreated:
+      properties:
+        id:
+          type: string
+          title: Id
+        user_id:
+          type: string
+          title: User Id
+        name:
+          type: string
+          title: Name
+        prefix:
+          type: string
+          title: Prefix
+          description: First characters of the key, for identification.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        last_used_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Used At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        key:
+          type: string
+          title: Key
+          description: Full key. Returned exactly once; only a hash is stored.
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - user_id
+      - name
+      - prefix
+      - created_at
+      - key
+      title: ApiKeyCreated
+    Approval:
+      properties:
+        id:
+          type: string
+          title: Id
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        approver_scope:
+          type: string
+          enum:
+          - user
+          - admin
+          title: Approver Scope
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        requested_by:
+          type: string
+          title: Requested By
+        session_id:
+          type: string
+          title: Session Id
+        trace_id:
+          type: string
+          title: Trace Id
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        server:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+        arguments_preview:
+          type: string
+          title: Arguments Preview
+          description: Redacted preview (command, diff, recipients).
+          default: ''
+        reason:
+          type: string
+          title: Reason
+          default: ''
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        risk_score:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Risk Score
+          default: 0.0
+        decided_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decided By
+        decided_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Decided At
+        elevation:
+          anyOf:
+          - $ref: '#/components/schemas/Elevation'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - status
+      - approver_scope
+      - created_at
+      - expires_at
+      - requested_by
+      - session_id
+      - trace_id
+      title: Approval
+    ApprovalDecisionRequest:
+      properties:
+        decision:
+          type: string
+          enum:
+          - approve
+          - deny
+          title: Decision
+        elevation_minutes:
+          anyOf:
+          - type: integer
+            maximum: 240.0
+            minimum: 0.0
+          - type: 'null'
+          title: Elevation Minutes
+        note:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - decision
+      title: ApprovalDecisionRequest
+    ApprovalRef:
+      properties:
+        approval_id:
+          type: string
+          title: Approval Id
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+          default: pending
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        approver_scope:
+          type: string
+          title: Approver Scope
+          default: admin
+          examples:
+          - user
+          - admin
+      additionalProperties: false
+      type: object
+      required:
+      - approval_id
+      title: ApprovalRef
+    ApprovalStatus:
+      type: string
+      enum:
+      - pending
+      - approved
+      - denied
+      - expired
+      title: ApprovalStatus
+    ArtifactFinding:
+      properties:
+        rule_id:
+          type: string
+          title: Rule Id
+        severity:
+          $ref: '#/components/schemas/Severity'
+        message:
+          type: string
+          title: Message
+      additionalProperties: false
+      type: object
+      required:
+      - rule_id
+      - severity
+      - message
+      title: ArtifactFinding
+    ArtifactScanResult:
+      properties:
+        id:
+          type: string
+          title: Id
+        filename:
+          type: string
+          title: Filename
+        sha256:
+          type: string
+          title: Sha256
+        size:
+          type: integer
+          title: Size
+        format_detected:
+          type: string
+          title: Format Detected
+        verdict:
+          type: string
+          enum:
+          - safe
+          - malicious
+          - blocked_format
+          - suspicious
+          title: Verdict
+        findings:
+          items:
+            $ref: '#/components/schemas/ArtifactFinding'
+          type: array
+          title: Findings
+        scanned_at:
+          type: string
+          format: date-time
+          title: Scanned At
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - filename
+      - sha256
+      - size
+      - format_detected
+      - verdict
+      - scanned_at
+      title: ArtifactScanResult
+    AuditDecision:
+      properties:
+        action:
+          $ref: '#/components/schemas/Action'
+        applied:
+          items:
+            $ref: '#/components/schemas/Action'
+          type: array
+          title: Applied
+        would_action:
+          anyOf:
+          - $ref: '#/components/schemas/Action'
+          - type: 'null'
+        final:
+          type: boolean
+          title: Final
+          default: false
+        decided_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decided By
+        decided_phase:
+          anyOf:
+          - $ref: '#/components/schemas/Phase'
+          - type: 'null'
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        risk_score:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Risk Score
+          default: 0.0
+        reason:
+          type: string
+          title: Reason
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      title: AuditDecision
+    AuditEvent:
+      properties:
+        schema_version:
+          type: string
+          const: '1.0'
+          title: Schema Version
+          default: '1.0'
+        event_id:
+          type: string
+          title: Event Id
+        seq:
+          type: integer
+          minimum: 0.0
+          title: Seq
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event_type:
+          $ref: '#/components/schemas/EventType'
+        severity:
+          $ref: '#/components/schemas/Severity'
+          default: info
+        trace_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Trace Id
+        session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session Id
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+        principal:
+          anyOf:
+          - $ref: '#/components/schemas/AuditPrincipal'
+          - type: 'null'
+        client:
+          anyOf:
+          - $ref: '#/components/schemas/ClientInfo'
+          - type: 'null'
+        point:
+          anyOf:
+          - $ref: '#/components/schemas/InspectionPoint'
+          - type: 'null'
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        server:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+        model_requested:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Requested
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+        connector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connector
+        args_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Args Hash
+          description: Salted hash of canonical tool arguments.
+        payload_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Payload Hash
+          description: Salted hash of the inspected payload.
+        response_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Response Hash
+        decision:
+          anyOf:
+          - $ref: '#/components/schemas/AuditDecision'
+          - type: 'null'
+        verdicts:
+          items:
+            $ref: '#/components/schemas/AuditVerdict'
+          type: array
+          title: Verdicts
+        risk_factors:
+          items:
+            $ref: '#/components/schemas/RiskFactor'
+          type: array
+          title: Risk Factors
+        route:
+          anyOf:
+          - $ref: '#/components/schemas/RouteInfo'
+          - type: 'null'
+        approval:
+          anyOf:
+          - $ref: '#/components/schemas/ApprovalRef'
+          - type: 'null'
+        labels_after:
+          anyOf:
+          - $ref: '#/components/schemas/SessionLabels'
+          - type: 'null'
+        versions:
+          $ref: '#/components/schemas/Versions'
+        taxonomy:
+          $ref: '#/components/schemas/Taxonomy'
+        usage:
+          anyOf:
+          - $ref: '#/components/schemas/Usage'
+          - type: 'null'
+        latency:
+          anyOf:
+          - $ref: '#/components/schemas/LatencyBreakdown'
+          - type: 'null'
+        seed:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Seed
+        redacted_payload:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Redacted Payload
+          description: Redacted/pseudonymised text only; present only if policy enables it.
+        detail:
+          additionalProperties: true
+          type: object
+          title: Detail
+          description: Event-type-specific details (no raw sensitive values).
+        prev_hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Prev Hash
+        hash:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          title: Hash
+      additionalProperties: false
+      type: object
+      required:
+      - event_id
+      - seq
+      - timestamp
+      - event_type
+      - versions
+      - prev_hash
+      - hash
+      title: AuditEvent
+    AuditFinding:
+      properties:
+        entity_type:
+          type: string
+          title: Entity Type
+        field:
+          type: string
+          title: Field
+          default: ''
+        start:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Start
+        end:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: End
+        value_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value Hash
+        rule_id:
+          anyOf:
+          - type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          - type: 'null'
+          title: Rule Id
+      additionalProperties: false
+      type: object
+      required:
+      - entity_type
+      title: AuditFinding
+    AuditPrincipal:
+      properties:
+        subject:
+          type: string
+          title: Subject
+        kind:
+          $ref: '#/components/schemas/PrincipalKind'
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        groups:
+          items:
+            type: string
+          type: array
+          title: Groups
+        agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Id
+        client_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Client Id
+        auth_method:
+          $ref: '#/components/schemas/AuthMethod'
+          default: none
+        api_key_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Api Key Id
+        delegation_chain:
+          items:
+            type: string
+          type: array
+          title: Delegation Chain
+      additionalProperties: false
+      type: object
+      required:
+      - subject
+      - kind
+      title: AuditPrincipal
+    AuditVerdict:
+      properties:
+        control_id:
+          type: string
+          title: Control Id
+        control_type:
+          type: string
+          title: Control Type
+        phase:
+          $ref: '#/components/schemas/Phase'
+        action:
+          $ref: '#/components/schemas/Action'
+        final:
+          type: boolean
+          title: Final
+          default: false
+        score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Score
+        status:
+          $ref: '#/components/schemas/VerdictStatus'
+          default: ok
+        latency_ms:
+          type: number
+          title: Latency Ms
+          default: 0.0
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        findings:
+          items:
+            $ref: '#/components/schemas/AuditFinding'
+          type: array
+          title: Findings
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - control_id
+      - control_type
+      - phase
+      - action
+      title: AuditVerdict
+    AuthMethod:
+      type: string
+      enum:
+      - jwt
+      - api_key
+      - client_credentials
+      - none
+      title: AuthMethod
+    Body_scanArtifact:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_scanArtifact
+    BreakGlassRequest:
+      properties:
+        event_id:
+          type: string
+          title: Event Id
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 10
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - event_id
+      - reason
+      title: BreakGlassRequest
+    BreakGlassResponse:
+      properties:
+        event_id:
+          type: string
+          title: Event Id
+        audit_event_id:
+          type: string
+          title: Audit Event Id
+        raw_payload:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Raw Payload
+          description: Null when raw retention is disabled or expired.
+        available:
+          type: boolean
+          title: Available
+      additionalProperties: false
+      type: object
+      required:
+      - event_id
+      - audit_event_id
+      - raw_payload
+      - available
+      title: BreakGlassResponse
+    BreakerState:
+      properties:
+        id:
+          type: string
+          title: Id
+        state:
+          type: string
+          enum:
+          - closed
+          - open
+          - half_open
+          title: State
+        opened_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Opened At
+        cooldown_until:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Cooldown Until
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - state
+      title: BreakerState
+    BudgetNode:
+      properties:
+        id:
+          type: string
+          title: Id
+          examples:
+          - org
+          - group:developers
+          - user:jan
+          - agent:research-bot
+          - session:s-1
+        level:
+          type: string
+          enum:
+          - org
+          - group
+          - user
+          - agent
+          - session
+          title: Level
+        parent:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parent
+        limits:
+          additionalProperties:
+            type: number
+          type: object
+          title: Limits
+          description: Meter → limit, e.g. `usd_day`.
+        usage:
+          additionalProperties:
+            type: number
+          type: object
+          title: Usage
+        breaker:
+          anyOf:
+          - $ref: '#/components/schemas/BreakerState'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - level
+      title: BudgetNode
+    BudgetTree:
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        nodes:
+          items:
+            $ref: '#/components/schemas/BudgetNode'
+          type: array
+          title: Nodes
+      additionalProperties: false
+      type: object
+      required:
+      - generated_at
+      - nodes
+      title: BudgetTree
+    ChainVerifyResult:
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+        records:
+          type: integer
+          title: Records
+        head_seq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Head Seq
+        head_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Head Hash
+        first_bad_seq:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: First Bad Seq
+        message:
+          type: string
+          title: Message
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - ok
+      - records
+      title: ChainVerifyResult
+    ClientInfo:
+      properties:
+        app:
+          type: string
+          title: App
+          default: unknown
+          examples:
+          - opencode
+          - librechat
+          - sdk
+          - agent
+        version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Version
+        device_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Device Id
+      additionalProperties: false
+      type: object
+      title: ClientInfo
+    ConnectorStatus:
+      properties:
+        id:
+          type: string
+          title: Id
+        type:
+          type: string
+          title: Type
+        tier:
+          $ref: '#/components/schemas/ConnectorTier'
+        enabled:
+          type: boolean
+          title: Enabled
+        kill_switch:
+          type: boolean
+          title: Kill Switch
+        healthy:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Healthy
+        latency_ms_p50:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latency Ms P50
+        last_error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Error
+        spend_usd_day:
+          type: number
+          title: Spend Usd Day
+          default: 0.0
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - type
+      - tier
+      - enabled
+      - kill_switch
+      title: ConnectorStatus
+    ConnectorTier:
+      type: string
+      enum:
+      - local
+      - cloud
+      title: ConnectorTier
+    ControlQuality:
+      properties:
+        control_id:
+          type: string
+          title: Control Id
+        tp:
+          type: integer
+          title: Tp
+          default: 0
+        fp:
+          type: integer
+          title: Fp
+          default: 0
+        tn:
+          type: integer
+          title: Tn
+          default: 0
+        fn:
+          type: integer
+          title: Fn
+          default: 0
+        detection_rate:
+          anyOf:
+          - $ref: '#/components/schemas/RateWithCI'
+          - type: 'null'
+        fpr:
+          anyOf:
+          - $ref: '#/components/schemas/RateWithCI'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - control_id
+      title: ControlQuality
+    DataClass:
+      type: string
+      enum:
+      - public
+      - internal
+      - confidential
+      - restricted
+      title: DataClass
+      description: Confidentiality classes, ordered from least to most sensitive.
+    DryRunChange:
+      properties:
+        event_id:
+          type: string
+          title: Event Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        subject:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+        before_action:
+          $ref: '#/components/schemas/Action'
+        after_action:
+          $ref: '#/components/schemas/Action'
+        before_rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Before Rule Ids
+        after_rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: After Rule Ids
+      additionalProperties: false
+      type: object
+      required:
+      - event_id
+      - timestamp
+      - before_action
+      - after_action
+      title: DryRunChange
+    DryRunRequest:
+      properties:
+        files:
+          additionalProperties:
+            type: string
+          type: object
+          title: Files
+          description: Candidate file contents by name; omitted files use the current version.
+        last_n:
+          type: integer
+          maximum: 10000.0
+          minimum: 1.0
+          title: Last N
+          default: 500
+        point:
+          anyOf:
+          - $ref: '#/components/schemas/InspectionPoint'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - files
+      title: DryRunRequest
+    DryRunResponse:
+      properties:
+        candidate_version:
+          type: string
+          title: Candidate Version
+        evaluated:
+          type: integer
+          title: Evaluated
+        changed:
+          type: integer
+          title: Changed
+        transitions:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Transitions
+          description: '`allow->block` → count.'
+        samples:
+          items:
+            $ref: '#/components/schemas/DryRunChange'
+          type: array
+          title: Samples
+        errors:
+          items:
+            $ref: '#/components/schemas/PolicyError'
+          type: array
+          title: Errors
+      additionalProperties: false
+      type: object
+      required:
+      - candidate_version
+      - evaluated
+      - changed
+      title: DryRunResponse
+    EffectiveAccess:
+      properties:
+        subject:
+          type: string
+          title: Subject
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        groups:
+          items:
+            type: string
+          type: array
+          title: Groups
+        preset:
+          $ref: '#/components/schemas/Preset'
+        preset_source:
+          type: string
+          title: Preset Source
+        items:
+          items:
+            $ref: '#/components/schemas/EffectiveAccessItem'
+          type: array
+          title: Items
+        budgets:
+          additionalProperties:
+            additionalProperties:
+              type: number
+            type: object
+          type: object
+          title: Budgets
+        policy_version:
+          type: string
+          title: Policy Version
+        grants_version:
+          type: string
+          title: Grants Version
+      additionalProperties: false
+      type: object
+      required:
+      - subject
+      - groups
+      - preset
+      - preset_source
+      - items
+      - policy_version
+      - grants_version
+      title: EffectiveAccess
+    EffectiveAccessItem:
+      properties:
+        resource_type:
+          $ref: '#/components/schemas/GrantResourceType'
+        resource:
+          type: string
+          title: Resource
+        effect:
+          type: string
+          enum:
+          - allow
+          - deny
+          title: Effect
+        source:
+          type: string
+          enum:
+          - org_lock
+          - group
+          - user
+          - default
+          title: Source
+        source_ref:
+          type: string
+          title: Source Ref
+          description: Lock id, group name, or grant id.
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        constraints:
+          $ref: '#/components/schemas/GrantConstraints'
+        capped_by_lock:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Capped By Lock
+          description: Org lock that narrowed this grant, if any.
+      additionalProperties: false
+      type: object
+      required:
+      - resource_type
+      - resource
+      - effect
+      - source
+      - source_ref
+      title: EffectiveAccessItem
+    Elevation:
+      properties:
+        scope:
+          type: string
+          title: Scope
+          examples:
+          - tool:opencode.write
+        until:
+          type: string
+          format: date-time
+          title: Until
+      additionalProperties: false
+      type: object
+      required:
+      - scope
+      - until
+      title: Elevation
+    ErrorResponse:
+      properties:
+        error:
+          type: string
+          title: Error
+          examples:
+          - stale_version
+          - validation_failed
+          - forbidden_model
+          - not_implemented
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+      additionalProperties: false
+      type: object
+      required:
+      - error
+      - message
+      title: ErrorResponse
+    EventSummary:
+      properties:
+        event_id:
+          type: string
+          title: Event Id
+        seq:
+          type: integer
+          title: Seq
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event_type:
+          type: string
+          title: Event Type
+        severity:
+          $ref: '#/components/schemas/Severity'
+        trace_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Trace Id
+        session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session Id
+        subject:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        groups:
+          items:
+            type: string
+          type: array
+          title: Groups
+        agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Id
+        point:
+          anyOf:
+          - $ref: '#/components/schemas/InspectionPoint'
+          - type: 'null'
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        action:
+          anyOf:
+          - $ref: '#/components/schemas/Action'
+          - type: 'null'
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        risk_score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Risk Score
+        latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latency Ms
+      additionalProperties: false
+      type: object
+      required:
+      - event_id
+      - seq
+      - timestamp
+      - event_type
+      - severity
+      title: EventSummary
+    EventType:
+      type: string
+      enum:
+      - decision
+      - policy_change
+      - policy_reload_failed
+      - grant_change
+      - incident
+      - approval
+      - breakglass
+      - feed_update
+      - feed_verify_failed
+      - artifact_scan
+      - mcp_drift
+      - budget_breach
+      - auth_failure
+      - system_alert
+      title: EventType
+    FeedStatus:
+      properties:
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+        bundle_version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Bundle Version
+        issued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Issued At
+        loaded_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Loaded At
+        entries:
+          type: integer
+          title: Entries
+          default: 0
+        verified:
+          type: boolean
+          title: Verified
+          default: false
+        last_sync_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Sync At
+        last_error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Error
+      additionalProperties: false
+      type: object
+      title: FeedStatus
+    Grant:
+      properties:
+        subject_type:
+          type: string
+          enum:
+          - user
+          - group
+          title: Subject Type
+        subject:
+          type: string
+          title: Subject
+          description: User subject/username or group path.
+        resource_type:
+          $ref: '#/components/schemas/GrantResourceType'
+        resource:
+          type: string
+          title: Resource
+          examples:
+          - smart
+          - gemini/flash
+          - opencode.bash
+          - mcp:jira
+        effect:
+          type: string
+          enum:
+          - allow
+          - deny
+          title: Effect
+          default: allow
+        constraints:
+          $ref: '#/components/schemas/GrantConstraints'
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+        id:
+          type: string
+          title: Id
+        created_by:
+          type: string
+          title: Created By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        revoked_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Revoked By
+        active:
+          type: boolean
+          title: Active
+      additionalProperties: false
+      type: object
+      required:
+      - subject_type
+      - subject
+      - resource_type
+      - resource
+      - reason
+      - id
+      - created_by
+      - created_at
+      - active
+      title: Grant
+    GrantChange:
+      properties:
+        id:
+          type: integer
+          title: Id
+        grant_id:
+          type: string
+          title: Grant Id
+        change:
+          type: string
+          enum:
+          - create
+          - revoke
+          - expire
+          title: Change
+        actor:
+          type: string
+          title: Actor
+        reason:
+          type: string
+          title: Reason
+        at:
+          type: string
+          format: date-time
+          title: At
+        snapshot:
+          $ref: '#/components/schemas/Grant'
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - grant_id
+      - change
+      - actor
+      - reason
+      - at
+      - snapshot
+      title: GrantChange
+    GrantConstraints:
+      properties:
+        data_classes:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DataClass'
+            type: array
+          - type: 'null'
+          title: Data Classes
+        budget_share:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Budget Share
+        preset:
+          anyOf:
+          - $ref: '#/components/schemas/Preset'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      title: GrantConstraints
+    GrantCreate:
+      properties:
+        subject_type:
+          type: string
+          enum:
+          - user
+          - group
+          title: Subject Type
+        subject:
+          type: string
+          title: Subject
+          description: User subject/username or group path.
+        resource_type:
+          $ref: '#/components/schemas/GrantResourceType'
+        resource:
+          type: string
+          title: Resource
+          examples:
+          - smart
+          - gemini/flash
+          - opencode.bash
+          - mcp:jira
+        effect:
+          type: string
+          enum:
+          - allow
+          - deny
+          title: Effect
+          default: allow
+        constraints:
+          $ref: '#/components/schemas/GrantConstraints'
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - subject_type
+      - subject
+      - resource_type
+      - resource
+      - reason
+      title: GrantCreate
+    GrantResourceType:
+      type: string
+      enum:
+      - model
+      - alias
+      - connector
+      - skill
+      - tool
+      - mcp_server
+      title: GrantResourceType
+    Group:
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+          default: ''
+        preset:
+          anyOf:
+          - $ref: '#/components/schemas/Preset'
+          - type: 'null'
+        members:
+          type: integer
+          title: Members
+          default: 0
+        source:
+          type: string
+          enum:
+          - keycloak
+          - policy
+          - both
+          title: Source
+          default: both
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: Group
+    GuardQualitySummary:
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        suite:
+          type: string
+          title: Suite
+        mode:
+          type: string
+          enum:
+          - deterministic
+          - live
+          title: Mode
+        per_control:
+          items:
+            $ref: '#/components/schemas/ControlQuality'
+          type: array
+          title: Per Control
+        per_preset:
+          additionalProperties:
+            additionalProperties:
+              type: number
+            type: object
+          type: object
+          title: Per Preset
+        asr:
+          anyOf:
+          - $ref: '#/components/schemas/RateWithCI'
+          - type: 'null'
+        fpr_per_call:
+          anyOf:
+          - $ref: '#/components/schemas/RateWithCI'
+          - type: 'null'
+        fpr_per_task:
+          anyOf:
+          - $ref: '#/components/schemas/RateWithCI'
+          - type: 'null'
+        layer_attribution:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Layer Attribution
+        leak_rate_by_channel:
+          additionalProperties:
+            type: number
+          type: object
+          title: Leak Rate By Channel
+        judge_kappa:
+          additionalProperties:
+            type: number
+          type: object
+          title: Judge Kappa
+        shadow_miss_rate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shadow Miss Rate
+        extra:
+          additionalProperties: true
+          type: object
+          title: Extra
+      additionalProperties: false
+      type: object
+      required:
+      - generated_at
+      - suite
+      - mode
+      title: GuardQualitySummary
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Health:
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+          - down
+          title: Status
+        version:
+          type: string
+          title: Version
+        checks:
+          additionalProperties:
+            type: string
+          type: object
+          title: Checks
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      - version
+      title: Health
+    Incident:
+      properties:
+        id:
+          type: string
+          title: Id
+        title:
+          type: string
+          title: Title
+        category:
+          type: string
+          title: Category
+          examples:
+          - forbidden_model
+          - mcp_rug_pull
+          - exfiltration_attempt
+          - budget_breach
+        severity:
+          $ref: '#/components/schemas/Severity'
+        status:
+          type: string
+          enum:
+          - open
+          - triaged
+          - resolved
+          - false_positive
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        assignee:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assignee
+        subject:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+        event_ids:
+          items:
+            type: string
+          type: array
+          title: Event Ids
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        notes:
+          items:
+            $ref: '#/components/schemas/IncidentNote'
+          type: array
+          title: Notes
+        detail:
+          additionalProperties: true
+          type: object
+          title: Detail
+          description: e.g. rug-pull description diff.
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - title
+      - category
+      - severity
+      - status
+      - created_at
+      - updated_at
+      title: Incident
+    IncidentNote:
+      properties:
+        author:
+          type: string
+          title: Author
+        at:
+          type: string
+          format: date-time
+          title: At
+        text:
+          type: string
+          title: Text
+      additionalProperties: false
+      type: object
+      required:
+      - author
+      - at
+      - text
+      title: IncidentNote
+    IncidentPatch:
+      properties:
+        status:
+          anyOf:
+          - type: string
+            enum:
+            - open
+            - triaged
+            - resolved
+            - false_positive
+          - type: 'null'
+          title: Status
+        assignee:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assignee
+        note:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      title: IncidentPatch
+    InsightCluster:
+      properties:
+        id:
+          type: string
+          title: Id
+        group:
+          type: string
+          title: Group
+        label:
+          type: string
+          title: Label
+        size:
+          type: integer
+          title: Size
+        distinct_users:
+          type: integer
+          title: Distinct Users
+        recurrence:
+          type: string
+          enum:
+          - daily
+          - weekly
+          - adhoc
+          title: Recurrence
+        est_minutes_per_day:
+          type: number
+          title: Est Minutes Per Day
+          default: 0.0
+        est_usd_month:
+          type: number
+          title: Est Usd Month
+          default: 0.0
+        examples_redacted:
+          items:
+            type: string
+          type: array
+          title: Examples Redacted
+        task_card:
+          type: string
+          title: Task Card
+          default: ''
+        draft_skill:
+          additionalProperties: true
+          type: object
+          title: Draft Skill
+        status:
+          type: string
+          enum:
+          - new
+          - published
+          - dismissed
+          title: Status
+          default: new
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - group
+      - label
+      - size
+      - distinct_users
+      - recurrence
+      title: InsightCluster
+    InspectionPoint:
+      type: string
+      enum:
+      - ingress
+      - egress
+      - tool_call
+      - tool_result
+      - embeddings
+      - agent_message
+      - artifact_load
+      - mcp_initialize
+      - mcp_tools_list
+      title: InspectionPoint
+      description: Where in the traffic flow a payload is inspected (concept §6.1).
+    Integrity:
+      type: string
+      enum:
+      - trusted
+      - untrusted
+      title: Integrity
+    KillSwitchRequest:
+      properties:
+        engaged:
+          type: boolean
+          title: Engaged
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - engaged
+      - reason
+      title: KillSwitchRequest
+    LatencyBreakdown:
+      properties:
+        total_ms:
+          type: number
+          title: Total Ms
+          default: 0.0
+        pipeline_ms:
+          type: number
+          title: Pipeline Ms
+          default: 0.0
+        upstream_ms:
+          type: number
+          title: Upstream Ms
+          default: 0.0
+      additionalProperties: false
+      type: object
+      title: LatencyBreakdown
+    McpServerInfo:
+      properties:
+        id:
+          type: string
+          title: Id
+        transport:
+          type: string
+          enum:
+          - streamable_http
+          - stdio
+          title: Transport
+        origin:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Origin
+        allowed:
+          type: boolean
+          title: Allowed
+        status:
+          type: string
+          enum:
+          - ok
+          - unreachable
+          - blocked
+          - unknown
+          title: Status
+          default: unknown
+        tools_count:
+          type: integer
+          title: Tools Count
+          default: 0
+        protocol_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Protocol Version
+        last_seen:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Seen
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - transport
+      - allowed
+      title: McpServerInfo
+    McpToolApprovalRequest:
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - reason
+      title: McpToolApprovalRequest
+    McpToolInfo:
+      properties:
+        id:
+          type: string
+          title: Id
+          examples:
+          - mail.send
+        server:
+          type: string
+          title: Server
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          enum:
+          - pinned
+          - pending_approval
+          - drifted
+          - quarantined
+          title: Status
+        pinned_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pinned Hash
+        current_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Hash
+        labels:
+          items:
+            $ref: '#/components/schemas/ToolLabel'
+          type: array
+          title: Labels
+        tier:
+          anyOf:
+          - $ref: '#/components/schemas/ToolTier'
+          - type: 'null'
+        first_seen:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: First Seen
+        drift_detected_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Drift Detected At
+        description_diff:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description Diff
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - server
+      - name
+      - status
+      title: McpToolInfo
+    ModelInfo:
+      properties:
+        id:
+          type: string
+          title: Id
+        connector:
+          type: string
+          title: Connector
+        tier:
+          $ref: '#/components/schemas/ConnectorTier'
+        aliases:
+          items:
+            type: string
+          type: array
+          title: Aliases
+        tags:
+          additionalProperties:
+            type: string
+          type: object
+          title: Tags
+        data_classes:
+          items:
+            $ref: '#/components/schemas/DataClass'
+          type: array
+          title: Data Classes
+        pricing:
+          additionalProperties:
+            type: number
+          type: object
+          title: Pricing
+        artifact_status:
+          type: string
+          enum:
+          - n/a
+          - scanned_ok
+          - scanned_bad
+          - unscanned
+          title: Artifact Status
+          default: n/a
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+        available:
+          type: boolean
+          title: Available
+          description: False when e.g. an env-referenced upstream name is unset.
+          default: true
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - connector
+      - tier
+      title: ModelInfo
+    OverviewSummary:
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        window:
+          type: string
+          title: Window
+          default: 24h
+        posture_score:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Posture Score
+        decisions_by_action:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Decisions By Action
+        top_rules:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Top Rules
+        top_taxonomy:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Top Taxonomy
+        external_routing_rate:
+          type: number
+          title: External Routing Rate
+          default: 0.0
+        spend_usd:
+          type: number
+          title: Spend Usd
+          default: 0.0
+        savings_usd_vs_external:
+          type: number
+          title: Savings Usd Vs External
+          default: 0.0
+        open_incidents:
+          type: integer
+          title: Open Incidents
+          default: 0
+        pending_approvals:
+          type: integer
+          title: Pending Approvals
+          default: 0
+      additionalProperties: false
+      type: object
+      required:
+      - generated_at
+      - posture_score
+      title: OverviewSummary
+    PerformanceSummary:
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        stages:
+          items:
+            $ref: '#/components/schemas/StageLatency'
+          type: array
+          title: Stages
+        cache_hit_rate:
+          type: number
+          title: Cache Hit Rate
+          default: 0.0
+        judge_escalation_rate:
+          type: number
+          title: Judge Escalation Rate
+          default: 0.0
+        fail_open_count:
+          type: integer
+          title: Fail Open Count
+          default: 0
+      additionalProperties: false
+      type: object
+      required:
+      - generated_at
+      title: PerformanceSummary
+    Phase:
+      type: string
+      enum:
+      - normalise
+      - deterministic
+      - similarity
+      - semantic_l1
+      - semantic_l2
+      - decide
+      - egress_hygiene
+      title: Phase
+      description: Pipeline phases, executed in this order (concept §6.2).
+    PolicyError:
+      properties:
+        file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: File
+        path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Path
+          description: Location inside the document, e.g. `groups.developers.preset`.
+        line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Line
+        column:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Column
+        message:
+          type: string
+          title: Message
+      additionalProperties: false
+      type: object
+      required:
+      - message
+      title: PolicyError
+    PolicyFileContent:
+      properties:
+        name:
+          type: string
+          title: Name
+          examples:
+          - controls.yaml
+        version:
+          type: string
+          title: Version
+          description: Content hash; use as `base_version` for optimistic locking.
+        size:
+          type: integer
+          title: Size
+        modified_at:
+          type: string
+          format: date-time
+          title: Modified At
+        content:
+          type: string
+          title: Content
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - version
+      - size
+      - modified_at
+      - content
+      title: PolicyFileContent
+    PolicyFileInfo:
+      properties:
+        name:
+          type: string
+          title: Name
+          examples:
+          - controls.yaml
+        version:
+          type: string
+          title: Version
+          description: Content hash; use as `base_version` for optimistic locking.
+        size:
+          type: integer
+          title: Size
+        modified_at:
+          type: string
+          format: date-time
+          title: Modified At
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - version
+      - size
+      - modified_at
+      title: PolicyFileInfo
+    PolicyFileWrite:
+      properties:
+        content:
+          type: string
+          title: Content
+        base_version:
+          type: string
+          title: Base Version
+          description: Version the edit was based on; stale → 409.
+        message:
+          type: string
+          maxLength: 500
+          title: Message
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - content
+      - base_version
+      title: PolicyFileWrite
+    PolicyStatus:
+      properties:
+        version:
+          type: string
+          title: Version
+        loaded_at:
+          type: string
+          format: date-time
+          title: Loaded At
+        source:
+          type: string
+          enum:
+          - file
+          - panel
+          - rollback
+          - startup
+          title: Source
+        files:
+          items:
+            $ref: '#/components/schemas/PolicyFileInfo'
+          type: array
+          title: Files
+        last_error:
+          items:
+            $ref: '#/components/schemas/PolicyError'
+          type: array
+          title: Last Error
+          description: Errors from the last failed reload.
+        locked_controls:
+          items:
+            type: string
+          type: array
+          title: Locked Controls
+      additionalProperties: false
+      type: object
+      required:
+      - version
+      - loaded_at
+      - source
+      - files
+      title: PolicyStatus
+    PolicyVersion:
+      properties:
+        id:
+          type: integer
+          title: Id
+        version:
+          type: string
+          title: Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        source:
+          type: string
+          enum:
+          - file
+          - panel
+          - rollback
+          - startup
+          title: Source
+        message:
+          type: string
+          title: Message
+          default: ''
+        files_changed:
+          items:
+            type: string
+          type: array
+          title: Files Changed
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - version
+      - created_at
+      - source
+      title: PolicyVersion
+    PolicyVersionDetail:
+      properties:
+        id:
+          type: integer
+          title: Id
+        version:
+          type: string
+          title: Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+        source:
+          type: string
+          enum:
+          - file
+          - panel
+          - rollback
+          - startup
+          title: Source
+        message:
+          type: string
+          title: Message
+          default: ''
+        files_changed:
+          items:
+            type: string
+          type: array
+          title: Files Changed
+        diff:
+          type: string
+          title: Diff
+          description: Unified diff against the previous version.
+        files:
+          additionalProperties:
+            type: string
+          type: object
+          title: Files
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - version
+      - created_at
+      - source
+      - diff
+      title: PolicyVersionDetail
+    Preset:
+      type: string
+      enum:
+      - monitor
+      - balanced
+      - strict
+      - paranoid
+      title: Preset
+    PrincipalKind:
+      type: string
+      enum:
+      - user
+      - agent
+      - service
+      - anonymous
+      title: PrincipalKind
+    PublishSkillRequest:
+      properties:
+        skill_id:
+          type: string
+          pattern: ^skill/[a-z0-9][a-z0-9-]*$
+          title: Skill Id
+        model:
+          type: string
+          title: Model
+        preset:
+          $ref: '#/components/schemas/Preset'
+          default: strict
+        groups:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Groups
+        reason:
+          type: string
+          minLength: 3
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - skill_id
+      - model
+      - groups
+      - reason
+      title: PublishSkillRequest
+    RateWithCI:
+      properties:
+        value:
+          type: number
+          title: Value
+        ci_low:
+          type: number
+          title: Ci Low
+        ci_high:
+          type: number
+          title: Ci High
+        n:
+          type: integer
+          title: N
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      - ci_low
+      - ci_high
+      - n
+      title: RateWithCI
+    RiskFactor:
+      properties:
+        factor:
+          $ref: '#/components/schemas/RiskFactorName'
+        value:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Value
+        weight:
+          type: number
+          minimum: 0.0
+          title: Weight
+          default: 1.0
+        contribution:
+          type: number
+          minimum: 0.0
+          title: Contribution
+          description: weight × value, after normalisation.
+          default: 0.0
+        source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source
+          description: Control id that produced the factor.
+      additionalProperties: false
+      type: object
+      required:
+      - factor
+      - value
+      title: RiskFactor
+    RiskFactorName:
+      type: string
+      enum:
+      - intent_deviation
+      - tool_sensitivity
+      - data_sensitivity
+      - chain_anomaly
+      - parameter_risk
+      title: RiskFactorName
+      description: Graded risk-score factors (concept §6.5).
+    RouteInfo:
+      properties:
+        model_requested:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Requested
+        model:
+          type: string
+          title: Model
+          description: Resolved public model id, e.g. `local/general`.
+        connector:
+          type: string
+          title: Connector
+        tier:
+          $ref: '#/components/schemas/ConnectorTier'
+        reason:
+          type: string
+          title: Reason
+          examples:
+          - 'auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local'
+        degraded:
+          type: boolean
+          title: Degraded
+          default: false
+        factors:
+          additionalProperties: true
+          type: object
+          title: Factors
+      additionalProperties: false
+      type: object
+      required:
+      - model
+      - connector
+      - tier
+      - reason
+      title: RouteInfo
+    SessionLabels:
+      properties:
+        integrity:
+          $ref: '#/components/schemas/Integrity'
+          default: trusted
+        confidentiality:
+          $ref: '#/components/schemas/DataClass'
+          default: public
+        taint:
+          items:
+            $ref: '#/components/schemas/TaintFlag'
+          type: array
+          title: Taint
+        sources:
+          items:
+            type: string
+          type: array
+          title: Sources
+          description: Rule ids that raised the labels.
+      additionalProperties: false
+      type: object
+      title: SessionLabels
+      description: IFC labels carried by a session (concept §9). Only ever raised without approval.
+    Severity:
+      type: string
+      enum:
+      - info
+      - low
+      - medium
+      - high
+      - critical
+      title: Severity
+    StageLatency:
+      properties:
+        phase:
+          type: string
+          title: Phase
+        control_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Control Id
+        count:
+          type: integer
+          title: Count
+        p50_ms:
+          type: number
+          title: P50 Ms
+        p95_ms:
+          type: number
+          title: P95 Ms
+        p99_ms:
+          type: number
+          title: P99 Ms
+      additionalProperties: false
+      type: object
+      required:
+      - phase
+      - count
+      - p50_ms
+      - p95_ms
+      - p99_ms
+      title: StageLatency
+    TaintFlag:
+      type: string
+      enum:
+      - untrusted
+      - sensitive
+      - egress_used
+      title: TaintFlag
+    Taxonomy:
+      properties:
+        owasp_llm:
+          items:
+            type: string
+          type: array
+          title: Owasp Llm
+          examples:
+          - - LLM01:2025
+        owasp_agentic:
+          items:
+            type: string
+          type: array
+          title: Owasp Agentic
+          examples:
+          - - ASI01
+        owasp_mcp:
+          items:
+            type: string
+          type: array
+          title: Owasp Mcp
+          examples:
+          - - MCP03
+        atlas:
+          items:
+            type: string
+          type: array
+          title: Atlas
+          examples:
+          - - AML.T0051
+        cve:
+          items:
+            type: string
+          type: array
+          title: Cve
+      additionalProperties: false
+      type: object
+      title: Taxonomy
+      description: Framework tags attached to rules and events (concept §13).
+    ToolLabel:
+      type: string
+      enum:
+      - reads_untrusted
+      - touches_sensitive
+      - external_egress
+      - irreversible
+      title: ToolLabel
+    ToolTier:
+      type: string
+      enum:
+      - deny
+      - must
+      - allow
+      - confirm
+      title: ToolTier
+      description: Tool policy tiers (concept §9).
+    Usage:
+      properties:
+        input_tokens:
+          type: integer
+          title: Input Tokens
+          default: 0
+        output_tokens:
+          type: integer
+          title: Output Tokens
+          default: 0
+        reasoning_tokens:
+          type: integer
+          title: Reasoning Tokens
+          default: 0
+        usd:
+          type: number
+          title: Usd
+          default: 0.0
+        gpu_seconds:
+          type: number
+          title: Gpu Seconds
+          default: 0.0
+        guard_tokens:
+          type: integer
+          title: Guard Tokens
+          default: 0
+        guard_gpu_seconds:
+          type: number
+          title: Guard Gpu Seconds
+          default: 0.0
+        cache_hit:
+          type: boolean
+          title: Cache Hit
+          default: false
+      additionalProperties: false
+      type: object
+      title: Usage
+    User:
+      properties:
+        id:
+          type: string
+          title: Id
+        subject:
+          type: string
+          title: Subject
+        username:
+          type: string
+          title: Username
+        email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Email
+        display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Display Name
+        kind:
+          $ref: '#/components/schemas/PrincipalKind'
+          default: user
+        groups:
+          items:
+            type: string
+          type: array
+          title: Groups
+        roles:
+          items:
+            type: string
+          type: array
+          title: Roles
+        first_seen:
+          type: string
+          format: date-time
+          title: First Seen
+        last_seen:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Seen
+        disabled:
+          type: boolean
+          title: Disabled
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - subject
+      - username
+      - first_seen
+      title: User
+    ValidateRequest:
+      properties:
+        files:
+          additionalProperties:
+            type: string
+          type: object
+          title: Files
+          description: Candidate file contents by name; omitted files use the current version.
+      additionalProperties: false
+      type: object
+      required:
+      - files
+      title: ValidateRequest
+    ValidateResponse:
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        errors:
+          items:
+            $ref: '#/components/schemas/PolicyError'
+          type: array
+          title: Errors
+        candidate_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Candidate Version
+      additionalProperties: false
+      type: object
+      required:
+      - valid
+      title: ValidateResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    VerdictStatus:
+      type: string
+      enum:
+      - ok
+      - cached
+      - timeout
+      - error
+      - skipped
+      title: VerdictStatus
+    Versions:
+      properties:
+        policy:
+          type: string
+          title: Policy
+          description: Compiled policy version id.
+        grants:
+          type: string
+          title: Grants
+          description: Grants-table version (monotonic).
+          default: '0'
+        signatures:
+          type: string
+          title: Signatures
+          description: Signature bundle version.
+          default: '0'
+        classifiers:
+          additionalProperties:
+            type: string
+          type: object
+          title: Classifiers
+        judges:
+          additionalProperties:
+            type: string
+          type: object
+          title: Judges
+        gateway:
+          type: string
+          title: Gateway
+          default: 0.1.0
+      additionalProperties: false
+      type: object
+      required:
+      - policy
+      title: Versions
+      description: Everything needed to replay a decision (concept §13).
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      description: Keycloak access token (JWT) or personal API key (`acl_...`).
+      scheme: bearer
+servers:
+- url: http://localhost:8000
