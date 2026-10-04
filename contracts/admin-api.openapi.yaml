@@ -541,47 +541,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /admin/v1/users/{user_id}/breakglass:
-    post:
-      tags:
-      - access
-      summary: Break Glass
-      description: View raw content of one event. Requires a reason; audited as its own `breakglass` event.
-      operationId: breakGlass
-      security:
-      - HTTPBearer: []
-      parameters:
-      - name: user_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: User Id
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BreakGlassRequest'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BreakGlassResponse'
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /admin/v1/groups:
     get:
       tags:
@@ -1037,6 +996,47 @@ paths:
           description: Not implemented yet
       security:
       - HTTPBearer: []
+  /admin/v1/users/{user_id}/breakglass:
+    post:
+      tags:
+      - access
+      summary: Break Glass
+      description: View raw content of one event. Requires a reason; audited as its own `breakglass` event.
+      operationId: breakGlass
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BreakGlassRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BreakGlassResponse'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/v1/events:
     get:
       tags:

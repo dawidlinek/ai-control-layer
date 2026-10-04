@@ -211,7 +211,7 @@ def test_groups_union_policy_and_keycloak(stack: Stack) -> None:
     assert groups["agents/research-bot"]["source"] == "policy" and groups["agents/research-bot"]["members"] == 0
 
 
-def test_user_activity_is_analyst_only_and_breakglass_stays_501(stack: Stack) -> None:
+def test_user_activity_is_analyst_only_and_breakglass_needs_a_known_event(stack: Stack) -> None:
     c = stack.client
     provision(stack)
     assert c.get(f"{BASE}/users/jan/activity", headers=stack.viewer).status_code == 403
@@ -219,7 +219,10 @@ def test_user_activity_is_analyst_only_and_breakglass_stays_501(stack: Stack) ->
     assert c.get(f"{BASE}/users/jan/activity", headers=analyst).status_code == 200
     assert c.get(f"{BASE}/users/nobody/activity", headers=analyst).status_code == 404
     body = {"event_id": "e1", "reason": "investigating incident 42"}
-    assert c.post(f"{BASE}/users/jan/breakglass", headers=stack.admin, json=body).status_code == 501
+    assert c.post(f"{BASE}/users/jan/breakglass", headers=stack.admin, json=body).status_code in (
+        404,
+        503,
+    )  # test_breakglass.py
 
 
 def test_health_and_readiness_do_not_need_auth(stack: Stack) -> None:
