@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
 from acl.api.deps import ERROR_RESPONSES, Admin, Analyst, PrincipalDep, Viewer, not_implemented
+from acl.audit import queries as audit_queries
 from acl.contracts.admin import (
     ApiKey,
     ApiKeyCreate,
@@ -23,10 +25,11 @@ from acl.contracts.admin import (
     GroupSettingsPreview,
     GroupSettingsUpdate,
     PolicyStatus,
+    UsageStats,
     User,
 )
 from acl.contracts.audit import EventType
-from acl.contracts.common import GrantResourceType, Severity
+from acl.contracts.common import GrantResourceType, Preset, Severity
 from acl.contracts.inspection import Principal
 from acl.identity.access import AccessUnavailable, preset_rank
 from acl.identity.apikeys import key_from_row
@@ -80,17 +83,42 @@ async def _audit_key_event(request: Request, actor: Principal, what: str, key: A
         log.exception("failed to record api key audit event")
 
 
+async def _preset_of(svc: IdentityServices, row: UserRow) -> Preset | None:
+    try:
+        return await svc.access.effective_preset(principal_from_row(row))
+    except AccessUnavailable:
+        return None
+
+
+async def _stats_7d(request: Request, subjects: list[str]) -> dict[str, UsageStats]:
+    sessions = getattr(request.app.state, "db", None)
+    if sessions is None:
+        return {}
+    return await audit_queries.user_stats(sessions, subjects, window="7d")
+
+
 @router.get("/users", response_model=list[User], operation_id="listUsers")
 async def list_users(
     request: Request, p: Viewer, q: str | None = None, group: str | None = None, limit: int = 100
 ) -> list[User]:
-    rows = await _svc(request).users.list(q=q, group=group, limit=limit)
-    return [user_from_row(r) for r in rows]
+    svc = _svc(request)
+    rows = await svc.users.list(q=q, group=group, limit=limit)
+    stats = await _stats_7d(request, [r.subject for r in rows])
+    presets = await asyncio.gather(*(_preset_of(svc, r) for r in rows))
+    return [
+        user_from_row(r).model_copy(update={"preset": preset, "stats_7d": stats.get(r.subject)})
+        for r, preset in zip(rows, presets, strict=True)
+    ]
 
 
 @router.get("/users/{user_id}", response_model=User, operation_id="getUser")
 async def get_user(request: Request, user_id: str, p: Viewer) -> User:
-    return user_from_row(await _user_or_404(_svc(request), user_id))
+    svc = _svc(request)
+    row = await _user_or_404(svc, user_id)
+    stats = await _stats_7d(request, [row.subject])
+    return user_from_row(row).model_copy(
+        update={"preset": await _preset_of(svc, row), "stats_7d": stats.get(row.subject)}
+    )
 
 
 @router.get("/users/{user_id}/effective-access", response_model=EffectiveAccess, operation_id="getEffectiveAccess")
@@ -102,8 +130,21 @@ async def effective_access(request: Request, user_id: str, p: Viewer) -> Effecti
 
 
 @router.get("/users/{user_id}/activity", response_model=list[EventSummary], operation_id="getUserActivity")
-async def activity(user_id: str, p: Analyst, since: datetime | None = None, limit: int = 100) -> list[EventSummary]:
-    not_implemented("user activity")  # needs the 1A event store
+async def activity(
+    request: Request, user_id: str, p: Analyst, since: datetime | None = None, limit: int = 100
+) -> list[EventSummary]:
+    row = await _user_or_404(_svc(request), user_id)
+    sessions = getattr(request.app.state, "db", None)
+    if sessions is None:
+        raise HTTPException(503, detail="database not ready")
+    engine = getattr(request.app.state, "engine", None)
+    return await audit_queries.list_events(
+        sessions,
+        since=since,
+        subject=row.subject,
+        limit=limit,
+        policy=engine.policy if engine is not None else None,
+    )
 
 
 @router.post("/users/{user_id}/breakglass", response_model=BreakGlassResponse, operation_id="breakGlass")

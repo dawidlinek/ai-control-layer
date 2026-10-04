@@ -12,11 +12,12 @@ from sqlalchemy import select
 from sse_starlette.sse import EventSourceResponse
 
 from acl.api.deps import ERROR_RESPONSES, Analyst, Viewer, not_implemented
-from acl.audit import queries
+from acl.audit import narrate, queries
 from acl.audit.chain import verify_chain as verify_chain_file
 from acl.audit.db_models import IncidentRow
 from acl.audit.export import iter_export
 from acl.audit.incidents import incident_from_row
+from acl.audit.stream import event_data_class, event_summary, label_info, session_threshold
 from acl.contracts.admin import (
     ChainVerifyResult,
     EventSummary,
@@ -27,10 +28,12 @@ from acl.contracts.admin import (
     IncidentPatch,
     OverviewSummary,
     PerformanceSummary,
+    SessionLabelInfo,
     SessionTranscript,
+    TranscriptTurn,
 )
 from acl.contracts.audit import AuditEvent, EventType
-from acl.contracts.common import Action, InspectionPoint, Severity
+from acl.contracts.common import DATA_CLASS_ORDER, Action, DataClass, InspectionPoint, Severity
 
 router = APIRouter(tags=["events"], responses=ERROR_RESPONSES)
 
@@ -40,6 +43,11 @@ def _sessions(request: Request):  # type: ignore[no-untyped-def]
     if sessions is None:
         raise HTTPException(503, detail="database not ready")
     return sessions
+
+
+def _policy(request: Request):  # type: ignore[no-untyped-def]
+    engine = getattr(request.app.state, "engine", None)
+    return engine.policy if engine is not None else None
 
 
 def _utc(dt: datetime | None) -> datetime | None:
@@ -81,6 +89,7 @@ async def list_events(
         taxonomy=taxonomy,
         before_seq=before_seq,
         limit=limit,
+        policy=_policy(request),
     )
 
 
@@ -120,12 +129,101 @@ async def get_event(request: Request, event_id: str, p: Viewer) -> AuditEvent:
 
 @router.get("/events/{event_id}/trace", response_model=EventTrace, operation_id="getEventTrace")
 async def get_event_trace(request: Request, event_id: str, p: Viewer) -> EventTrace:
-    not_implemented("event trace")
+    event = await queries.get_event(_sessions(request), event_id)
+    if event is None:
+        raise HTTPException(404, detail="event not found")
+    stats = await queries.session_stats(_sessions(request), [event.session_id] if event.session_id else [])
+    summary = event_summary(event, policy=_policy(request), client_ref=queries.build_client_ref(event, stats))
+    changed = narrate.content_changed(event)
+    return EventTrace(
+        event=summary,
+        steps=narrate.trace_steps(event),
+        model_saw=event.redacted_payload if changed else None,
+        model_saw_note=narrate.model_saw_note(event) if changed else "",
+        record=event,
+    )
 
 
-@router.get("/sessions/{session_id}/transcript", response_model=SessionTranscript, operation_id="getSessionTranscript")
+_TURN_ROLE = {
+    InspectionPoint.ingress: "user",
+    InspectionPoint.egress: "assistant",
+    InspectionPoint.tool_call: "tool_call",
+    InspectionPoint.tool_result: "tool_result",
+}
+
+
+def _turn(event: AuditEvent, policy) -> TranscriptTurn | None:  # type: ignore[no-untyped-def]
+    # Text is only ever redacted text (`detail.turn_text`, `redacted_payload`): raw content is never stored.
+    if event.event_type != EventType.decision or event.decision is None or event.point is None:
+        return None
+    role = _TURN_ROLE.get(event.point)
+    if role is None:
+        return None
+    text = event.detail.get("turn_text") if role == "user" else event.redacted_payload
+    summary = event_summary(event, policy=policy)
+    return TranscriptTurn(
+        event_id=event.event_id,
+        trace_id=event.trace_id,
+        seq=event.seq,
+        timestamp=event.timestamp,
+        point=event.point,
+        role=role,  # type: ignore[arg-type]
+        text=str(text) if text is not None else None,
+        retained=text is not None,
+        model=event.model,
+        tool=event.tool,
+        action=event.decision.action,
+        applied=summary.applied,
+        rule_ids=list(event.decision.rule_ids),
+        summary=summary.summary,
+    )
+
+
+def _high_water_label(events: list[AuditEvent], threshold: DataClass | None) -> SessionLabelInfo | None:
+    # Labels only rise within a session: highest data class, any untrusted input, and when that level was reached.
+    level: DataClass | None = None
+    since: datetime | None = None
+    untrusted = False
+    for e in events:
+        if e.labels_after is None:
+            continue
+        untrusted = untrusted or e.labels_after.integrity.value == "untrusted"
+        cls = event_data_class(e) or e.labels_after.confidentiality
+        reached = e.labels_after.since if cls == e.labels_after.confidentiality else None
+        if level is None or DATA_CLASS_ORDER[cls] > DATA_CLASS_ORDER[level]:
+            level, since = cls, reached
+        elif cls == level and reached is not None and (since is None or reached < since):
+            since = reached
+    if level is None:
+        return None
+    return label_info(level, "untrusted" if untrusted else "trusted", since, threshold)
+
+
+@router.get(
+    "/sessions/{session_id:path}/transcript", response_model=SessionTranscript, operation_id="getSessionTranscript"
+)
 async def get_session_transcript(request: Request, session_id: str, p: Analyst, limit: int = 500) -> SessionTranscript:
-    not_implemented("session transcript")
+    # Redacted turns only. (A comment, not a docstring: docstrings would change the generated OpenAPI contract.)
+    sessions = _sessions(request)
+    policy = _policy(request)
+    events, truncated = await queries.session_events(sessions, session_id, limit)
+    if not events:
+        raise HTTPException(404, detail="session not found")
+    stats = await queries.session_stats(sessions, [session_id])
+    last = events[-1]
+    who = next((e.principal for e in reversed(events) if e.principal is not None), None)
+    return SessionTranscript(
+        session_id=session_id,
+        client_ref=queries.build_client_ref(last, stats),
+        subject=who.subject if who else None,
+        username=who.username if who else None,
+        groups=list(who.groups) if who else [],
+        session_label=_high_water_label(events, session_threshold(policy)),
+        started_at=events[0].timestamp,
+        last_at=last.timestamp,
+        turns=[t for t in (_turn(e, policy) for e in events) if t is not None],
+        truncated=truncated,
+    )
 
 
 @router.get("/incidents", response_model=list[Incident], operation_id="listIncidents")
@@ -240,7 +338,12 @@ async def overview(request: Request, p: Viewer, window: str = "24h") -> Overview
         ext = engine.policy.model_by_id().get(engine.policy.routing.targets.ext_small)
         if ext is not None:
             ext_price = (ext.pricing.in_per_1k, ext.pricing.out_per_1k)
-    return await queries.overview(_sessions(request), window, external_price_per_1k=ext_price)
+    return await queries.overview(
+        _sessions(request),
+        window,
+        external_price_per_1k=ext_price,
+        policy=engine.policy if engine is not None else None,
+    )
 
 
 @router.get("/metrics/guard-quality", response_model=GuardQualitySummary, operation_id="getGuardQuality")
