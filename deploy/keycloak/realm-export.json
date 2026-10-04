@@ -106,9 +106,9 @@
       "secret": "${KC_PANEL_SECRET}",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
-      "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "http://localhost:3000/*"},
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:3005/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:3005"],
+      "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:3005/*"},
       "protocolMappers": [
         {"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
          "config": {"full.path": "true", "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true", "claim.name": "groups"}},
