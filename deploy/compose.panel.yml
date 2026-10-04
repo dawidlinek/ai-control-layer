@@ -1,0 +1,35 @@
+# Compose fragment included by docker-compose.yml: the Rogatka Dashboard (admin panel). Behind the `panel` profile:
+#   COMPOSE_PROFILES=panel uv run python scripts/dev.py up
+#       or   docker compose --env-file .env -f deploy/docker-compose.yml --profile panel up -d --build
+# Open http://localhost:3000 (the Keycloak `panel` client allows redirect URIs http://localhost:3000/*).
+#
+# Paths are relative to this file (deploy/). Source: panel/ (see panel/ARCHITECTURE.md).
+
+services:
+  panel:
+    profiles: [panel]
+    build:
+      context: ../panel
+    image: acl-panel:local
+    depends_on:
+      gateway: {condition: service_healthy}
+      keycloak: {condition: service_healthy}
+    environment:
+      # The browser only talks to the panel; the panel's /admin/v1/* route proxies to the gateway with the
+      # signed-in user's bearer token (same-origin: no CORS, token never reaches the browser).
+      ROGATKA_GATEWAY_URL: http://gateway:8000
+      # Keycloak login (Auth.js v5).
+      AUTH_KEYCLOAK_ID: panel
+      AUTH_KEYCLOAK_SECRET: ${KC_PANEL_SECRET:?run `make env`}
+      # ISSUER CAVEAT (same as LibreChat in compose.clients.yml): Keycloak runs with KC_HOSTNAME=http://localhost:<port>,
+      # so tokens carry `iss = http://localhost:8180/realms/acl`, and the browser must be sent to that same host.
+      # Inside this container `localhost` is the container itself, so server-to-server calls (token exchange, JWKS,
+      # refresh) go to the internal URL instead. Keycloak answers on both thanks to KC_HOSTNAME_BACKCHANNEL_DYNAMIC.
+      AUTH_KEYCLOAK_ISSUER: http://localhost:${KEYCLOAK_PORT:-8180}/realms/acl
+      AUTH_KEYCLOAK_INTERNAL_ISSUER: http://keycloak:8080/realms/acl
+      AUTH_SECRET: ${PANEL_AUTH_SECRET:?run `make env`}
+      AUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
