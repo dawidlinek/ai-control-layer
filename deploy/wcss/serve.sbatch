@@ -4,8 +4,9 @@
 # Publishes one line "<host> <port> <jobid> <served name>" per model to $PD/serve/endpoint; reach them with
 # `uv run python scripts/wcss.py tunnel` (first line -> 127.0.0.1:8001, second -> :8002).
 # Second model (optional, same GPU, its own vLLM server and port): MODEL2=<hf id or path>, SERVED_NAME2, MAX_LEN2,
-# MAX_SEQS2, GPU_UTIL2; set GPU_UTIL (first model) so GPU_UTIL + GPU_UTIL2 <= 0.9. The second server starts only
-# after the first is healthy (two servers profiling GPU memory at once misread each other's allocations).
+# MAX_SEQS2, GPU_UTIL2. Third model (optional, e.g. an embeddings model): MODEL3, SERVED_NAME3, MAX_LEN3, GPU_UTIL3,
+# ARGS3 (default `--runner pooling`). Keep GPU_UTIL + GPU_UTIL2 + GPU_UTIL3 <= 0.9. Each further server starts only after
+# the previous one is healthy (servers profiling GPU memory at once misread each other's allocations).
 # The login node cannot open TCP to compute nodes, so the job dials out instead: a reverse forward to
 # 127.0.0.1:<port> on ui.wcss.pl with ~/.ssh/acl_tunnel, whose authorized_keys line is
 #   restrict,port-forwarding,permitlisten="127.0.0.1:*",from="10.*,156.17.*" ssh-ed25519 ... acl-tunnel
@@ -43,6 +44,12 @@ PORT2="${PORT2:-$((30000 + SLURM_JOB_ID % 10000))}"
 MAX_LEN2="${MAX_LEN2:-32768}"
 MAX_SEQS2="${MAX_SEQS2:-64}"
 GPU_UTIL2="${GPU_UTIL2:-0.30}"
+MODEL3="${MODEL3:-}"                        # e.g. Qwen/Qwen3-Embedding-0.6B
+SERVED_NAME3="${SERVED_NAME3:-qwen3-embedding-0.6b}"
+PORT3="${PORT3:-$((40000 + SLURM_JOB_ID % 10000))}"
+MAX_LEN3="${MAX_LEN3:-8192}"
+GPU_UTIL3="${GPU_UTIL3:-0.07}"
+ARGS3="${ARGS3:---runner pooling}"
 mkdir -p "$PD/runs" "$PD/serve"
 test -s "$PD/.llm_api_key" || { echo "missing $PD/.llm_api_key"; exit 2; }
 
@@ -79,6 +86,7 @@ ENDPOINT_HOST="$(hostname -s)" BIND=0.0.0.0
 if [ -s "$TUNNEL_KEY" ]; then
     FORWARDS=(-R "127.0.0.1:$PORT:127.0.0.1:$PORT")
     [ -n "$MODEL2" ] && FORWARDS+=(-R "127.0.0.1:$PORT2:127.0.0.1:$PORT2")
+    [ -n "$MODEL3" ] && FORWARDS+=(-R "127.0.0.1:$PORT3:127.0.0.1:$PORT3")
     # one attempt, no retry loop (WCSS safety rule); the job's cgroup ends it with the job
     ssh -i "$TUNNEL_KEY" -o BatchMode=yes -o NumberOfPasswordPrompts=0 -o StrictHostKeyChecking=accept-new \
         -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -N \
@@ -88,6 +96,7 @@ fi
 {
     echo "$ENDPOINT_HOST $PORT $SLURM_JOB_ID $SERVED_NAME"
     [ -n "$MODEL2" ] && echo "$ENDPOINT_HOST $PORT2 $SLURM_JOB_ID $SERVED_NAME2"
+    [ -n "$MODEL3" ] && echo "$ENDPOINT_HOST $PORT3 $SLURM_JOB_ID $SERVED_NAME3"
 } > "$PD/serve/endpoint"
 LOG="$PD/runs/${SLURM_JOB_ID}-serve.log"
 echo "serving $MODEL as $SERVED_NAME on $(hostname -s) $BIND:$PORT (endpoint $ENDPOINT_HOST), log $LOG"
@@ -106,15 +115,20 @@ export VLLM_API_KEY
     --default-chat-template-kwargs '{"enable_thinking": false}' \
     > "$LOG" 2>&1 &
 PIDS=($!)
+PREV_PORT=$PORT
 trap 'kill -TERM "${PIDS[@]}" 2>/dev/null; wait' TERM INT
 
-if [ -n "$MODEL2" ]; then
-    # wait (bounded: 20 min) for the first server before the second one profiles the GPU
+wait_healthy() {  # bounded (20 min): the previous server must be up before the next one profiles the GPU
     for _ in $(seq 120); do
-        curl -fs -o /dev/null "http://127.0.0.1:$PORT/health" && break
-        kill -0 "${PIDS[0]}" 2>/dev/null || { echo "first server exited; see $LOG"; exit 1; }
+        curl -fs -o /dev/null "http://127.0.0.1:$1/health" && return 0
+        kill -0 "$2" 2>/dev/null || { echo "server on port $1 exited; see the logs in $PD/runs"; exit 1; }
         sleep 10
     done
+    echo "server on port $1 not healthy after 20 min"; exit 1
+}
+
+if [ -n "$MODEL2" ]; then
+    wait_healthy "$PORT" "${PIDS[0]}"
     LOG2="$PD/runs/${SLURM_JOB_ID}-serve2.log"
     echo "serving $MODEL2 as $SERVED_NAME2 on $BIND:$PORT2, log $LOG2"
     "${VLLM[@]}" serve "$MODEL2" \
@@ -124,6 +138,15 @@ if [ -n "$MODEL2" ]; then
         --max-num-seqs "$MAX_SEQS2" \
         --gpu-memory-utilization "$GPU_UTIL2" \
         > "$LOG2" 2>&1 &
+    PIDS+=($!)
+    PREV_PORT=$PORT2
+fi
+if [ -n "$MODEL3" ]; then
+    wait_healthy "$PREV_PORT" "${PIDS[-1]}"
+    LOG3="$PD/runs/${SLURM_JOB_ID}-serve3.log"
+    echo "serving $MODEL3 as $SERVED_NAME3 on $BIND:$PORT3, log $LOG3"
+    # shellcheck disable=SC2086
+    "${VLLM[@]}" serve "$MODEL3"         --served-model-name "$SERVED_NAME3"         --host "$BIND" --port "$PORT3"         --max-model-len "$MAX_LEN3"         --gpu-memory-utilization "$GPU_UTIL3"         $ARGS3         > "$LOG3" 2>&1 &
     PIDS+=($!)
 fi
 # the job ends when any server exits (no half-up state with a stale endpoint)

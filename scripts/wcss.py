@@ -62,8 +62,11 @@ def ssh(remote: str, *, stdin: bytes | None = None, check: bool = True) -> str:
     proc = subprocess.run(["ssh", *SSH_OPTS, HOST, remote], input=stdin, capture_output=True)
     out = proc.stdout.decode("utf-8", "replace")
     if proc.returncode != 0 and check:
+        sys.stdout.write(out)  # a submit can succeed even when the remote command exits non-zero: show the job id
         sys.stderr.write(proc.stderr.decode("utf-8", "replace"))
-        raise SystemExit(f"ssh failed (exit {proc.returncode}); not retrying")
+        raise SystemExit(
+            f"ssh failed (exit {proc.returncode}); not retrying. Check `wcss.py status` before submitting again."
+        )
     return out
 
 
