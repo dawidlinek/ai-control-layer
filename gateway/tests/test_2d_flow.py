@@ -6,6 +6,7 @@ import json
 import shutil
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -13,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 from ruamel.yaml import YAML
 
-from acl.contracts.common import InspectionPoint
+from acl.contracts.common import DataClass, InspectionPoint
 from acl.contracts.inspection import ToolCallPayload
 from acl.engine.actions import evaluate_point
 from acl.main import create_app
@@ -146,8 +147,11 @@ def test_exhausted_budget_blocks_by_default_and_the_breaker_is_visible_and_reset
     client = make_client(small_day_budget)
     assert chat(client, "[[mock:tokens 200]] hi").status_code == 200  # reconciled usage overruns the day budget
     blocked = chat(client, "hi again")
-    assert blocked.status_code == 403
+    assert blocked.status_code == 429
     assert "SEC-BUDGET-01" in blocked.text and "circuit breaker" in blocked.text
+    assert blocked.json()["error"]["type"] == "budget_exceeded" and blocked.json()["error"]["code"] == "SEC-BUDGET-01"
+    assert 1 <= int(blocked.headers["retry-after"]) <= 300  # breaker cooldown_s
+    assert blocked.headers["x-acl-decision"] == "block"
 
     admin = _headers("adam", **ADMIN)
     [breaker] = client.get("/admin/v1/budgets/breakers", headers=admin).json()
@@ -241,7 +245,37 @@ def test_rate_limit_blocks_the_burst(make_client) -> None:  # type: ignore[no-un
 
     client = make_client(patch)
     codes = [chat(client, "hi", model="local").status_code for _ in range(4)]
-    assert codes == [200, 200, 403, 403]
+    assert codes == [200, 200, 429, 429]
+    last = chat(client, "hi", model="local")
+    assert 1 <= int(last.headers["retry-after"]) <= 60  # next minute
+
+
+def test_embeddings_budget_block_is_429_with_retry_after(make_client, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    def patch(b: dict[str, Any]) -> None:
+        b["default_user"] = {**b["default_user"], "requests_per_minute": 1}
+
+    client = make_client(patch)
+    access = client.app.state.access  # type: ignore[attr-defined]
+    real_check = access.check_model
+
+    async def check_model(principal, name):  # type: ignore[no-untyped-def]  # no group is granted local/embed in the seed
+        if name == "local/embed":
+            return SimpleNamespace(allowed=True, rule_id=None, reason=None)
+        return await real_check(principal, name)
+
+    real_usable = access.usable_models
+
+    async def usable_models(principal):  # type: ignore[no-untyped-def]
+        return {**await real_usable(principal), "local/embed": list(DataClass)}
+
+    monkeypatch.setattr(access, "check_model", check_model)
+    monkeypatch.setattr(access, "usable_models", usable_models)
+    body = {"model": "local/embed", "input": ["hello"]}
+    first = client.post("/v1/embeddings", json=body, headers=_headers())
+    assert first.status_code == 200, first.text
+    second = client.post("/v1/embeddings", json=body, headers=_headers())
+    assert second.status_code == 429 and second.json()["error"]["code"] == "SEC-BUDGET-01"
+    assert 1 <= int(second.headers["retry-after"]) <= 60
 
 
 def decide(client: TestClient, command: str, session: str = "agent-1", user: str = "anna") -> Any:
@@ -280,7 +314,7 @@ def test_counters_and_breakers_survive_a_restart(tmp_path: Path) -> None:
     app = build(tmp_path, patch)
     with TestClient(app) as client:
         assert chat(client, "[[mock:tokens 200]] hi").status_code == 200
-        assert chat(client, "again").status_code == 403
+        assert chat(client, "again").status_code == 429
         assert app.state.budgets.breakers.view("user:anna").state == "open"
     # a new process: same database, same policy
     app2 = build(tmp_path, patch)
@@ -288,7 +322,7 @@ def test_counters_and_breakers_survive_a_restart(tmp_path: Path) -> None:
         svc = app2.state.budgets
         assert svc.ledger.value("user:anna", "tokens_day") >= 200
         assert svc.breakers.view("user:anna").state == "open"
-        assert chat(client2, "hi").status_code == 403
+        assert chat(client2, "hi").status_code == 429
 
 
 def test_scenario7_gpu_second_overrun_opens_the_session_breaker(make_client) -> None:  # type: ignore[no-untyped-def]
@@ -297,7 +331,7 @@ def test_scenario7_gpu_second_overrun_opens_the_session_breaker(make_client) -> 
     sid = {"X-Session-Id": "runaway-1"}
     assert chat(client, "[[mock:tokens 125000]] keep going", model="local", headers=sid).status_code == 200
     refused = chat(client, "and again", model="local", headers=sid)
-    assert refused.status_code == 403 and "circuit breaker" in refused.text
+    assert refused.status_code == 429 and "circuit breaker" in refused.text and "retry-after" in refused.headers
     assert chat(client, "another session", model="local", headers={"X-Session-Id": "runaway-2"}).status_code == 200
     breakers = client.get("/admin/v1/budgets/breakers", headers=_headers(**ADMIN)).json()
     assert len(breakers) == 1 and breakers[0]["id"].startswith("session:") and breakers[0]["state"] == "open"

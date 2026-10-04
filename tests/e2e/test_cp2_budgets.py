@@ -114,7 +114,8 @@ def test_cp2_runaway_agent_trips_loop_detector_gpu_budget_and_breaker(stack, sse
 
     # -- 3. the circuit breaker is open: the next call of this session is refused with the breaker rule
     refused = _chat(stack, session, "and again")
-    assert refused.status_code == 403, f"expected the breaker to block, got HTTP {refused.status_code}"
+    assert refused.status_code == 429, f"expected the breaker to block, got HTTP {refused.status_code}"
+    assert int(refused.headers.get("retry-after", 0)) >= 1, "a breaker block carries Retry-After"
     assert "SEC-BUDGET-01" in refused.text and "circuit breaker" in refused.text
     other = _chat(stack, f"e2e-other-{run}", "a different session is unaffected")
     assert other.status_code == 200, f"another session of the same agent must still work: HTTP {other.status_code}"

@@ -240,3 +240,32 @@ async def test_flush_and_reload_roundtrip(tmp_path: Path) -> None:
     assert ledger2.mark_notified("user:jan", "tokens_day", "soft") is False  # the notification flag survived
     assert book2.view("user:jan").state == "open"  # type: ignore[union-attr]
     await engine.dispose()
+
+
+def test_retry_after_follows_the_window_that_resets() -> None:
+    from acl.budgets.retry import breaker_retry_after_s, retry_after_s
+
+    t = datetime(2026, 3, 9, 13, 45, 10, tzinfo=UTC).timestamp()
+    ledger = Ledger(Clock(t))
+    sp = specs({"tokens_day": 100, "tokens_session": 100, "usd_month": 5})
+    ledger.charge(sp, input_tokens=0, output_tokens=100, usd=0, gpu_seconds=0)
+    by_meter = {b.meter: b for b in ledger.check(sp, Estimate(input_tokens=1), soft_pct=80) if b.hard}
+    assert set(by_meter) == {"tokens_day", "tokens_session"}
+    midnight = datetime(2026, 3, 10, tzinfo=UTC).timestamp()
+    assert retry_after_s([by_meter["tokens_day"]], t) == int(midnight - t)
+    assert retry_after_s([by_meter["tokens_session"]], t) is None  # a session budget never refills
+    assert retry_after_s(by_meter.values(), t) is None  # one unknown reset makes the answer unknown
+    assert retry_after_s([], t) is None
+    assert breaker_retry_after_s(t + 90.2, t) == 91 and breaker_retry_after_s(None, t) is None
+    assert breaker_retry_after_s(t - 5, t) == 1
+
+
+def test_retry_after_month_and_oversized_request() -> None:
+    from acl.budgets.retry import retry_after_s, seconds_until_window_end
+
+    t = datetime(2026, 12, 31, 23, 0, 0, tzinfo=UTC).timestamp()
+    assert seconds_until_window_end("month", t) == 3600 and seconds_until_window_end("day", t) == 3600
+    ledger = Ledger(Clock(t))
+    sp = specs({"tokens_day": 100})
+    [big] = [b for b in ledger.check(sp, Estimate(input_tokens=500), soft_pct=80) if b.hard]
+    assert retry_after_s([big], t) is None  # one request larger than the whole daily limit: waiting never fits it

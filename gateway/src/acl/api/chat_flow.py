@@ -319,6 +319,20 @@ class BaseFlow:
         forbidden = "SEC-MODEL-01" in decision.rule_ids or any(
             v.control_type == "model_access" and v.action == Action.block for v in decision.verdicts
         )
+        if decision.action == Action.block and "SEC-BUDGET-01" in decision.rule_ids:
+            # a spent budget / open breaker is "try later", not "forbidden": 429 (+ Retry-After if the reset is known)
+            err = self._error(429, "budget_exceeded", msg, code, decision.action)
+            wait = next(
+                (
+                    v.outputs["retry_after_s"]
+                    for v in decision.verdicts
+                    if v.control_type == "budget" and v.outputs.get("retry_after_s")
+                ),
+                None,
+            )
+            if wait:
+                err.headers["Retry-After"] = str(int(wait))
+            return err
         return self._error(403, "forbidden_model" if forbidden else "policy_violation", msg, code, decision.action)
 
     async def _record(
