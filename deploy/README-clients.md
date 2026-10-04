@@ -32,7 +32,7 @@ docker compose --env-file .env -f deploy/docker-compose.yml --profile clients ex
 # LibreChat: http://localhost:3080  ->  "Sign in with company SSO"
 ```
 
-Demo users (password: `DEMO_USER_PASSWORD` in `.env`): `jan` (credit-analysts), `anna` (developers), `ola`
+Demo users (password: `DEMO_USER_PASSWORD` in `.env`): `anna` (credit-analysts), `jan` (developers), `ola`
 (security-analysts), `adam` (admins). The device-code page is shown at `http://localhost:8180/realms/acl/device`.
 
 Tests: `pnpm -C plugins/opencode-guard test` (unit) and `uv run python scripts/dev.py e2e -k cp2` (needs the profile
@@ -90,7 +90,7 @@ disabled, so no Meilisearch).
 
 Per-user identity forwarding works without any gateway-side change: LibreChat sends the signed-in user's own Keycloak
 access token (audience `gateway`, from the client's audience mapper). The e2e test proves it: `/api/models` in
-LibreChat equals the gateway's `/v1/models` **for that user** (jan and anna differ) and a LibreChat chat shows up in the
+LibreChat equals the gateway's `/v1/models` **for that user** (anna and jan differ) and a LibreChat chat shows up in the
 audit log as the user with `session_id = <principal>:<conversation id>`. If the token is expired or missing LibreChat
 raises `OpenIDReauthRequiredError` rather than sending the request unauthenticated.
 

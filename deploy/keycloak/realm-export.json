@@ -44,7 +44,7 @@
       "enabled": true,
       "emailVerified": true,
       "credentials": [{"type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false}],
-      "groups": ["/credit-analysts"]
+      "groups": ["/developers"]
     },
     {
       "id": "5f3c9a51-0000-4000-8000-00000000a002",
@@ -55,7 +55,7 @@
       "enabled": true,
       "emailVerified": true,
       "credentials": [{"type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false}],
-      "groups": ["/developers"]
+      "groups": ["/credit-analysts"]
     },
     {
       "id": "5f3c9a51-0000-4000-8000-00000000a003",

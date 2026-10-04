@@ -4,8 +4,8 @@ A scripted loop trips the repeat-call detector (SEC-LOOP-01) and a GPU-second bu
 breaker opens, and the `budget_breach` events show up on `/admin/v1/events` (and the live SSE stream).
 
 Needs the deterministic mock upstream (`ACL_DETERMINISTIC=1`, the compose default without a model server): the
-GPU overrun is produced with `[[mock:tokens N]]`. It uses user `anna` (developers) and one fresh session per run;
-the run charges ~125k tokens to anna's daily budget (500k), so it can be repeated a few times per day. The session
+GPU overrun is produced with `[[mock:tokens N]]`. It uses user `jan` (developers) and one fresh session per run;
+the run charges ~125k tokens to jan's daily budget (500k), so it can be repeated a few times per day. The session
 breaker it opens is reset again at the end. Demo users come from deploy/keycloak/realm-export.json.
 """
 
@@ -34,7 +34,7 @@ def _decide(stack, session: str, command: str) -> dict[str, Any]:  # type: ignor
             "action": {"kind": "tool_call", "tool": "opencode.bash", "arguments": {"command": command}},
             "client": {"app": "opencode"},
         },
-        headers=stack.auth("anna"),
+        headers=stack.auth("jan"),
     )
     assert r.status_code == 200, f"/v1/decide: HTTP {r.status_code} {r.text[:300]}"
     return r.json()
@@ -44,12 +44,12 @@ def _chat(stack, session: str, content: str):  # type: ignore[no-untyped-def]
     return stack.http.post(
         f"{stack.cfg.gateway}/v1/chat/completions",
         json={"model": "local", "messages": [{"role": "user", "content": content}]},
-        headers={**stack.auth("anna"), "X-Session-Id": session},
+        headers={**stack.auth("jan"), "X-Session-Id": session},
         timeout=60,
     )
 
 
-def _breach_details(stack, user: str = "anna") -> list[dict[str, Any]]:  # type: ignore[no-untyped-def]
+def _breach_details(stack, user: str = "jan") -> list[dict[str, Any]]:  # type: ignore[no-untyped-def]
     listed = stack.admin("GET", "/events", params={"event_type": "budget_breach", "limit": 200})
     assert listed.status_code == 200, f"GET /events: HTTP {listed.status_code}"
     body = listed.json()

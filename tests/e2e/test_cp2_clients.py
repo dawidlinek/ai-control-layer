@@ -317,7 +317,7 @@ class OpenCodeServer:
 
 @pytest.fixture(scope="module")
 def opencode(oc: Exec, stack: Stack) -> OpenCodeServer:
-    """`opencode serve` in the container, logged in as jan through the real device-code flow."""
+    """`opencode serve` in the container, logged in as anna through the real device-code flow."""
     server = OpenCodeServer(oc, OPENCODE_PORT)
     oc.sh("pkill -f 'opencode serve' || true")
     subprocess.Popen(
@@ -340,7 +340,7 @@ def opencode(oc: Exec, stack: Stack) -> OpenCodeServer:
         time.sleep(2)
     else:
         pytest.fail("opencode serve did not come up inside the container")
-    server.login("jan")
+    server.login("anna")
     yield server
     oc.sh("pkill -f 'opencode serve' || true")
 
@@ -348,11 +348,11 @@ def opencode(oc: Exec, stack: Stack) -> OpenCodeServer:
 def test_device_login_stores_a_gateway_audience_token_and_model_calls_are_attributed(
     opencode: OpenCodeServer, oc: Exec, stack: Stack
 ) -> None:
-    # the stored credential: a Keycloak token for jan, issued to client `opencode`, audience `gateway` (never printed)
+    # the stored credential: a Keycloak token for anna, issued to client `opencode`, audience `gateway` (never printed)
     raw = oc.sh("cat /state/data/opencode/auth.json").stdout
     entry = json.loads(raw)["company"]
     claims = _jwt_claims(entry["access"])
-    assert claims["azp"] == "opencode" and claims["preferred_username"] == "jan"
+    assert claims["azp"] == "opencode" and claims["preferred_username"] == "anna"
     aud = claims["aud"] if isinstance(claims["aud"], list) else [claims["aud"]]
     assert "gateway" in aud
     assert entry["refresh"], "a refresh token is stored so the loader can renew the session"
@@ -362,14 +362,14 @@ def test_device_login_stores_a_gateway_audience_token_and_model_calls_are_attrib
     reply = opencode.texts(msgs)
     assert token in reply, f"no model answer through the gateway: {reply[:200]!r}"
 
-    # the gateway authenticated the request as jan (session ids are principal-namespaced and carry the OpenCode id)
+    # the gateway authenticated the request as anna (session ids are principal-namespaced and carry the OpenCode id)
     events = stack.admin("GET", "/events?limit=20").json()
     mine = [
         e
         for e in events
-        if e.get("username") == "jan" and (e.get("session_id") or "").split(":")[-1].startswith("ses_")
+        if e.get("username") == "anna" and (e.get("session_id") or "").split(":")[-1].startswith("ses_")
     ]
-    assert mine, "no audit event attributed to jan with an OpenCode session id"
+    assert mine, "no audit event attributed to anna with an OpenCode session id"
 
 
 def test_poisoned_readme_read_of_ssh_key_is_not_executed(opencode: OpenCodeServer, stack: Stack) -> None:
@@ -399,7 +399,7 @@ def _decide_implemented(stack: Stack) -> bool:
             "session_id": "probe",
             "action": {"tool": "opencode.read", "arguments": {"filePath": "/workspace/demo-repo/README.md"}},
         },
-        headers=stack.auth("anna"),
+        headers=stack.auth("jan"),
     )
     return r.status_code != 501
 
@@ -418,7 +418,7 @@ def test_plugin_decide_request_for_forbidden_read_is_blocked_with_rule_id(stack:
         },
         "client": {"app": "opencode", "version": "opencode-1.18.34", "device_id": "dev-e2e-0001"},
     }
-    headers = {**stack.auth("anna"), "X-Device-Id": "dev-e2e-0001", "X-Client-App": "opencode"}
+    headers = {**stack.auth("jan"), "X-Device-Id": "dev-e2e-0001", "X-Client-App": "opencode"}
     r = stack.http.post(f"{stack.cfg.gateway}/v1/decide", json=body, headers=headers)
     if r.status_code == 501:
         pytest.skip("/v1/decide is not implemented yet (Phase 2B); the plugin fails closed meanwhile (covered above)")
@@ -508,9 +508,9 @@ def lc_login(librechat_up: None):  # type: ignore[no-untyped-def]
 
 
 def test_librechat_login_via_keycloak(lc_login) -> None:  # type: ignore[no-untyped-def]
-    s = lc_login("jan")
+    s = lc_login("anna")
     assert s.auth["user"]["provider"] == "openid"
-    assert s.auth["user"]["email"] == "jan.kowalski@corp.example"
+    assert s.auth["user"]["email"] == "anna.nowak@corp.example"
     assert list(s.get("/api/endpoints").json()) == ["Company AI"], "the gateway must be the only endpoint"
 
 
@@ -518,7 +518,7 @@ def test_librechat_forwards_each_users_own_token_so_model_lists_are_personalised
     """LibreChat -> gateway uses the signed-in user's OIDC access token (OPENID_REUSE_TOKENS +
     `Authorization: Bearer {{LIBRECHAT_OPENID_ACCESS_TOKEN}}`), proven by /v1/models being per-user."""
     seen: dict[str, list[str]] = {}
-    for user in ("jan", "anna"):
+    for user in ("anna", "jan"):
         s = lc_login(user)
         models = s.get("/api/models").json()["Company AI"]
         expected = [
@@ -526,11 +526,11 @@ def test_librechat_forwards_each_users_own_token_so_model_lists_are_personalised
         ]
         assert models == expected, f"{user}: LibreChat shows {models}, the gateway offers {expected}"
         seen[user] = models
-    assert seen["jan"] != seen["anna"], "different groups must see different model lists"
+    assert seen["anna"] != seen["jan"], "different groups must see different model lists"
 
 
 def test_librechat_chat_reaches_the_gateway_as_the_signed_in_user(lc_login, stack: Stack) -> None:  # type: ignore[no-untyped-def]
-    s = lc_login("jan")
+    s = lc_login("anna")
     marker = uuid.uuid4().hex[:10]
     payload = {
         "text": f"ping {marker}",
@@ -553,7 +553,7 @@ def test_librechat_chat_reaches_the_gateway_as_the_signed_in_user(lc_login, stac
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         events = stack.admin("GET", "/events?limit=30").json()
-        if any(e.get("username") == "jan" and (e.get("session_id") or "").endswith(conversation) for e in events):
+        if any(e.get("username") == "anna" and (e.get("session_id") or "").endswith(conversation) for e in events):
             return
         time.sleep(1)
-    pytest.fail("no audit event attributed to jan for the LibreChat conversation (token not forwarded?)")
+    pytest.fail("no audit event attributed to anna for the LibreChat conversation (token not forwarded?)")

@@ -6,8 +6,8 @@ Scenario 13 core banking: an analyst's agent queries the governed database serve
             back pseudonymised, a stacked `; DROP`, an out-of-scope column and `SELECT *` are blocked, the planted
             canary row never leaves the gateway and the attacker sink's log stays empty.
 
-Needs the MCP servers from deploy/compose.mcp.yml, Keycloak users from deploy/keycloak/realm-export.json (anna:
-developers, jan: credit-analysts, adam: admins) and, for the blocking assertions of scenario 13, Phase 2B's
+Needs the MCP servers from deploy/compose.mcp.yml, Keycloak users from deploy/keycloak/realm-export.json (jan:
+developers, anna: credit-analysts, adam: admins) and, for the blocking assertions of scenario 13, Phase 2B's
 SEC-TOOL-01 (SQL checker). Skips cleanly when the stack is down. The rug-pull scenario is one-shot per container:
 recreate the server to repeat it (`docker compose up -d --force-recreate mcp-rugpull`) and approve the tool.
 """
@@ -120,7 +120,7 @@ def test_cp2_scenario_6_rug_pull_quarantine_and_incident(stack, sse) -> None:
     # endpoint is only reachable on the compose network), let the gateway see the clean manifest, and re-pin it if an
     # earlier run left it quarantined (re-approval is deliberately sticky).
     _reset_rugpull_server()
-    McpClient(stack, "anna", "rugpull-demo").open().tools()
+    McpClient(stack, "jan", "rugpull-demo").open().tools()
     rows = [r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather"]
     if rows and rows[0]["status"] != "pinned":
         stack.admin("POST", f"/mcp/tools/{rows[0]['id']}/approve", json={"reason": "e2e reset"})
@@ -128,18 +128,18 @@ def test_cp2_scenario_6_rug_pull_quarantine_and_incident(stack, sse) -> None:
     if not rows or rows[0]["status"] != "pinned":
         pytest.skip("could not reset rugpull-demo; docker compose up -d --force-recreate mcp-rugpull")
 
-    anna = McpClient(stack, "anna", "rugpull-demo").open()
-    assert anna.tools() == ["get_weather"]  # first sight on an allowlisted server: pinned
+    jan = McpClient(stack, "jan", "rugpull-demo").open()
+    assert jan.tools() == ["get_weather"]  # first sight on an allowlisted server: pinned
     row = next(r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather")
     assert row["status"] == "pinned" and row["pinned_hash"] == row["current_hash"]
 
     for city in ("Kraków", "Gdańsk", "Poznań")[:WEATHER_CALLS_BEFORE_RUG]:
-        out = anna.call("get_weather", city=city)
+        out = jan.call("get_weather", city=city)
         assert "result" in out, f"benign call should pass: {json.dumps(out)[:300]}"
 
     # the server now serves a poisoned description; the next listing detects the drift
     seen_from = time.monotonic()
-    assert anna.tools() == [], "the drifted tool must be hidden from the agent"
+    assert jan.tools() == [], "the drifted tool must be hidden from the agent"
     row = next(r for r in _tool_rows(stack, "rugpull-demo") if r["name"] == "get_weather")
     assert row["status"] == "quarantined" and row["pinned_hash"] != row["current_hash"]
     assert row["description_diff"] and "IMPORTANT" in row["description_diff"]
@@ -149,7 +149,7 @@ def test_cp2_scenario_6_rug_pull_quarantine_and_incident(stack, sse) -> None:
     incidents = stack.admin("GET", "/incidents").json()
     assert any(i["category"] == "mcp_rug_pull" and "SEC-MCP-01" in i["rule_ids"] for i in incidents), incidents
 
-    blocked = anna.call("get_weather", city="Opole")
+    blocked = jan.call("get_weather", city="Opole")
     assert blocked["error"]["data"]["rule_ids"][0] == "SEC-MCP-01", json.dumps(blocked)[:300]
 
 
@@ -165,11 +165,11 @@ def test_cp2_scenario_13_core_banking_scoping_pseudonymisation_and_canaries(stac
         "canary_email": data.CANARY_EMAIL,
     }
     sink_before = _sink_entries(stack)
-    jan = McpClient(stack, "jan", "core-banking").open()
-    assert jan.tools() == ["query"]
+    anna = McpClient(stack, "anna", "core-banking").open()
+    assert anna.tools() == ["query"]
 
     # 1. permitted columns: PESELs are pseudonymised on the way out
-    ok = jan.call(
+    ok = anna.call(
         "query",
         sql="SELECT c.name, c.pesel, a.balance FROM clients c JOIN accounts a ON a.client_id = c.id WHERE c.id <= 5",
     )
@@ -185,13 +185,13 @@ def test_cp2_scenario_13_core_banking_scoping_pseudonymisation_and_canaries(stac
         "SELECT * FROM clients",
         "SELECT iban FROM accounts",
     ):
-        out = jan.call("query", sql=sql)
+        out = anna.call("query", sql=sql)
         assert "error" in out and out["error"]["data"]["rule_ids"], f"not blocked: {sql!r} -> {json.dumps(out)[:300]}"
 
     # 3. a table scan returns the canary row: its values are redacted, never delivered
-    scan = jan.call("query", sql="SELECT id, name, pesel, city FROM clients")
+    scan = anna.call("query", sql="SELECT id, name, pesel, city FROM clients")
     LeakOracle(canaries).assert_clean(scan, channel="mcp_result", what="the full-table scan")
-    still_there = jan.call("query", sql="SELECT COUNT(id) FROM clients")
+    still_there = anna.call("query", sql="SELECT COUNT(id) FROM clients")
     assert "result" in still_there, "the table must still exist after the stacked DROP attempt"
     assert json.loads(still_there["result"]["content"][0]["text"])["rows"][0][0] >= 30
 
@@ -201,6 +201,6 @@ def test_cp2_scenario_13_core_banking_scoping_pseudonymisation_and_canaries(stac
     LeakOracle(canaries).assert_clean(events, channel="audit_log", what="the audit events")
 
     # 5. other groups cannot use the server at all
-    anna = McpClient(stack, "anna", "core-banking")
-    refused = anna.rpc("initialize", {"protocolVersion": "2025-11-25"})
+    jan = McpClient(stack, "jan", "core-banking")
+    refused = jan.rpc("initialize", {"protocolVersion": "2025-11-25"})
     assert refused["_status"] == 403 and "SEC-MCP-02" in refused["error"]["data"]["rule_ids"]
