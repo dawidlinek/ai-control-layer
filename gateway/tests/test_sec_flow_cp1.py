@@ -410,7 +410,8 @@ def test_allowed_params_are_forwarded_and_inspected(app: Any) -> None:
     r = _chat(app, body)
     assert r.status_code == 200, r.text
     sent = _calls(app, "gemini")[-1]["request"]
-    assert sent["temperature"] == 0.2 and sent["max_tokens"] == 50 and sent["stop"] == ["END"]
+    # `smart` is Gemini Flash: policy adds `reasoning_headroom_tokens` (1024) for its hidden thinking tokens
+    assert sent["temperature"] == 0.2 and sent["max_tokens"] == 50 + 1024 and sent["stop"] == ["END"]
     assert "user" not in sent and "stream" not in sent
 
 
