@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3100;
+const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 /**
  * E2E runs against `pnpm dev` in mock mode (MSW answers the admin API, demo user is signed in), chromium only.
