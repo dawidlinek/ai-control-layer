@@ -1,0 +1,119 @@
+# SEC-SESSION-01 — a session whose high-water mark reached `confidential` stays on local models (HANDOFF §7.2).
+# The harness evaluates one step with a preset session state: `session:` sets the labels loaded before the request.
+# Negatives: a later, harmless request in a confidential/restricted session must get route_local with the rule id.
+# Positives: sessions below the threshold (public/internal, untrusted only, egress taint) are not affected.
+
+# ---- negatives -----------------------------------------------------------------------------------------------------
+- id: session-confidential-later-harmless-prompt-stays-local
+  control: SEC-SESSION-01
+  kind: negative
+  pair: session-followup
+  session: sensitive
+  input: "Thanks. Can you now write a short summary of what we discussed?"
+  matrix: {monitor: monitor, balanced: route_local, strict: route_local, paranoid: route_local}
+  expect: {rule_id: SEC-SESSION-01}
+
+- id: session-restricted-stays-local
+  control: SEC-SESSION-01
+  kind: negative
+  pair: session-followup
+  session: {labels: {confidentiality: restricted, taint: [sensitive]}}
+  input: "Rewrite the last paragraph in a friendlier tone."
+  expect: {action: route_local, rule_id: SEC-SESSION-01}
+
+- id: session-confidential-explicit-cloud-model-stays-local
+  control: SEC-SESSION-01
+  kind: negative
+  pair: session-cloud-model
+  session: sensitive
+  model_requested: smart
+  principal: {username: ola, groups: [admins]}
+  input: "Give me three title ideas for the report."
+  expect: {action: route_local, rule_id: SEC-SESSION-01}
+
+- id: session-confidential-untrusted-stays-local
+  control: SEC-SESSION-01
+  kind: negative
+  pair: session-untrusted
+  session: untrusted_sensitive
+  input: "What is the capital of France?"
+  expect: {action: route_local, rule_id: SEC-SESSION-01}
+
+- id: session-confidential-embeddings-stay-local
+  control: SEC-SESSION-01
+  kind: negative
+  pair: session-embeddings
+  point: embeddings
+  session: sensitive
+  input: {kind: embeddings, inputs: ["quarterly planning notes"]}
+  expect: {action: route_local, rule_id: SEC-SESSION-01}
+
+- id: session-confidential-credit-analyst-strict
+  control: SEC-SESSION-01
+  kind: negative
+  pair: session-followup
+  preset: strict
+  principal: {username: anna, groups: [credit-analysts]}
+  session: sensitive
+  input: "Format the answer as a table."
+  expect: {action: route_local, rule_id: SEC-SESSION-01}
+
+# ---- positives -----------------------------------------------------------------------------------------------------
+- id: session-clean-followup-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-followup
+  session: clean
+  input: "Thanks. Can you now write a short summary of what we discussed?"
+  expect: {action: allow, rule_id: null}
+
+- id: session-internal-below-threshold-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-followup
+  session: {labels: {confidentiality: internal}}
+  input: "Rewrite the last paragraph in a friendlier tone."
+  expect: {action: allow, rule_id: null}
+
+- id: session-public-explicit-cloud-model-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-cloud-model
+  session: clean
+  model_requested: smart
+  principal: {username: ola, groups: [admins]}
+  input: "Give me three title ideas for the report."
+  expect: {action: allow, rule_id: null}
+
+- id: session-untrusted-only-not-confidential-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-untrusted
+  session: untrusted
+  input: "What is the capital of France?"
+  expect: {action: allow, rule_id: null}
+
+- id: session-clean-embeddings-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-embeddings
+  point: embeddings
+  session: clean
+  input: {kind: embeddings, inputs: ["quarterly planning notes"]}
+  expect: {action: allow, rule_id: null}
+
+- id: session-egress-taint-only-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-untrusted
+  session: egress_used
+  input: "Format the answer as a table."
+  expect: {action: allow, rule_id: null}
+
+- id: session-word-confidential-in-public-session-allowed
+  control: SEC-SESSION-01
+  kind: positive
+  pair: session-followup
+  session: clean
+  input: "Is it rude to label an ordinary memo as confidential?"
+  expect: {action: allow, rule_id: null}

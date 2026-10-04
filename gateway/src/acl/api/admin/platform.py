@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 
 from acl.api.deps import ERROR_RESPONSES, Admin, Viewer, not_implemented
-from acl.audit.queries import spend_by_connector
+from acl.audit.queries import spend_by_connector, usage_by_model
 from acl.contracts.admin import (
     ArtifactScanResult,
     ConnectorStatus,
@@ -115,6 +115,16 @@ async def kill_switch(request: Request, connector_id: str, body: KillSwitchReque
     return await _connector_status(request, connector_id, policy, table, await _spend_day(request))
 
 
+async def _usage_day(request: Request) -> dict[str, dict[str, float]]:
+    sessions = getattr(request.app.state, "db", None)
+    if sessions is None:
+        return {}
+    try:
+        return await usage_by_model(sessions, datetime.now(UTC) - timedelta(days=1))
+    except Exception:
+        return {}
+
+
 @router.get("/models", response_model=list[ModelInfo], tags=["models"], operation_id="listModelsAdmin")
 async def models(request: Request, p: Viewer) -> list[ModelInfo]:
     policy, table = _policy_and_table(request)
@@ -122,11 +132,13 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
     for name, alias in policy.aliases.items():
         if alias.strategy == "fixed" and alias.target:
             fixed_aliases.setdefault(alias.target, []).append(name)
+    usage = await _usage_day(request)
     out = []
     for m in policy.models:
         cfg = policy.connectors[m.connector]
         handle = table.models[m.id]
         artifact = "n/a" if m.artifact is None else "scanned_ok" if m.artifact.scan_id else "unscanned"
+        used = usage.get(m.id, {})
         out.append(
             ModelInfo(
                 id=m.id,
@@ -139,6 +151,12 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
                 artifact_status=artifact,  # type: ignore[arg-type]
                 enabled=m.enabled and cfg.enabled and not request.app.state.connectors.is_killed(m.connector),
                 available=handle.unavailable is None and table.connectors[m.connector].unavailable is None,
+                role=m.tags.get("role"),
+                requests_day=int(used.get("requests", 0)),
+                tokens_in_day=int(used.get("tokens_in", 0)),
+                tokens_out_day=int(used.get("tokens_out", 0)),
+                usd_day=round(used.get("usd", 0.0), 6),
+                gpu_seconds_day=round(used.get("gpu_seconds", 0.0), 3),
             )
         )
     return out

@@ -217,7 +217,7 @@ def harness(tmp_path: Path) -> Iterator[tuple[TestClient, Any, Settings]]:
     assert_audit_valid(settings.audit_path)
 
 
-def chat(client: TestClient, content: str, model: str = "local/general", **extra: Any) -> httpx.Response:
+def chat(client: TestClient, content: str, model: str = "local/qwen3.8-27b", **extra: Any) -> httpx.Response:
     headers = extra.pop("headers", None)
     body = {"model": model, "messages": [{"role": "user", "content": content}], **extra}
     return client.post("/v1/chat/completions", json=body, headers=headers)
@@ -244,9 +244,9 @@ def test_chat_roundtrip_headers_and_audit(harness) -> None:  # type: ignore[no-u
     client, _, settings = harness
     r = chat(client, "hello world", headers={"X-Session-Id": "sess-abc", "X-Client-App": "librechat"})
     assert r.status_code == 200
-    assert r.json()["choices"][0]["message"]["content"] == "MOCK[local/general]: hello world"
+    assert r.json()["choices"][0]["message"]["content"] == "MOCK[local/qwen3.8-27b]: hello world"
     assert r.headers["x-acl-decision"] == "allow"
-    assert r.headers["x-acl-model"] == "local/general"
+    assert r.headers["x-acl-model"] == "local/qwen3.8-27b"
     assert r.headers["x-acl-degraded"] == "false"
     trace = r.headers["x-acl-trace-id"]
     records = assert_audit_valid(settings.audit_path)
@@ -257,7 +257,7 @@ def test_chat_roundtrip_headers_and_audit(harness) -> None:  # type: ignore[no-u
     assert client_sid == "sess-abc" and re.fullmatch(r"[0-9a-f]{16}", ns)
     assert records[0]["client"]["app"] == "librechat"
     assert records[1]["usage"]["input_tokens"] > 0 and records[1]["usage"]["output_tokens"] > 0
-    assert records[1]["route"]["model"] == "local/general" and records[1]["latency"]["upstream_ms"] > 0
+    assert records[1]["route"]["model"] == "local/qwen3.8-27b" and records[1]["latency"]["upstream_ms"] > 0
     assert records[0]["redacted_payload"] == "hello world"
     ev = client.get(f"/admin/v1/events/{records[0]['event_id']}")
     assert ev.status_code == 200 and ev.json()["trace_id"] == trace
@@ -276,7 +276,7 @@ def test_validation_errors(harness) -> None:  # type: ignore[no-untyped-def]
 def test_models_listing(harness) -> None:  # type: ignore[no-untyped-def]
     client, _, _ = harness
     ids = {m["id"] for m in client.get("/v1/models").json()["data"]}
-    assert {"auto", "local/general", "gemini/flash", "smart"} <= ids
+    assert {"auto", "local/qwen3.8-27b", "gemini/flash", "smart"} <= ids
 
 
 def test_hygiene_strips_reasoning_and_logprobs(harness) -> None:  # type: ignore[no-untyped-def]
@@ -305,7 +305,7 @@ def test_auto_routes_by_data_class(harness) -> None:  # type: ignore[no-untyped-
     r = chat(client, "plain question", model="auto")
     assert r.headers["x-acl-model"] == "gemini/flash"  # public → ext_small
     r = chat(client, f"customer pesel {PESEL}", model="auto")
-    assert r.headers["x-acl-model"] == "local/general"  # confidential → local_only
+    assert r.headers["x-acl-model"] == "local/qwen3.8-27b"  # confidential → local_only
     routes = [x["route"] for x in audit_records(settings.audit_path) if x["point"] == "ingress"]
     assert "local_only" in routes[1]["reason"] and routes[1]["factors"]["data_class"] == "confidential"
     assert routes[0]["tier"] == "cloud" and routes[1]["tier"] == "local"
@@ -314,7 +314,7 @@ def test_auto_routes_by_data_class(harness) -> None:  # type: ignore[no-untyped-
 def test_org_lock_reroutes_explicit_cloud_model(harness) -> None:  # type: ignore[no-untyped-def]
     client, _, settings = harness
     r = chat(client, f"pesel {PESEL}", model="gemini/flash")
-    assert r.status_code == 200 and r.headers["x-acl-model"] == "local/general"
+    assert r.status_code == 200 and r.headers["x-acl-model"] == "local/qwen3.8-27b"
     route = next(x["route"] for x in audit_records(settings.audit_path) if x["point"] == "ingress")
     assert "LOCK-01" in route["reason"] and route["degraded"] is False
 
@@ -324,7 +324,7 @@ def test_kill_switch_degrades_and_survives_policy_reload(harness) -> None:  # ty
     r = client.post("/admin/v1/connectors/gemini/kill-switch", json={"engaged": True, "reason": "provider incident"})
     assert r.status_code == 200 and r.json()["kill_switch"] is True
     r = chat(client, "hello", model="smart")
-    assert r.headers["x-acl-model"] == "local/general" and r.headers["x-acl-degraded"] == "true"
+    assert r.headers["x-acl-model"] == "local/qwen3.8-27b" and r.headers["x-acl-degraded"] == "true"
     # a new policy version builds a new routing table; the kill switch is held by the registry
     engine = app.state.engine
     app.state.engine = app.state.build_engine(engine.policy, "reloaded-v2")
@@ -341,9 +341,9 @@ def test_kill_switch_degrades_and_survives_policy_reload(harness) -> None:  # ty
 
 def test_model_system_prompt_is_prepended(harness) -> None:  # type: ignore[no-untyped-def]
     client, app, _ = harness
-    chat(client, "podsumuj", model="local/loan-memo-pl")
+    chat(client, "podsumuj", model="local/loan-memo")
     sent = app.state.connectors.get("local").calls[-1]["request"]["messages"]
-    assert sent[0]["role"] == "system" and "analitykiem kredytowym" in sent[0]["content"]
+    assert sent[0]["role"] == "system" and "credit analyst" in sent[0]["content"]
     assert sent[-1]["content"] == "podsumuj"
 
 
@@ -424,9 +424,9 @@ def test_egress_block_non_stream(harness) -> None:  # type: ignore[no-untyped-de
 
 
 def test_forbidden_model_is_403_with_incident(tmp_path: Path) -> None:
-    app, settings = build_app(tmp_path, deny={"local/coder"})
+    app, settings = build_app(tmp_path, deny={"local/qwen3.8-27b"})
     with TestClient(app) as client:
-        r = chat(client, "write code", model="local/coder")
+        r = chat(client, "write code", model="local/qwen3.8-27b")
         assert r.status_code == 403
         err = r.json()["error"]
         assert err["type"] == "forbidden_model" and err["code"] == "SEC-MODEL-01" and err["trace_id"]
@@ -435,7 +435,7 @@ def test_forbidden_model_is_403_with_incident(tmp_path: Path) -> None:
         assert len(incidents) == 1 and incidents[0]["category"] == "forbidden_model"
         assert incidents[0]["subject"] == "dev" and len(incidents[0]["event_ids"]) == 2
         # a second attempt within 10 minutes is grouped into the same incident
-        chat(client, "again", model="local/coder")
+        chat(client, "again", model="local/qwen3.8-27b")
         grouped = client.get("/admin/v1/incidents").json()
         assert len(grouped) == 1 and len(grouped[0]["event_ids"]) == 4
         # the panel can triage it
@@ -474,7 +474,7 @@ def test_stream_reassembles_and_audits(harness) -> None:  # type: ignore[no-unty
     text = " ".join(f"word{i}" for i in range(120))  # not repetitive: the n-gram guard stays quiet
     r = chat(client, f"[[mock:reply {text}]]", stream=True, stream_options={"include_usage": True})
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
-    assert r.headers["x-acl-model"] == "local/general" and r.headers["x-acl-trace-id"]
+    assert r.headers["x-acl-model"] == "local/qwen3.8-27b" and r.headers["x-acl-trace-id"]
     events = sse_events(r.text)
     assert events[-1] == "[DONE]"
     assert stream_text(events) == text.strip()
@@ -554,7 +554,7 @@ def test_stream_output_cap(tmp_path: Path) -> None:
 def test_stream_upstream_error_before_first_byte(harness) -> None:  # type: ignore[no-untyped-def]
     client, _, settings = harness
     r = chat(client, "[[mock:error 503]]", stream=True)
-    # retryable → degraded fallback is the same mock error (target == local/general == current) → 502
+    # retryable → degraded fallback is the same mock error (target == local/qwen3.8-27b == current) → 502
     assert r.status_code == 502 and r.json()["error"]["type"] == "upstream_error"
     records = assert_audit_valid(settings.audit_path)
     assert [x["event_type"] for x in records] == ["decision", "system_alert"]
@@ -576,7 +576,9 @@ def test_upstream_failure_fails_over_to_degraded_target(harness) -> None:  # typ
     r = chat(client, "hello", model="smart")
     cloud.chat = original
     assert (
-        r.status_code == 200 and r.headers["x-acl-model"] == "local/general" and r.headers["x-acl-degraded"] == "true"
+        r.status_code == 200
+        and r.headers["x-acl-model"] == "local/qwen3.8-27b"
+        and r.headers["x-acl-degraded"] == "true"
     )
     alerts = client.get("/admin/v1/events", params={"event_type": "system_alert"}).json()
     assert len(alerts) == 1
@@ -610,7 +612,7 @@ def test_embeddings_inspected_and_audited(harness) -> None:  # type: ignore[no-u
     # default model from routing.targets.embeddings
     assert client.post("/v1/embeddings", json={"input": "x"}).json()["model"] == "local/embed"
     assert (
-        client.post("/v1/embeddings", json={"model": "local/general", "input": "x"}).status_code == 400
+        client.post("/v1/embeddings", json={"model": "local/qwen3.8-27b", "input": "x"}).status_code == 400
     )  # not an embedder
 
 
@@ -684,7 +686,10 @@ def test_admin_models_and_connectors(harness) -> None:  # type: ignore[no-untype
     client, _, _ = harness
     models = {m["id"]: m for m in client.get("/admin/v1/models").json()}
     assert models["gemini/flash"]["tier"] == "cloud" and "smart" in models["gemini/flash"]["aliases"]
-    assert models["local/general"]["available"] is True and models["local/general"]["pricing"]["usd_per_gpu_second"]
+    assert (
+        models["local/qwen3.8-27b"]["available"] is True
+        and models["local/qwen3.8-27b"]["pricing"]["usd_per_gpu_second"]
+    )
     assert (
         client.post("/admin/v1/connectors/nope/kill-switch", json={"engaged": True, "reason": "test"}).status_code
         == 404
@@ -737,7 +742,7 @@ def test_sse_stream_pushes_events_within_a_second(tmp_path: Path) -> None:
             threading.Thread(
                 target=lambda: httpx.post(
                     f"{base}/v1/chat/completions",
-                    json={"model": "local/general", "messages": [{"role": "user", "content": "live"}]},
+                    json={"model": "local/qwen3.8-27b", "messages": [{"role": "user", "content": "live"}]},
                     timeout=10,
                 ),
                 daemon=True,

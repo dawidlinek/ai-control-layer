@@ -82,7 +82,7 @@ class Rig:
         groups: list[str] | None = None,
         agent: str | None = None,
         sid: str = "s1",
-        model: str = "local/general",
+        model: str = "local/qwen3.8-27b",
         max_tokens: int | None = 5,
         **session: Any,
     ) -> InspectionContext:

@@ -621,7 +621,7 @@
           "title": "Model Requested"
         },
         "model": {
-          "description": "Resolved public model id, e.g. `local/general`.",
+          "description": "Resolved public model id, e.g. `local/qwen3.8-27b`.",
           "title": "Model",
           "type": "string"
         },
@@ -634,7 +634,7 @@
         },
         "reason": {
           "examples": [
-            "auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local"
+            "auto → local/loan-memo: task=loan_memo (0.91), data=confidential → local"
           ],
           "title": "Reason",
           "type": "string"
@@ -685,6 +685,20 @@
           },
           "title": "Sources",
           "type": "array"
+        },
+        "since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When `confidentiality` rose to its current level (the high-water mark time).",
+          "title": "Since"
         }
       },
       "title": "SessionLabels",

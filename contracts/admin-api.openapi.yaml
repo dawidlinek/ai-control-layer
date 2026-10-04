@@ -596,6 +596,122 @@ paths:
           description: Not implemented yet
       security:
       - HTTPBearer: []
+  /admin/v1/groups/{name}/detail:
+    get:
+      tags:
+      - access
+      summary: Get Group
+      operationId: getGroup
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/groups/{name}/settings/preview:
+    post:
+      tags:
+      - access
+      summary: Preview Group Settings
+      description: Draft → validate → impact (dry-run on recent traffic). Writes nothing.
+      operationId: previewGroupSettings
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupSettingsUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupSettingsPreview'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/groups/{name}/settings:
+    put:
+      tags:
+      - access
+      summary: Update Group Settings
+      description: Save group settings through the policy writer as a new policy version (validated, hot-reloaded).
+      operationId: updateGroupSettings
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupSettingsUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /admin/v1/grants:
     get:
       tags:
@@ -1114,6 +1230,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditEvent'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/events/{event_id}/trace:
+    get:
+      tags:
+      - events
+      summary: Get Event Trace
+      operationId: getEventTrace
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Event Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventTrace'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/sessions/{session_id}/transcript:
+    get:
+      tags:
+      - events
+      summary: Get Session Transcript
+      operationId: getSessionTranscript
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 500
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionTranscript'
         '401':
           description: Missing or invalid credentials
         '403':
@@ -2925,6 +3116,42 @@ components:
       additionalProperties: false
       type: object
       title: ClientInfo
+    ClientRef:
+      properties:
+        kind:
+          type: string
+          enum:
+          - conversation
+          - session
+          title: Kind
+        id:
+          type: string
+          title: Id
+          description: Gateway session id (principal-namespaced); use with the transcript endpoint.
+        client:
+          type: string
+          title: Client
+          examples:
+          - librechat
+          - opencode
+          - research-bot
+        message_count:
+          type: integer
+          title: Message Count
+          default: 0
+        started_at:
+          type: string
+          format: date-time
+          title: Started At
+      additionalProperties: false
+      type: object
+      required:
+      - kind
+      - id
+      - client
+      - started_at
+      title: ClientRef
+      description: The client conversation (LibreChat) or session (OpenCode / agent) an event belongs to.
     ConnectorStatus:
       properties:
         id:
@@ -3018,6 +3245,23 @@ components:
       - restricted
       title: DataClass
       description: Confidentiality classes, ordered from least to most sensitive.
+    DecisionBucket:
+      properties:
+        start:
+          type: string
+          format: date-time
+          title: Start
+        counts:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Counts
+          description: Action → decisions in this bucket.
+      additionalProperties: false
+      type: object
+      required:
+      - start
+      title: DecisionBucket
     DryRunChange:
       properties:
         event_id:
@@ -3336,6 +3580,56 @@ components:
           - type: number
           - type: 'null'
           title: Latency Ms
+        applied:
+          items:
+            $ref: '#/components/schemas/Action'
+          type: array
+          title: Applied
+          description: Every non-allow action applied (decision chips).
+        client_app:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Client App
+        data_class:
+          anyOf:
+          - $ref: '#/components/schemas/DataClass'
+          - type: 'null'
+        tier:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectorTier'
+          - type: 'null'
+        degraded:
+          type: boolean
+          title: Degraded
+          default: false
+        tokens_in:
+          type: integer
+          title: Tokens In
+          default: 0
+        tokens_out:
+          type: integer
+          title: Tokens Out
+          default: 0
+        summary:
+          type: string
+          title: Summary
+          description: One plain-language sentence, filled from a template per rule / decision type (never an LLM).
+          default: ''
+        changed_steps:
+          additionalProperties:
+            type: string
+          type: object
+          title: Changed Steps
+          description: Trace step → one-line result, only for steps that changed something.
+        session_label:
+          anyOf:
+          - $ref: '#/components/schemas/SessionLabelInfo'
+          - type: 'null'
+        client_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ClientRef'
+          - type: 'null'
       additionalProperties: false
       type: object
       required:
@@ -3345,6 +3639,34 @@ components:
       - event_type
       - severity
       title: EventSummary
+    EventTrace:
+      properties:
+        event:
+          $ref: '#/components/schemas/EventSummary'
+        steps:
+          items:
+            $ref: '#/components/schemas/TraceStep'
+          type: array
+          title: Steps
+        model_saw:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Saw
+          description: Redacted text the model received; only when content was changed.
+        model_saw_note:
+          type: string
+          title: Model Saw Note
+          default: ''
+        record:
+          $ref: '#/components/schemas/AuditEvent'
+      additionalProperties: false
+      type: object
+      required:
+      - event
+      - record
+      title: EventTrace
+      description: Everything the trace sidebar needs for one event.
     EventType:
       type: string
       enum:
@@ -3635,11 +3957,132 @@ components:
           - both
           title: Source
           default: both
+        settings:
+          anyOf:
+          - $ref: '#/components/schemas/GroupSettings'
+          - type: 'null'
+          description: Null for groups that exist only in Keycloak.
+        stats_today:
+          anyOf:
+          - $ref: '#/components/schemas/UsageStats'
+          - type: 'null'
+        policy_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Policy File
+          examples:
+          - groups.yaml
+        policy_line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Policy Line
+          description: Line of the group's block in the policy file.
       additionalProperties: false
       type: object
       required:
       - name
       title: Group
+    GroupSettings:
+      properties:
+        preset:
+          anyOf:
+          - $ref: '#/components/schemas/Preset'
+          - type: 'null'
+        models:
+          items:
+            type: string
+          type: array
+          title: Models
+          description: Model ids, aliases or skills granted to the group.
+        tools:
+          items:
+            type: string
+          type: array
+          title: Tools
+          description: Tool ids granted to the group, e.g. `opencode.bash`.
+        max_cloud_data_class:
+          type: string
+          enum:
+          - none
+          - public
+          - internal
+          title: Max Cloud Data Class
+          description: 'Highest data class cloud models may receive. `none`: the group has no cloud model at all. Confidential
+            and above never go to the cloud (LOCK-01).'
+          default: internal
+        daily_budget_usd:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Daily Budget Usd
+      additionalProperties: false
+      type: object
+      title: GroupSettings
+      description: The panel-editable part of a policy group (`groups.yaml` + the group's `usd_day` in `budgets.yaml`).
+    GroupSettingsPreview:
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        errors:
+          items:
+            $ref: '#/components/schemas/PolicyError'
+          type: array
+          title: Errors
+        changes:
+          items:
+            type: string
+          type: array
+          title: Changes
+          examples:
+          - - + model smart
+            - '- tool opencode.bash'
+        files_changed:
+          items:
+            type: string
+          type: array
+          title: Files Changed
+        diff:
+          type: string
+          title: Diff
+          default: ''
+        candidate_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Candidate Version
+        impact:
+          anyOf:
+          - $ref: '#/components/schemas/DryRunResponse'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - valid
+      title: GroupSettingsPreview
+      description: 'Draft → validate → impact: what saving these settings would change. Nothing is written.'
+    GroupSettingsUpdate:
+      properties:
+        settings:
+          $ref: '#/components/schemas/GroupSettings'
+        base_version:
+          type: string
+          title: Base Version
+          description: Policy version (`PolicyStatus.version`) the edit was based on; stale → 409.
+        message:
+          type: string
+          maxLength: 500
+          title: Message
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - settings
+      - base_version
+      title: GroupSettingsUpdate
     GuardQualitySummary:
       properties:
         generated_at:
@@ -4107,6 +4550,42 @@ components:
       - name
       - status
       title: McpToolInfo
+    ModelCost:
+      properties:
+        model:
+          type: string
+          title: Model
+        tier:
+          $ref: '#/components/schemas/ConnectorTier'
+        tokens_in:
+          type: integer
+          title: Tokens In
+          default: 0
+        tokens_out:
+          type: integer
+          title: Tokens Out
+          default: 0
+        usd:
+          type: number
+          title: Usd
+          default: 0.0
+        gpu_seconds:
+          type: number
+          title: Gpu Seconds
+          default: 0.0
+        share:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Share
+          description: Share of all tokens in the window.
+          default: 0.0
+      additionalProperties: false
+      type: object
+      required:
+      - model
+      - tier
+      title: ModelCost
     ModelInfo:
       properties:
         id:
@@ -4155,6 +4634,35 @@ components:
           title: Available
           description: False when e.g. an env-referenced upstream name is unset.
           default: true
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+          examples:
+          - fast cloud
+          - strong cloud
+          - local, all confidential work
+        requests_day:
+          type: integer
+          title: Requests Day
+          default: 0
+        tokens_in_day:
+          type: integer
+          title: Tokens In Day
+          default: 0
+        tokens_out_day:
+          type: integer
+          title: Tokens Out Day
+          default: 0
+        usd_day:
+          type: number
+          title: Usd Day
+          default: 0.0
+        gpu_seconds_day:
+          type: number
+          title: Gpu Seconds Day
+          default: 0.0
       additionalProperties: false
       type: object
       required:
@@ -4212,6 +4720,50 @@ components:
           type: integer
           title: Pending Approvals
           default: 0
+        decisions_total:
+          type: integer
+          title: Decisions Total
+          default: 0
+        timeline:
+          items:
+            $ref: '#/components/schemas/DecisionBucket'
+          type: array
+          title: Timeline
+          description: Decisions per time bucket by action.
+        incidents_by_severity:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Incidents By Severity
+          description: Open incidents by severity.
+        cost_by_model:
+          items:
+            $ref: '#/components/schemas/ModelCost'
+          type: array
+          title: Cost By Model
+        usd_today:
+          type: number
+          title: Usd Today
+          default: 0.0
+        usd_limit_day:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Usd Limit Day
+        usd_forecast_day:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Usd Forecast Day
+        gpu_seconds_today:
+          type: number
+          title: Gpu Seconds Today
+          default: 0.0
+        gpu_seconds_limit_day:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gpu Seconds Limit Day
       additionalProperties: false
       type: object
       required:
@@ -4620,7 +5172,7 @@ components:
         model:
           type: string
           title: Model
-          description: Resolved public model id, e.g. `local/general`.
+          description: Resolved public model id, e.g. `local/qwen3.8-27b`.
         connector:
           type: string
           title: Connector
@@ -4630,7 +5182,7 @@ components:
           type: string
           title: Reason
           examples:
-          - 'auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local'
+          - 'auto → local/loan-memo: task=loan_memo (0.91), data=confidential → local'
         degraded:
           type: boolean
           title: Degraded
@@ -4647,6 +5199,35 @@ components:
       - tier
       - reason
       title: RouteInfo
+    SessionLabelInfo:
+      properties:
+        data_class:
+          $ref: '#/components/schemas/DataClass'
+        trust:
+          type: string
+          enum:
+          - trusted
+          - untrusted
+          title: Trust
+        since:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+          description: When the data class reached its current level.
+        local_only:
+          type: boolean
+          title: Local Only
+          description: 'At or above the SEC-SESSION-01 threshold: local models only.'
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - data_class
+      - trust
+      title: SessionLabelInfo
+      description: The session's high-water mark after this event (labels only rise within a session).
     SessionLabels:
       properties:
         integrity:
@@ -4666,10 +5247,72 @@ components:
           type: array
           title: Sources
           description: Rule ids that raised the labels.
+        since:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+          description: When `confidentiality` rose to its current level (the high-water mark time).
       additionalProperties: false
       type: object
       title: SessionLabels
       description: IFC labels carried by a session (concept §9). Only ever raised without approval.
+    SessionTranscript:
+      properties:
+        session_id:
+          type: string
+          title: Session Id
+        client_ref:
+          anyOf:
+          - $ref: '#/components/schemas/ClientRef'
+          - type: 'null'
+        subject:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject
+        username:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Username
+        groups:
+          items:
+            type: string
+          type: array
+          title: Groups
+        session_label:
+          anyOf:
+          - $ref: '#/components/schemas/SessionLabelInfo'
+          - type: 'null'
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        last_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last At
+        turns:
+          items:
+            $ref: '#/components/schemas/TranscriptTurn'
+          type: array
+          title: Turns
+        truncated:
+          type: boolean
+          title: Truncated
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - session_id
+      title: SessionTranscript
+      description: 'Read-only session view: redacted turns with the decision per turn. Raw content is never returned.'
     Severity:
       type: string
       enum:
@@ -4773,6 +5416,179 @@ components:
       - confirm
       title: ToolTier
       description: Tool policy tiers (concept §9).
+    TraceControl:
+      properties:
+        control_id:
+          type: string
+          title: Control Id
+        control_type:
+          type: string
+          title: Control Type
+        action:
+          $ref: '#/components/schemas/Action'
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        score:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Score
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+        status:
+          type: string
+          title: Status
+          default: ok
+        latency_ms:
+          type: number
+          title: Latency Ms
+          default: 0.0
+        findings:
+          items:
+            type: string
+          type: array
+          title: Findings
+          description: Entity types found (never values).
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - control_id
+      - control_type
+      - action
+      title: TraceControl
+    TraceStep:
+      properties:
+        step:
+          type: string
+          enum:
+          - identity
+          - normalise
+          - rules
+          - similarity
+          - classifier
+          - judge
+          - decide
+          - approval
+          - route
+          - output
+          title: Step
+        result:
+          type: string
+          title: Result
+          description: One-line result, e.g. `2 entities pseudonymised`.
+        ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Ms
+        changed:
+          type: boolean
+          title: Changed
+          default: false
+        controls:
+          items:
+            $ref: '#/components/schemas/TraceControl'
+          type: array
+          title: Controls
+      additionalProperties: false
+      type: object
+      required:
+      - step
+      - result
+      title: TraceStep
+    TranscriptTurn:
+      properties:
+        event_id:
+          type: string
+          title: Event Id
+        trace_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Trace Id
+        seq:
+          type: integer
+          title: Seq
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        point:
+          anyOf:
+          - $ref: '#/components/schemas/InspectionPoint'
+          - type: 'null'
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+          - tool_call
+          - tool_result
+          - system
+          title: Role
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+          description: Redacted text only; null when content is not retained.
+        retained:
+          type: boolean
+          title: Retained
+          default: false
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        action:
+          anyOf:
+          - $ref: '#/components/schemas/Action'
+          - type: 'null'
+        applied:
+          items:
+            $ref: '#/components/schemas/Action'
+          type: array
+          title: Applied
+        rule_ids:
+          items:
+            type: string
+            pattern: ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$
+            description: Rule identifier (control id, or control id + sub-rule, or signature id).
+          type: array
+          title: Rule Ids
+        summary:
+          type: string
+          title: Summary
+          default: ''
+      additionalProperties: false
+      type: object
+      required:
+      - event_id
+      - seq
+      - timestamp
+      - role
+      title: TranscriptTurn
     Usage:
       properties:
         input_tokens:
@@ -4810,6 +5626,51 @@ components:
       additionalProperties: false
       type: object
       title: Usage
+    UsageStats:
+      properties:
+        window:
+          type: string
+          title: Window
+          examples:
+          - 7d
+          - today
+        requests:
+          type: integer
+          title: Requests
+          default: 0
+        tokens_in:
+          type: integer
+          title: Tokens In
+          default: 0
+        tokens_out:
+          type: integer
+          title: Tokens Out
+          default: 0
+        blocks:
+          type: integer
+          title: Blocks
+          description: Decisions enforced as `block`.
+          default: 0
+        usd:
+          type: number
+          title: Usd
+          default: 0.0
+        gpu_seconds:
+          type: number
+          title: Gpu Seconds
+          default: 0.0
+        last_active:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Active
+      additionalProperties: false
+      type: object
+      required:
+      - window
+      title: UsageStats
+      description: Traffic of one principal or group over a window (decision events only).
     User:
       properties:
         id:
@@ -4858,6 +5719,15 @@ components:
           type: boolean
           title: Disabled
           default: false
+        preset:
+          anyOf:
+          - $ref: '#/components/schemas/Preset'
+          - type: 'null'
+          description: Effective preset (strictest of groups and grants).
+        stats_7d:
+          anyOf:
+          - $ref: '#/components/schemas/UsageStats'
+          - type: 'null'
       additionalProperties: false
       type: object
       required:

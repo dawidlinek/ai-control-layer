@@ -198,10 +198,10 @@ def examples() -> dict[str, BaseModel]:
     )
     route = RouteInfo(
         model_requested="auto",
-        model="local/pl",
+        model="local/qwen3.8-27b",
         connector="local",
         tier=ConnectorTier.local,
-        reason="auto → local/pl: data=confidential → local_only (LOCK-01)",
+        reason="auto → local/qwen3.8-27b: data=confidential → local_only (LOCK-01)",
     )
     labels = SessionLabels(confidentiality=DataClass.confidential, taint=[TaintFlag.sensitive], sources=["SEC-PII-01"])
     decision = Decision(
@@ -242,7 +242,7 @@ def examples() -> dict[str, BaseModel]:
         client=ClientInfo(app="librechat", version="0.8"),
         point=InspectionPoint.ingress,
         model_requested="auto",
-        model="local/pl",
+        model="local/qwen3.8-27b",
         connector="local",
         payload_hash="5e2a0c7d9b1f3a64",
         decision=AuditDecision(

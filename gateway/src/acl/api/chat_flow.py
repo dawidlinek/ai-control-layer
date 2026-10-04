@@ -64,6 +64,7 @@ from acl.engine.replay import ReplayBuffer
 from acl.engine.streaming import RepeatDetector, StreamGuard, is_blocking
 from acl.engine.text import apply_replacements, iter_texts
 from acl.engine.transforms import (
+    enforced_verdicts,
     message_reasoning,
     non_shadow_verdicts,
     obliges_local,
@@ -75,6 +76,7 @@ from acl.engine.transforms import (
     vault_placeholders,
 )
 from acl.policy.models import Policy
+from acl.routing.complexity import estimate_complexity
 from acl.routing.connectors.base import ConnectorError, UpstreamResponse, UpstreamUsage
 from acl.routing.dev_access import PermissiveAccess
 from acl.routing.metering import compute_usage, estimate_tokens
@@ -95,6 +97,24 @@ def budget_exhausted(decision: Decision) -> str | None:
     for v in decision.verdicts:
         if v.control_type == "budget" and v.action == Action.route_local:
             return v.reason or "budget exhausted"
+    return None
+
+
+def local_obligation(engine: Engine, decision: Decision) -> str:
+    """Why the request must stay local, for the route reason: `<rule> <action>` of the first enforced obligation."""
+    for v in enforced_verdicts(engine, decision):
+        if v.action in (Action.route_local, Action.downgrade):
+            rule = v.rule_ids[0] if v.rule_ids else v.control_id
+            return f"{rule} {v.action.value}"
+    return "route_local" if Action.route_local in decision.applied else "downgrade"
+
+
+def session_label_header(engine: Engine, decision: Decision) -> str | None:
+    """`x-acl-session-label` value when SEC-SESSION-01 (type `session_label`) keeps this session local."""
+    for v in enforced_verdicts(engine, decision):
+        if v.control_type == "session_label" and v.action == Action.route_local:
+            level = v.data_class.value if v.data_class is not None else "confidential"
+            return f"{level}; local-only; rule={v.rule_ids[0] if v.rule_ids else v.control_id}"
     return None
 
 
@@ -517,11 +537,15 @@ class ChatFlow(BaseFlow):
             data_class=self._data_class(decision, ctx),
             usable=usable,
             force_local=obliges_local(self.engine, decision),
-            force_reason=("route_local" if Action.route_local in decision.applied else "downgrade"),
+            force_reason=local_obligation(self.engine, decision),
+            complexity=estimate_complexity(payload_out),
             budget_exhausted=budget_exhausted(decision),
             capability="chat",
             sensitive_external_action=preset_cfg.sensitive_external_action if preset_cfg else Action.route_local,
         )
+        label = session_label_header(self.engine, decision)
+        if label is not None:
+            self.headers["x-acl-session-label"] = label
         try:
             route = self.router.route(rr)
         except RouteError as exc:
@@ -1097,10 +1121,14 @@ class EmbeddingsFlow(BaseFlow):
             data_class=self._data_class(decision, ctx),
             usable=usable,
             force_local=obliges_local(self.engine, decision),
+            force_reason=local_obligation(self.engine, decision),
             budget_exhausted=budget_exhausted(decision),
             capability="embeddings",
             sensitive_external_action=preset_cfg.sensitive_external_action if preset_cfg else Action.route_local,
         )
+        label = session_label_header(self.engine, decision)
+        if label is not None:
+            self.headers["x-acl-session-label"] = label
         try:
             route = self.router.route(rr)
         except RouteError as exc:
