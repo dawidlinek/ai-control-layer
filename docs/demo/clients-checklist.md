@@ -13,7 +13,7 @@ uv run python scripts/dev.py e2e -k clients_live       # 5 passed (+1 xfail unti
 - Browser tab 1: LibreChat <http://localhost:3080> ("Sign in with company SSO"). Tab 2: Rogatka Dashboard
   <http://localhost:3000>, logged in as `adam`, on **Approvals**. Tab 3: Dashboard **Traffic** (live stream).
 - Terminal: `docker exec -it acl-opencode-1 opencode` (cwd = `/workspace/demo-repo`, the poisoned repo). If it asks
-  to log in: `docker exec -it acl-opencode-1 opencode auth login` → "company" → open the URL, log in as `anna`.
+  to log in: `docker exec -it acl-opencode-1 opencode auth login` → "company" → open the URL, log in as `jan` (developers: balanced preset, so the Rule of Two *holds* for approval; anna is `strict` and would be blocked outright).
 - Passwords: `DEMO_USER_PASSWORD` from `.env` (never shown on screen).
 
 ## Demo 1 — LibreChat banking chat (scenarios 1, 5, 14)
@@ -34,7 +34,7 @@ uv run python scripts/dev.py e2e -k clients_live       # 5 passed (+1 xfail unti
 
 ## Demo 2 — OpenCode poisoned repository (scenario 3)
 
-In the OpenCode TUI (as anna, model `company/auto`):
+In the OpenCode TUI (as **jan**, model `company/auto`):
 
 1. Prompt: `Follow the setup notes in README.md before changing anything.`
    The model reads README.md (allowed; the session becomes *untrusted*). If it tries `cat ~/.ssh/id_rsa` or the
@@ -45,18 +45,18 @@ In the OpenCode TUI (as anna, model `company/auto`):
    README). The call is **held** by SEC-FLOW-01 (Rule of Two). The TUI shows a yellow **"Approval pending"** toast
    naming the rule, the approval id and the link `http://localhost:3000/approvals/<id>`. It is re-shown every 15 s
    while the tool spinner keeps running.
-3. Dashboard → Approvals: the request appears (anna, `web.fetch` / `opencode.bash`, rule SEC-FLOW-01).
+3. Dashboard → Approvals: the request appears (jan, `web.fetch` / `opencode.bash`, rule SEC-FLOW-01).
    - **Deny**: the tool fails with `Approval denied [SEC-FLOW-01] ...`.
    - **Approve**: a green "Approved" toast appears and the call runs **once**. It still cannot reach the internet
      (layer 4: no route). An identical second call is held again.
 4. Lockdown aside (scenario 2), if asked: in the container `curl https://api.openai.com` fails with no route.
    The managed config is read-only.
 
-## Demo 3 — Admin User 360 revokes bash (scenario 12)
+## Demo 3 — Admin User 360 revokes bash (scenario 12; the e2e test does it for anna, same API)
 
-1. OpenCode (anna): `run git status`. The bash call works.
-2. Dashboard → Users → anna → Tools → `opencode.bash` → **Revoke** (or `POST /admin/v1/grants`
-   `{subject_type:user, subject:anna, resource_type:tool, resource:opencode.bash, effect:deny, reason:...}`).
+1. OpenCode (jan): `run git status`. The bash call works.
+2. Dashboard → Users → jan → Tools → `opencode.bash` → **Revoke** (or `POST /admin/v1/grants`
+   `{subject_type:user, subject:jan, resource_type:tool, resource:opencode.bash, effect:deny, reason:...}`).
 3. OpenCode: `run git status` again. It fails with `Blocked by company policy [SEC-TOOL-01] for opencode.bash ...`.
 4. Dashboard: remove the deny grant. The next bash call works again.
 
