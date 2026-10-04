@@ -49,7 +49,7 @@ def _loaded():  # type: ignore[no-untyped-def]
 
 
 def _headers(user: str, **extra: str) -> dict[str, str]:
-    return {"X-ACL-Dev-User": user, "X-ACL-Dev-Groups": "developers", **extra}
+    return {"X-ACL-Dev-User": user, "X-ACL-Dev-Groups": "operations", **extra}
 
 
 @pytest.fixture
@@ -371,6 +371,7 @@ def test_secret_in_params_or_message_name_is_blocked(app: Any, body_extra: dict,
     body = {"model": "smart", "messages": [{"role": "user", "content": "hi", **message_extra}], **body_extra}
     r = _chat(app, body)
     assert r.status_code == 403, r.text
+    assert r.json()["error"]["code"] == "SEC-SECRET-01"  # blocked by the secret control, not by model access
     assert not _calls(app, "gemini") and not _calls(app, "local")
 
 

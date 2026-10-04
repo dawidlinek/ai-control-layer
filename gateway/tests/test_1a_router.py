@@ -34,9 +34,9 @@ async def route(setup, requested: str, data_class=DataClass.public, **kw):  # ty
 
 
 async def test_model_id_and_alias_resolution(setup) -> None:  # type: ignore[no-untyped-def]
-    r = await route(setup, "local/coder")
-    assert r.info.model == "local/coder" and r.info.connector == "local" and r.info.tier == ConnectorTier.local
-    assert not r.info.degraded and r.info.model_requested == "local/coder"
+    r = await route(setup, "local/qwen3.8-27b")
+    assert r.info.model == "local/qwen3.8-27b" and r.info.connector == "local" and r.info.tier == ConnectorTier.local
+    assert not r.info.degraded and r.info.model_requested == "local/qwen3.8-27b"
     r = await route(setup, "smart")  # alias declared on a model
     assert (
         r.info.model == "gemini/flash"
@@ -51,10 +51,10 @@ async def test_fixed_alias_and_skill(setup) -> None:  # type: ignore[no-untyped-
     policy = policy.model_copy(deep=True)
     from acl.policy.models import AliasConfig
 
-    policy.aliases["coding"] = AliasConfig(strategy="fixed", target="local/coder")
+    policy.aliases["coding"] = AliasConfig(strategy="fixed", target="local/loan-memo")
     router = Router(policy, registry.table_for(policy, "v-fixed"))
     r = router.route(RouteRequest(requested="coding", usable=await usable()))
-    assert r.info.model == "local/coder"
+    assert r.info.model == "local/loan-memo"
     r = router.route(RouteRequest(requested="skill/loan-memo-summary", usable=await usable()))
     assert r.info.model == "local/loan-memo" and r.model.system_prompt
 

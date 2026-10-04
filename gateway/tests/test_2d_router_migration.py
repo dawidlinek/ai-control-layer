@@ -44,8 +44,8 @@ async def test_budget_exhausted_serves_a_local_model_and_marks_it_degraded(setup
 
 
 async def test_budget_exhausted_leaves_local_requests_alone(setup) -> None:  # type: ignore[no-untyped-def]
-    r = await setup("local-coder", budget_exhausted="usd_day")
-    assert r.info.model == "local/coder" and not r.info.degraded
+    r = await setup("local", budget_exhausted="usd_day")
+    assert r.info.model == "local/qwen3.8-27b" and not r.info.degraded
     plain = await setup("smart")
     assert plain.info.model == "gemini/flash" and not plain.info.degraded
 

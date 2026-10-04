@@ -343,7 +343,7 @@ def test_model_system_prompt_is_prepended(harness) -> None:  # type: ignore[no-u
     client, app, _ = harness
     chat(client, "podsumuj", model="local/loan-memo")
     sent = app.state.connectors.get("local").calls[-1]["request"]["messages"]
-    assert sent[0]["role"] == "system" and "analitykiem kredytowym" in sent[0]["content"]
+    assert sent[0]["role"] == "system" and "credit analyst" in sent[0]["content"]
     assert sent[-1]["content"] == "podsumuj"
 
 
@@ -424,9 +424,9 @@ def test_egress_block_non_stream(harness) -> None:  # type: ignore[no-untyped-de
 
 
 def test_forbidden_model_is_403_with_incident(tmp_path: Path) -> None:
-    app, settings = build_app(tmp_path, deny={"local/coder"})
+    app, settings = build_app(tmp_path, deny={"local/qwen3.8-27b"})
     with TestClient(app) as client:
-        r = chat(client, "write code", model="local/coder")
+        r = chat(client, "write code", model="local/qwen3.8-27b")
         assert r.status_code == 403
         err = r.json()["error"]
         assert err["type"] == "forbidden_model" and err["code"] == "SEC-MODEL-01" and err["trace_id"]
@@ -435,7 +435,7 @@ def test_forbidden_model_is_403_with_incident(tmp_path: Path) -> None:
         assert len(incidents) == 1 and incidents[0]["category"] == "forbidden_model"
         assert incidents[0]["subject"] == "dev" and len(incidents[0]["event_ids"]) == 2
         # a second attempt within 10 minutes is grouped into the same incident
-        chat(client, "again", model="local/coder")
+        chat(client, "again", model="local/qwen3.8-27b")
         grouped = client.get("/admin/v1/incidents").json()
         assert len(grouped) == 1 and len(grouped[0]["event_ids"]) == 4
         # the panel can triage it
