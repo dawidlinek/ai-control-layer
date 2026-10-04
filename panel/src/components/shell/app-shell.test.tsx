@@ -15,7 +15,7 @@ describe("AppShell", () => {
     );
     const header = screen.getByRole("banner");
     expect(within(header).getByRole("link", { name: /Rogatka\s*Dashboard/ })).toHaveAttribute("href", "/");
-    expect(within(header).getByText("Dashboard")).toHaveClass("font-normal", "text-muted");
+    expect(within(header).getByText("Dashboard")).toHaveClass("bg-accent-text", "text-on-accent");
     expect(screen.getByRole("navigation", { name: "Main" })).toBeInTheDocument();
     expect(screen.getByRole("main")).toContainElement(screen.getByRole("heading", { name: "Page" }));
   });

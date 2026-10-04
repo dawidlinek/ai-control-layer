@@ -33,7 +33,7 @@ export function renderApp(ui: React.ReactElement, opts: RenderOptions = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <ThemeProvider initial={opts.theme ?? "dark"}>
+      <ThemeProvider initial={opts.theme ?? "light"}>
         <QueryClientProvider client={client}>
           <NuqsTestingAdapter hasMemory={opts.urlMemory} searchParams={opts.searchParams} onUrlUpdate={opts.onUrlUpdate}>
             <UserProvider user={opts.user ?? DEV_USER} devMode={opts.devMode}>

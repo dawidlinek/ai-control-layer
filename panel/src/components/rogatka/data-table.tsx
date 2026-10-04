@@ -99,7 +99,7 @@ export function DataTable<T>({
 
   return (
     <div className={cn("rg-scroll relative overflow-x-auto rounded-[8px] border border-border bg-surface", className)}>
-      <table aria-label={ariaLabel} className="w-full border-separate border-spacing-0 text-[12.5px]" style={{ minWidth }}>
+      <table aria-label={ariaLabel} className="w-full border-separate border-spacing-0 text-[14px]" style={{ minWidth }}>
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
@@ -108,7 +108,7 @@ export function DataTable<T>({
                   key={h.id}
                   scope="col"
                   className={cn(
-                    "border-b border-border px-2.5 py-[9px] text-left text-[10.5px] font-semibold uppercase tracking-[.05em] text-muted first:pl-3.5 last:pr-3.5",
+                    "border-b border-border px-2.5 py-[9px] text-left text-[11px] font-bold uppercase tracking-[.1em] text-muted first:pl-3.5 last:pr-3.5",
                     h.column.columnDef.meta?.headerClassName,
                   )}
                 >
@@ -154,8 +154,8 @@ export function DataTable<T>({
                     <td
                       key={cell.id}
                       className={cn(
-                        "border-b border-border px-2.5 py-2 align-middle first:pl-3.5 last:pr-3.5",
-                        i === 0 && selected && "shadow-[inset_3px_0_0_var(--accent)]",
+                        "border-b border-border px-2.5 py-2.5 align-middle first:pl-3.5 last:pr-3.5",
+                        i === 0 && selected && "shadow-[inset_3px_0_0_var(--ink)]",
                         cell.column.columnDef.meta?.className,
                       )}
                     >

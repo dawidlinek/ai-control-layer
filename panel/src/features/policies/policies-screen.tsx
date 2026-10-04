@@ -20,7 +20,7 @@ function LiveHeader({ status, versions }: { status: PolicyStatus | undefined; ve
     <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1.5">
       <h1 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">Policies</h1>
       {status && (
-        <span className="text-[12.5px] text-muted" data-testid="policy-live">
+        <span className="text-[13px] text-muted" data-testid="policy-live">
           live <b className="font-mono font-semibold text-text">{versionLabel(status.version, versions)}</b> · {liveSentence(status, versions, me)}
         </span>
       )}

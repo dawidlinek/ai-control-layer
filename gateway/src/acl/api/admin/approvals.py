@@ -8,9 +8,10 @@ is written to the audit log by the approval service. (Docstrings are part of the
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi import status as http_status
 
+from acl.api.admin.paging import TOTAL_COUNT_RESPONSES, set_total
 from acl.api.deps import ERROR_RESPONSES, Analyst, Viewer
 from acl.approvals.service import ApprovalError, ApprovalService
 from acl.contracts.admin import (
@@ -31,11 +32,19 @@ def _service(request: Request) -> ApprovalService:
     return svc
 
 
-@router.get("/approvals", response_model=list[Approval], tags=["approvals"], operation_id="listApprovals")
+@router.get(
+    "/approvals",
+    response_model=list[Approval],
+    tags=["approvals"],
+    operation_id="listApprovals",
+    responses=TOTAL_COUNT_RESPONSES,
+)
 async def list_approvals(
-    request: Request, p: Viewer, status: ApprovalStatus | None = ApprovalStatus.pending
+    request: Request, response: Response, p: Viewer, status: ApprovalStatus | None = ApprovalStatus.pending
 ) -> list[Approval]:
-    return await _service(request).list(status)
+    rows, total = await _service(request).list_page(status)
+    set_total(response, total)
+    return rows
 
 
 @router.get("/approvals/{approval_id}", response_model=Approval, tags=["approvals"], operation_id="getApprovalAdmin")

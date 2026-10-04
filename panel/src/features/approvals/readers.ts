@@ -1,23 +1,17 @@
 /**
- * Typed, tolerant readers over the `Approval` contract. The contract has no structured fields for the approver
- * label, client, data class, red flags, preview or why-held sources (API gap, see ARCHITECTURE.md), so:
- *   - approver label comes from `approver_scope`,
- *   - details / client / data class / preview are read from `arguments_preview` (line 1 = the command,
- *     then `Key: value` lines, then a blank line, `--- <title>` and preview lines),
- *   - why-held sources are read from `reason` (line 1 = short reason, then `flag | text | time | trace` lines),
- *   - red flags are derived deterministically from the details (company domain, secret scan).
- * Every reader tolerates a plain one-line value (what a real gateway may send today).
+ * Readers over the `Approval` contract. The gateway sends typed `approver_label`, `data_class`, `client`, `flags`,
+ * `preview` and `reasons`; the panel reads those first. What the contract still has no field for (the detail lines of
+ * the call and the device) comes from `arguments_preview` (line 1 = the command, then optional `Key: value` lines),
+ * and red flags are also derived from those details (company domain, secret scan). Every reader tolerates a plain
+ * one-line `arguments_preview` / `reason`, and an older gateway without the typed fields.
  */
 import type { Approval } from "@/lib/api/types";
-import type { Decision } from "@/lib/decisions";
 
 export const COMPANY_DOMAIN = "corp.example";
 export const AUTO_DENY_MINUTES = 10;
 
-export type ApproverLabel = "Security team" | "Team lead";
-
-export function approverLabel(a: Pick<Approval, "approver_scope">): ApproverLabel {
-  return a.approver_scope === "admin" ? "Security team" : "Team lead";
+export function approverLabel(a: Pick<Approval, "approver_scope" | "approver_label">): string {
+  return a.approver_label ?? (a.approver_scope === "admin" ? "Security team" : "Team lead");
 }
 
 export interface Detail {
@@ -44,14 +38,11 @@ export interface Preview {
 export interface ParsedArguments {
   command: string;
   details: Detail[];
-  client: string | null;
   device: string | null;
-  dataClass: string | null;
-  preview: Preview | null;
 }
 
-/** Keys that describe the context, not the action: shown in the facts / Who column, not in the details. */
-const META_KEYS = new Set(["client", "device", "data class"]);
+/** Keys that describe the context, not the action: shown in the session fact, not in the details. */
+const META_KEYS = new Set(["device"]);
 
 function flagFor(key: string, value: string): string | undefined {
   const k = key.toLowerCase();
@@ -69,14 +60,6 @@ function flagFor(key: string, value: string): string | undefined {
   return undefined;
 }
 
-function previewKind(a: Pick<Approval, "tool">, command: string): PreviewKind {
-  const tool = (a.tool ?? "").toLowerCase();
-  if (tool.startsWith("email") || tool.startsWith("mail")) return "email";
-  if (/^terraform\b/.test(command)) return "plan";
-  if (/^git\b/.test(command)) return "diff";
-  return "text";
-}
-
 function toLine(raw: string): PreviewLine {
   const first = raw.charAt(0);
   if (first === "+" || first === "-" || first === "~" || first === " ") return { sign: first, text: raw.slice(1) };
@@ -84,38 +67,28 @@ function toLine(raw: string): PreviewLine {
 }
 
 /** Parse `arguments_preview`. A one-line preview gives just the command. */
-export function parseArguments(a: Pick<Approval, "arguments_preview" | "tool">): ParsedArguments {
-  const all = (a.arguments_preview ?? "").replace(/\r\n/g, "\n").split("\n");
+export function parseArguments(a: Pick<Approval, "arguments_preview">): ParsedArguments {
+  const all = (a.arguments_preview ?? "").replace(/\r?\n/g, "\n").split("\n");
   const command = (all[0] ?? "").trim();
-  const out: ParsedArguments = { command, details: [], client: null, device: null, dataClass: null, preview: null };
-  let i = 1;
-  for (; i < all.length; i++) {
-    const line = all[i];
-    if (line.trim() === "") break;
+  const out: ParsedArguments = { command, details: [], device: null };
+  for (const line of all.slice(1)) {
     const m = /^([^:]{1,40}):\s*(.*)$/.exec(line);
     if (!m) break;
     const key = m[1].trim();
     const value = m[2].trim();
-    const lower = key.toLowerCase();
-    if (META_KEYS.has(lower)) {
-      if (lower === "client") out.client = value;
-      else if (lower === "device") out.device = value;
-      else out.dataClass = value;
-      continue;
-    }
-    out.details.push({ key, value, flag: flagFor(key, value) });
-  }
-  while (i < all.length && all[i].trim() === "") i++;
-  if (i < all.length) {
-    let title = "Preview";
-    if (all[i].startsWith("--- ")) {
-      title = all[i].slice(4).trim();
-      i++;
-    }
-    const lines = all.slice(i).filter((l, idx, arr) => !(idx === arr.length - 1 && l.trim() === "")).map(toLine);
-    if (lines.length > 0) out.preview = { kind: previewKind(a, command), title, lines };
+    if (META_KEYS.has(key.toLowerCase())) out.device = value;
+    else out.details.push({ key, value, flag: flagFor(key, value) });
   }
   return out;
+}
+
+const PREVIEW_TITLE: Record<PreviewKind, string> = { diff: "Changes", email: "Message (personal data masked)", plan: "Plan", text: "Preview" };
+
+/** The typed redacted preview as lines for the diff box. */
+export function previewOf(a: Pick<Approval, "preview">): Preview | null {
+  if (!a.preview?.body.trim()) return null;
+  const lines = a.preview.body.replace(/\r?\n/g, "\n").split("\n").map(toLine);
+  return { kind: a.preview.type, title: PREVIEW_TITLE[a.preview.type], lines };
 }
 
 /** Short label of the action for the Request column: `git push`, `terraform apply`, `email.send`. */
@@ -133,57 +106,18 @@ export function promptOf(a: Pick<Approval, "tool">): string {
   return a.tool === "bash" || a.tool === "shell" ? "$" : "tool";
 }
 
-export type SourceFlag = "untrusted" | "sensitive" | "external" | "irreversible" | string;
-
-export interface HeldSource {
-  n: number;
-  flag: SourceFlag;
-  text: string;
-  /** ISO time, or null for "now" (the held call itself). */
-  at: string | null;
-  traceId: string | null;
+/** Why it was held: one line per holding control; an older gateway's single-line `reason` as the fallback. */
+export function reasonsOf(a: Pick<Approval, "reasons" | "reason">): string[] {
+  if (a.reasons.length > 0) return a.reasons;
+  const first = (a.reason ?? "").split("\n")[0].trim();
+  return [first || "held for a person"];
 }
 
-export interface ParsedReason {
-  short: string;
-  sources: HeldSource[];
-}
-
-/** Parse `reason`: first line short reason, then `flag | text | time | trace` lines. */
-export function parseReason(a: Pick<Approval, "reason">): ParsedReason {
-  const all = (a.reason ?? "").replace(/\r\n/g, "\n").split("\n");
-  const short = (all[0] ?? "").trim();
-  const sources: HeldSource[] = [];
-  for (const line of all.slice(1)) {
-    const parts = line.split("|").map((p) => p.trim());
-    if (parts.length < 2 || !parts[0] || !parts[1]) continue;
-    const at = parts[2] && parts[2] !== "now" && !Number.isNaN(Date.parse(parts[2])) ? parts[2] : null;
-    sources.push({ n: sources.length + 1, flag: parts[0], text: parts[1], at, traceId: parts[3] || null });
-  }
-  return { short: short || "held for a person", sources };
-}
-
-/** Colour of a why-held source (the prototype uses the decision tint of what happened at that step). */
-export function sourceDecision(flag: SourceFlag): Decision {
-  switch (flag) {
-    case "untrusted":
-      return "downgrade";
-    case "sensitive":
-      return "redact";
-    case "irreversible":
-      return "block";
-    default:
-      return "require_approval";
-  }
-}
-
-/** One line next to the rule chip. */
-export function ruleSentence(ruleId: string | undefined, reason: ParsedReason): string {
-  if (ruleId === "SEC-FLOW-01") {
-    return reason.sources.length >= 3 ? "Rule of Two: this call would complete all three:" : "Rule of Two";
-  }
-  if (ruleId === "AUTHZ-TOOL-01") return `tool tier confirm · ${reason.short}`;
-  return reason.short;
+/** Short name of the rule next to its chip. */
+export function ruleTitle(ruleId: string | undefined): string | null {
+  if (ruleId === "SEC-FLOW-01") return "Rule of Two";
+  if (ruleId === "AUTHZ-TOOL-01") return "Tool tier: confirm";
+  return null;
 }
 
 export function riskLabel(score: number): string {
@@ -191,18 +125,18 @@ export function riskLabel(score: number): string {
   return `${score.toFixed(2)} · ${level}`;
 }
 
-const SERVER_LABEL: Record<string, string> = { opencode: "OpenCode", librechat: "LibreChat" };
+const CLIENT_LABEL: Record<string, string> = { opencode: "OpenCode", librechat: "LibreChat" };
 
-export function clientApp(a: Pick<Approval, "server">): string | null {
-  if (!a.server) return null;
-  return SERVER_LABEL[a.server] ?? null;
+export function clientApp(a: Pick<Approval, "client" | "server">): string | null {
+  const c = a.client ?? a.server;
+  return c ? (CLIENT_LABEL[c.toLowerCase()] ?? c) : null;
 }
 
 /** What the approval refers to in the result message: "git push to github.com/…", "this e-mail". */
-export function targetOf(a: Pick<Approval, "tool" | "arguments_preview">, parsed: ParsedArguments): string {
+export function targetOf(a: Pick<Approval, "tool" | "preview">, parsed: ParsedArguments): string {
   const short = shortAction(a, parsed.command);
   const detail = (k: string) => parsed.details.find((d) => d.key.toLowerCase() === k)?.value;
-  if (parsed.preview?.kind === "email" || (a.tool ?? "").startsWith("email")) return "this e-mail";
+  if (a.preview?.type === "email" || (a.tool ?? "").startsWith("email")) return "this e-mail";
   const remote = detail("remote");
   if (remote) return `${short} to ${remote}`;
   const ws = detail("workspace");
@@ -218,12 +152,7 @@ export interface Person {
 /**
  * The plain first sentence of the sidebar, from a template filled with the record (never an LLM).
  */
-export function approvalSentence(
-  a: Approval,
-  parsed: ParsedArguments,
-  reason: ParsedReason,
-  who: Person,
-): string {
+export function approvalSentence(a: Approval, parsed: ParsedArguments, reasons: string[], who: Person): string {
   if (a.status === "approved") {
     const by = a.decided_by ?? "an approver";
     if (a.elevation) {
@@ -238,14 +167,12 @@ export function approvalSentence(
   const actor = who.isAgent ? who.name : `${who.name}’s agent`;
   const to = parsed.details.find((d) => d.key.toLowerCase() === "to")?.value;
   const action =
-    parsed.preview?.kind === "email" || (a.tool ?? "").startsWith("email")
+    a.preview?.type === "email" || (a.tool ?? "").startsWith("email")
       ? `send an e-mail${to ? ` to ${to}` : ""}`
       : `run ${targetOf(a, parsed)}`;
-  const earlier = reason.sources.filter((s) => s.flag !== "external" && s.at);
-  const parts = [`${actor} wants to ${action}.`];
-  if (earlier.length > 0) parts.push(`Earlier in the same session it ${earlier.map((s) => s.text).join(" and ")}.`);
-  const flags = parsed.details.filter((d) => d.flag).map((d) => d.flag);
-  if (flags.length > 0) parts.push(`Flagged: ${flags.join(", ")}.`);
+  const parts = [`${actor} wants to ${action}.`, `Held: ${reasons[0].replace(/[.:]+$/, "")}.`];
+  const flags = [...a.flags, ...parsed.details.flatMap((d) => (d.flag ? [d.flag] : []))];
+  if (flags.length > 0) parts.push(`Flagged: ${[...new Set(flags)].join(", ")}.`);
   parts.push("A person has to confirm it before it runs.");
   return parts.join(" ");
 }

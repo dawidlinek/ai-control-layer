@@ -87,6 +87,7 @@ services:
       ACL_OIDC_JWKS_URL: http://keycloak:8080/realms/acl/protocol/openid-connect/certs
       ACL_OIDC_AUDIENCE: gateway
       ACL_FEED_URL: http://feed-server:8080/bundle.json
+      ACL_FEED_ADMIN_TOKEN: ${FEED_ADMIN_TOKEN:-}   # lets the panel add feed rules (POST /admin/v1/feed/rules)
       ACL_DETERMINISTIC: ${ACL_DETERMINISTIC:-0}
       ACL_LOG_LEVEL: ${ACL_LOG_LEVEL:-INFO}
       ACL_POLICY_FORCE_POLLING: "true"   # bind mounts from Windows/macOS hosts deliver no inotify events

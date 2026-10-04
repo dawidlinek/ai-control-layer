@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { RogatkaMark } from "@/components/rogatka/icon";
+import { BrandLockup } from "@/components/rogatka/brand";
 import { Button } from "@/components/ui/button";
 import { useSignOutUrl, useUser } from "@/lib/auth/user-context";
 
@@ -12,10 +12,8 @@ export function NoAccess() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div className="flex w-full max-w-[420px] flex-col gap-3 rounded-[8px] border border-border bg-surface p-6">
-        <span className="inline-flex size-6 items-center justify-center rounded-[6px] bg-accent text-on-accent">
-          <RogatkaMark size={16} />
-        </span>
-        <h1 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">No access to Rogatka Dashboard</h1>
+        <BrandLockup className="mb-1" />
+        <h1 className="m-0 text-[22px] font-semibold tracking-[-0.01em]">No access to Rogatka Dashboard</h1>
         <p className="m-0 text-muted">
           {user.name} ({user.email || user.username}) is signed in, but has none of the roles the dashboard needs:{" "}
           <code className="font-mono text-[12px]">acl-viewer</code>, <code className="font-mono text-[12px]">acl-analyst</code> or{" "}

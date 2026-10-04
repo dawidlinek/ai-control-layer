@@ -8,11 +8,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sse_starlette.sse import EventSourceResponse
 
+from acl.api.admin.paging import TOTAL_COUNT_RESPONSES, set_total
 from acl.api.deps import ERROR_RESPONSES, Analyst, Viewer
 from acl.audit import narrate, queries
 from acl.audit.chain import verify_chain as verify_chain_file
@@ -28,6 +29,7 @@ from acl.contracts.admin import (
     Incident,
     IncidentNote,
     IncidentPatch,
+    MetricCounts,
     OverviewSummary,
     PerformanceSummary,
     SessionLabelInfo,
@@ -35,7 +37,7 @@ from acl.contracts.admin import (
     TranscriptTurn,
 )
 from acl.contracts.audit import AuditEvent, EventType
-from acl.contracts.common import DATA_CLASS_ORDER, Action, DataClass, InspectionPoint, Severity
+from acl.contracts.common import DATA_CLASS_ORDER, Action, ApprovalStatus, DataClass, InspectionPoint, Severity
 
 router = APIRouter(tags=["events"], responses=ERROR_RESPONSES)
 
@@ -228,13 +230,19 @@ async def get_session_transcript(request: Request, session_id: str, p: Analyst, 
     )
 
 
-@router.get("/incidents", response_model=list[Incident], operation_id="listIncidents")
-async def list_incidents(request: Request, p: Viewer, status: str | None = None, limit: int = 100) -> list[Incident]:
+@router.get("/incidents", response_model=list[Incident], operation_id="listIncidents", responses=TOTAL_COUNT_RESPONSES)
+async def list_incidents(
+    request: Request, response: Response, p: Viewer, status: str | None = None, limit: int = 100
+) -> list[Incident]:
     stmt = select(IncidentRow).order_by(IncidentRow.updated_at.desc()).limit(max(1, min(limit, 1000)))
+    count = select(func.count()).select_from(IncidentRow)
     if status:
         stmt = stmt.where(IncidentRow.status == status)
+        count = count.where(IncidentRow.status == status)
     async with _sessions(request)() as s:
-        return [incident_from_row(r) for r in (await s.execute(stmt)).scalars()]
+        rows = [incident_from_row(r) for r in (await s.execute(stmt)).scalars()]
+        set_total(response, int((await s.execute(count)).scalar_one()))
+    return rows
 
 
 @router.get("/incidents/{incident_id}", response_model=Incident, operation_id="getIncident")
@@ -345,6 +353,18 @@ async def overview(request: Request, p: Viewer, window: str = "24h") -> Overview
         window,
         external_price_per_1k=ext_price,
         policy=engine.policy if engine is not None else None,
+    )
+
+
+@router.get("/metrics/counts", response_model=MetricCounts, operation_id="getMetricCounts")
+async def metric_counts(request: Request, p: Viewer) -> MetricCounts:
+    # Sidebar badges: three cheap COUNT queries. (A comment, not a docstring: it would change the OpenAPI contract.)
+    approvals = getattr(request.app.state, "approvals", None)
+    mcp_store = getattr(request.app.state, "mcp_store", None)
+    return MetricCounts(
+        open_incidents=await queries.open_incident_count(_sessions(request)),
+        pending_approvals=(await approvals.list_page(ApprovalStatus.pending, limit=1))[1] if approvals else 0,
+        quarantined_tools=await mcp_store.count_tools("quarantined") if mcp_store else 0,
     )
 
 

@@ -8,6 +8,7 @@ import logging
 
 from fastapi import FastAPI
 
+from acl.feed.admin import FeedAdminClient, admin_base
 from acl.feed.store import SignatureStore
 from acl.feed.sync import FeedConfig, FeedSync
 from acl.policy.env import resolve
@@ -49,6 +50,15 @@ def install(app: FastAPI, settings: Settings) -> None:
         config=lambda: feed_config(app, settings),
         audit=lambda: getattr(app.state, "audit", None),
     )
+
+    def admin_url() -> str | None:
+        cfg = feed_config(app, settings)
+        return admin_base(cfg.url if cfg else None, settings.feed_admin_url)
+
+    def admin_token() -> str | None:
+        return settings.feed_admin_token.get_secret_value() if settings.feed_admin_token else None
+
+    app.state.feed_admin = FeedAdminClient(admin_url, admin_token)
     app.state.feed_store = store
     app.state.feed_sync = sync
     app.state.control_deps.register("signatures", store)

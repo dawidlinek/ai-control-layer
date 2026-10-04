@@ -1806,10 +1806,12 @@
       "additionalProperties": false,
       "properties": {
         "id": {
+          "description": "Rule id: `SIG-…` for curated signatures, e.g. `FEED-LOCAL-0001` for rules added in the panel.",
           "examples": [
-            "SIG-PKG-LITELLM-01"
+            "SIG-PKG-LITELLM-01",
+            "FEED-LOCAL-0001"
           ],
-          "pattern": "^SIG-[A-Z0-9][A-Z0-9-]*$",
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$",
           "title": "Id",
           "type": "string"
         },

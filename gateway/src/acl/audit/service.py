@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -23,11 +23,16 @@ from acl.audit.chain import AuditChain
 from acl.audit.db_models import AuditEventRow
 from acl.audit.incidents import record_incident
 from acl.audit.metrics import GatewayMetrics
+from acl.audit.queries import build_client_ref, session_stats
 from acl.audit.stream import EventStreamHub, event_summary
+from acl.contracts.admin import EventSummary
 from acl.contracts.audit import AuditEvent, EventType, LatencyBreakdown, Usage
 from acl.contracts.common import Action, Severity, Versions
 from acl.contracts.decision import Decision, RouteInfo
 from acl.contracts.inspection import InspectionContext, Principal
+
+if TYPE_CHECKING:
+    from acl.policy.models import Policy
 
 log = logging.getLogger(__name__)
 
@@ -89,6 +94,7 @@ class AuditService:
         stream: EventStreamHub,
         metrics: GatewayMetrics,
         versions: Callable[[], Versions],
+        policy: Callable[[], Policy | None] = lambda: None,
     ) -> None:
         self.chain = chain
         self.sessions = sessions
@@ -96,6 +102,7 @@ class AuditService:
         self.stream = stream
         self.metrics = metrics
         self._versions = versions
+        self._policy = policy
         self._incident_lock = asyncio.Lock()
 
     # ------------------------------------------------------------ AuditSink
@@ -157,12 +164,22 @@ class AuditService:
         async with self.chain.lock:
             final = self.chain.append_locked(event)  # file write failure propagates → fail closed
             await self._index(final)
-            await self.stream.publish(event_summary(final))
+            await self.stream.publish(await self._live_summary(final))
         try:
             self.metrics.observe_event(final)
         except Exception:  # metrics must never break auditing
             log.exception("metrics update failed")
         return final
+
+    async def _live_summary(self, event: AuditEvent) -> EventSummary:
+        """The SSE row: the same fields as `GET /events` (policy threshold, client reference)."""
+        try:
+            policy = self._policy()
+            stats = await session_stats(self.sessions, [event.session_id]) if self.sessions and event.session_id else {}
+            return event_summary(event, policy=policy, client_ref=build_client_ref(event, stats))
+        except Exception:  # a missing client reference must never fail the audit commit
+            log.exception("could not enrich the live summary for seq %s", event.seq)
+            return event_summary(event)
 
     async def _index(self, event: AuditEvent) -> None:
         if self.sessions is None:

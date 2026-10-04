@@ -138,6 +138,12 @@ class UserStore:
             return await _q(s)
 
     async def list(self, *, q: str | None = None, group: str | None = None, limit: int = 100) -> list[UserRow]:
+        return (await self.list_page(q=q, group=group, limit=limit))[0]
+
+    async def list_page(
+        self, *, q: str | None = None, group: str | None = None, limit: int = 100
+    ) -> tuple[list[UserRow], int]:
+        """(rows up to `limit`, total rows matching the filters)."""
         stmt = select(UserRow).order_by(UserRow.username)
         if q:
             like = f"%{q.lower()}%"
@@ -153,7 +159,7 @@ class UserStore:
         if group:
             g = group.strip("/")
             rows = [r for r in rows if g in (r.groups or [])]
-        return rows[: max(1, min(limit, 1000))]
+        return rows[: max(1, min(limit, 1000))], len(rows)
 
     async def all_group_counts(self) -> dict[str, int]:
         async with self._sessions()() as s:

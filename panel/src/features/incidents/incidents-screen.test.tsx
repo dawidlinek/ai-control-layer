@@ -7,7 +7,7 @@ import { adminPath } from "@/mocks/handlers/helpers";
 import { incidents } from "@/mocks/db/incidents";
 import { DEV_USER } from "@/lib/auth/user";
 import { IncidentsScreen } from "./incidents-screen";
-import { breakerOf, rugPullOf, timelineOf, tracesOf, typeLabel } from "./readers";
+import { breakerOf, factsOf, rugPullOf, summaryOf, timelineOf, tracesOf, typeLabel } from "./readers";
 
 const table = () => screen.findByRole("table", { name: "Incidents" });
 const sidebar = () => screen.getByRole("complementary", { name: "Incident" });
@@ -102,7 +102,7 @@ describe("IncidentsScreen sidebar", () => {
     const findings = within(within(s).getByRole("list", { name: "Findings" })).getAllByRole("listitem");
     expect(findings.map((f) => f.textContent)).toEqual(["hidden instruction", "reads ~/.ssh", "“do not tell the user”", "new parameter: context"]);
     expect(within(s).getByText(/0 calls since the change/)).toBeInTheDocument();
-    expect(within(s).getByRole("button", { name: "Keep quarantined and close" }).className).toContain("bg-accent");
+    expect(within(s).getByRole("button", { name: "Keep quarantined and close" }).className).toContain("bg-ink");
     expect(within(s).getByRole("button", { name: "Remove server" })).toHaveAttribute("title", "Not available in the admin API yet");
     expect(within(s).getByRole("link", { name: /tr_8c9911/ })).toHaveAttribute("href", "/traffic?sel=tr_8c9911");
     expect(within(s).getByRole("button", { name: "Export evidence" })).toBeDisabled();
@@ -115,16 +115,35 @@ describe("IncidentsScreen sidebar", () => {
     const states = within(within(s).getByRole("list", { name: "Breaker states" })).getAllByRole("listitem");
     expect(states.map((x) => x.textContent?.replace("→", "").trim())).toEqual(["closed", "OPEN", "half-open"]);
     expect(within(states[1]).getByText("OPEN")).toHaveAttribute("aria-current", "step");
-    expect(within(s).getByTestId("half-open")).toHaveTextContent(/half-open in 4:1\d/);
+    expect(within(s).getByTestId("half-open")).toHaveTextContent(/half-open in [34]:\d\d/);
     const meter = within(s).getByRole("meter", { name: "GPU-seconds, session s_77c1" });
     expect(meter).toHaveAttribute("aria-valuenow", "120");
     expect(meter).toHaveAttribute("data-state", "danger");
     expect(within(s).getByText("120 / 120")).toBeInTheDocument();
     expect(within(s).getByRole("link", { name: "BUDGET-LOOP-01" })).toBeInTheDocument();
+    expect(within(s).getByText(/runaway signal, action: block/)).toBeInTheDocument();
     expect(within(s).getByRole("button", { name: "Reset breaker" })).toBeInTheDocument();
     expect(within(s).getByRole("link", { name: "Raise limit…" })).toHaveAttribute("href", "/budgets");
     const timeline = within(s).getByRole("list", { name: "Timeline" });
     expect(within(timeline).getAllByRole("listitem").map((li) => li.getAttribute("data-tone"))).toEqual(["bad", "system", "person"]);
+  });
+
+  it("shows the evidence summary and the facts of the kinds without a dedicated section", async () => {
+    renderApp(<IncidentsScreen />, { searchParams: "?sel=inc-0055" });
+    await table();
+    const s = await waitFor(sidebar);
+    expect(within(s).getByText(/requested Gemini Pro through the smart alias/)).toBeInTheDocument();
+    expect(within(s).getByText("Model requested")).toBeInTheDocument();
+    expect(within(s).getByText("smart")).toBeInTheDocument();
+  });
+
+  it("lists the scalar facts of a generic evidence", async () => {
+    renderApp(<IncidentsScreen />, { searchParams: "?sel=inc-0053" });
+    await table();
+    const s = await waitFor(sidebar);
+    expect(within(s).getByText("Policy version")).toBeInTheDocument();
+    expect(within(s).getByText("v8")).toBeInTheDocument();
+    expect(within(s).getByText("Previous version")).toBeInTheDocument();
   });
 
   it("assigns to me", async () => {
@@ -257,13 +276,35 @@ describe("IncidentsScreen sidebar", () => {
 });
 
 describe("incident readers", () => {
-  it("tolerate an empty detail", () => {
-    const i = { ...db("inc-0055"), category: "exfiltration_attempt", detail: {}, notes: [], event_ids: ["evt_1"] };
+  it("tolerate an empty detail and no evidence", () => {
+    const i = { ...db("inc-0055"), category: "exfiltration_attempt", evidence: null, detail: {}, notes: [], event_ids: ["evt_1"] };
     expect(typeLabel(i)).toBe("Exfiltration attempt");
     expect(rugPullOf(i)).toBeNull();
     expect(breakerOf(i)).toBeNull();
+    expect(factsOf(i)).toBeNull();
+    expect(summaryOf(i)).toBe(`${i.title}.`);
     expect(tracesOf(i)).toEqual([{ at: null, id: "evt_1", what: "" }]);
     expect(timelineOf(i)).toEqual([]);
-    expect(typeLabel({ category: "odd_new_kind", detail: { type_label: 3 } })).toBe("Odd new kind");
+    expect(typeLabel({ category: "odd_new_kind" })).toBe("Odd new kind");
+  });
+
+  it("read the typed evidence first and fall back to detail only without it", () => {
+    const typed = db("inc-0057");
+    expect(rugPullOf(typed)).toMatchObject({ toolId: "docs-search.search_docs", newHash: "41f2c8e57b19d9e0", callsSinceChange: 0 });
+    const old = {
+      ...typed,
+      evidence: null,
+      detail: { summary: "old sentence", server: "s", tool: "t", new_hash: "abcd1234", description_diff: "+x" },
+    };
+    expect(summaryOf(old)).toBe("old sentence");
+    expect(rugPullOf(old)).toMatchObject({ server: "s", tool: "t", toolId: "s.t", newHash: "abcd1234", diff: [{ sign: "+", text: "x" }] });
+    // Typed evidence of another kind never turns into a rug pull.
+    expect(rugPullOf({ ...typed, evidence: db("inc-0055").evidence })).toBeNull();
+  });
+
+  it("derive the breaker from the typed budget evidence", () => {
+    const b = breakerOf(db("inc-0058"))!;
+    expect(b).toMatchObject({ sessionId: "s_77c1", breakerId: "session:s_77c1", state: "open", meter: "GPU-seconds", used: 120, limit: 120 });
+    expect(Date.parse(b.halfOpenAt!)).toBeGreaterThan(Date.now());
   });
 });

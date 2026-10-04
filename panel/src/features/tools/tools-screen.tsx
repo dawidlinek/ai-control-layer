@@ -51,8 +51,8 @@ const columns: ColumnDef<Row>[] = [
     meta: { className: "max-w-[260px]" },
     cell: ({ row: { original: r } }) => (
       <div className="flex min-w-0 flex-col">
-        <Truncate className="font-mono text-[12.5px]">{r.id}</Truncate>
-        <Truncate className="text-[11.5px] text-muted">{r.serverLabel}</Truncate>
+        <Truncate className="font-mono text-[12px]">{r.id}</Truncate>
+        <Truncate className="text-[12px] text-muted">{r.serverLabel}</Truncate>
       </div>
     ),
   },

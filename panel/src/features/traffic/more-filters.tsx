@@ -37,7 +37,7 @@ export function MoreFiltersButton({
         <button
           type="button"
           className={cn(
-            "inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[12.5px] text-text",
+            "inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[13px] text-text",
             count ? "border-accent-line bg-accent-soft" : "border-border bg-surface hover:border-border-strong",
           )}
         >

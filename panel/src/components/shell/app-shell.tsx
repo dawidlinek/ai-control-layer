@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { RogatkaMark } from "@/components/rogatka/icon";
+import { BrandLockup } from "@/components/rogatka/brand";
 import { ProfileMenu } from "./profile-menu";
 import { SidebarNav } from "./sidebar-nav";
 import { useGlobalShortcuts } from "./shortcuts";
@@ -17,17 +17,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-text">
-      <header className="flex flex-wrap items-center gap-x-[18px] gap-y-2 border-b border-border bg-surface px-4 py-2 text-[12.5px]">
-        <Link href="/" className="mr-2 flex items-center gap-2 text-[13.5px] font-semibold text-text no-underline">
-          <span className="inline-flex size-6 items-center justify-center rounded-[6px] bg-accent text-on-accent">
-            <RogatkaMark size={16} />
-          </span>
-          <span>
-            Rogatka <span className="font-normal text-muted">Dashboard</span>
-          </span>
+      <header className="relative flex flex-wrap items-center gap-x-[18px] gap-y-2 border-b border-border bg-surface px-4 py-2.5 text-[13px]">
+        <Link href="/" aria-label="Rogatka Dashboard" className="mr-2 text-text no-underline">
+          <BrandLockup />
         </Link>
         <div className="flex-[1_1_20px]" />
         <ProfileMenu shortcutsOpen={shortcutsOpen} onShortcutsOpenChange={setShortcutsOpen} />
+        {/* 2 px accent rule along the bottom edge, right of the logo (STYLEGUIDE section 4) */}
+        <span aria-hidden data-slot="header-rule" className="pointer-events-none absolute -bottom-px left-[196px] right-0 h-0.5 bg-accent" />
       </header>
       <div className="flex flex-1 flex-wrap items-stretch">
         <SidebarNav />

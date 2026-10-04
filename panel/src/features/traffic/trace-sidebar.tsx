@@ -145,12 +145,12 @@ function SessionLink({ event }: { event: EventSummary }) {
       href={`/sessions/${encodeURIComponent(id)}`}
       className="flex items-center gap-2.5 rounded-[6px] border border-accent-line bg-accent-soft px-3 py-2.5 text-text no-underline hover:text-text"
     >
-      <PathIcon path={ICON_PATHS.conversation} size={16} className="shrink-0 text-accent" />
+      <PathIcon path={ICON_PATHS.conversation} size={16} className="shrink-0 text-text" />
       <span className="flex min-w-0 flex-1 flex-col">
         <b className="font-semibold">{conversation ? "Open full conversation" : "Open full session"}</b>
         <span className="truncate text-[12px] text-muted">{sub}</span>
       </span>
-      <span aria-hidden className="text-accent">
+      <span aria-hidden className="text-text">
         →
       </span>
     </Link>

@@ -1,26 +1,17 @@
 import type { Approval, User } from "@/lib/api/types";
-import {
-  approverLabel,
-  clientApp,
-  parseArguments,
-  parseReason,
-  shortAction,
-  type ApproverLabel,
-  type ParsedArguments,
-  type ParsedReason,
-  type Person,
-} from "./readers";
+import { approverLabel, clientApp, parseArguments, reasonsOf, shortAction, type ParsedArguments, type Person } from "./readers";
 
 /** One approval with everything the list and sidebar derive from it. */
 export interface ApprovalRow {
   a: Approval;
   parsed: ParsedArguments;
-  reason: ParsedReason;
+  /** Why it was held, one line per holding control. */
+  reasons: string[];
   short: string;
   who: Person;
-  /** Second line of the Who column ("OpenCode · developers", "agent for Anna Nowak"). */
+  /** Second line of the Who column ("OpenCode · developers", "agent"). */
   whoLine: string;
-  approver: ApproverLabel;
+  approver: string;
 }
 
 export function toRow(a: Approval, people: Map<string, User> | undefined): ApprovalRow {
@@ -28,13 +19,14 @@ export function toRow(a: Approval, people: Map<string, User> | undefined): Appro
   const user = people?.get(a.requested_by);
   const isAgent = user ? user.kind === "agent" : !a.requested_by.includes(".");
   const name = user?.display_name || a.requested_by;
-  const group = user?.groups[0];
   const app = clientApp(a);
-  const whoLine = parsed.client ?? ([app, group].filter(Boolean).join(" · ") || a.server || "");
+  // An agent's client is its own id: do not repeat the name under the name.
+  const clientPart = app && app !== a.requested_by ? app : null;
+  const whoLine = [clientPart, isAgent ? "agent" : user?.groups[0]].filter(Boolean).join(" · ");
   return {
     a,
     parsed,
-    reason: parseReason(a),
+    reasons: reasonsOf(a),
     short: shortAction(a, parsed.command),
     who: { name, isAgent },
     whoLine,

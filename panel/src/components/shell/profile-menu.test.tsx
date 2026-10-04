@@ -42,13 +42,13 @@ describe("ProfileMenu", () => {
     const { user } = renderApp(<Harness />);
     await user.click(screen.getByRole("button", { name: "Account menu" }));
     const group = await screen.findByRole("group", { name: "Theme" });
-    expect(within(group).getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
-    await user.click(within(group).getByRole("button", { name: "Light" }));
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(document.cookie).toContain("rogatka-theme=light");
     expect(within(group).getByRole("button", { name: "Light" })).toHaveAttribute("aria-pressed", "true");
     await user.click(within(group).getByRole("button", { name: "Dark" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.cookie).toContain("rogatka-theme=dark");
+    expect(within(group).getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(group).getByRole("button", { name: "Light" }));
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 
   it("opens the keyboard shortcuts dialog", async () => {

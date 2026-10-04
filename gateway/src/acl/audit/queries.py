@@ -35,6 +35,12 @@ _UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
 _NO_ACTION = ("allow", "monitor")
 
 
+async def open_incident_count(sessions: async_sessionmaker[AsyncSession]) -> int:
+    stmt = select(func.count()).select_from(IncidentRow).where(IncidentRow.status.in_(("open", "triaged")))
+    async with sessions() as s:
+        return int((await s.execute(stmt)).scalar_one())
+
+
 def parse_window(window: str, default_s: int = 86400) -> timedelta:
     m = _WINDOW.match(window.strip().lower())
     return timedelta(seconds=int(m.group(1)) * _UNITS[m.group(2)]) if m else timedelta(seconds=default_s)
@@ -151,6 +157,32 @@ async def list_events(
     stats = await session_stats(sessions, (e.session_id for e in events if e.session_id))
     threshold = session_threshold(policy)
     return [event_summary(e, policy=policy, threshold=threshold, client_ref=build_client_ref(e, stats)) for e in events]
+
+
+async def rule_hits(
+    sessions: async_sessionmaker[AsyncSession], rule_ids: Iterable[str], since: datetime
+) -> dict[str, tuple[int, datetime | None]]:
+    """rule id -> (decisions citing it since `since`, latest such timestamp); one aggregate query per 40 ids."""
+    ids = sorted({r for r in rule_ids if r})
+    out: dict[str, tuple[int, datetime | None]] = {}
+    for start in range(0, len(ids), 40):
+        chunk = ids[start : start + 40]
+        hit = {r: AuditEventRow.rules_text.contains(f"|{r}|", autoescape=True) for r in chunk}
+        cols = []
+        for r in chunk:
+            cols.append(func.sum(case((hit[r], 1), else_=0)))
+            cols.append(func.max(case((hit[r], AuditEventRow.timestamp), else_=None)))
+        stmt = select(*cols).where(
+            AuditEventRow.event_type == "decision",
+            AuditEventRow.timestamp >= utc(since),
+            AuditEventRow.rules_text != "",
+        )
+        async with sessions() as s:
+            row = (await s.execute(stmt)).one()
+        for i, r in enumerate(chunk):
+            n, last = row[2 * i], row[2 * i + 1]
+            out[r] = (int(n or 0), utc(last) if last else None)
+    return out
 
 
 async def get_event(sessions: async_sessionmaker[AsyncSession], event_id: str) -> AuditEvent | None:

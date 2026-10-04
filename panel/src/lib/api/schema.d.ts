@@ -199,7 +199,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Rollback */
+        /**
+         * Rollback
+         * @description Restore a stored version as a new one. The JSON body is optional; when given, `reason` is stored with the new
+         *     version (history `reason`, the `policy_change` audit event).
+         */
         post: operations["rollbackPolicy"];
         delete?: never;
         options?: never;
@@ -1144,6 +1148,34 @@ export interface components {
             /** Decided At */
             decided_at?: string | null;
             elevation?: components["schemas"]["Elevation"] | null;
+            /**
+             * Approver Label
+             * @example Security team
+             * @example Team lead
+             */
+            approver_label?: string | null;
+            /**
+             * Data Class
+             * @description Session confidentiality when held: public | internal | confidential | restricted.
+             */
+            data_class?: string | null;
+            /**
+             * Client
+             * @description Client app that issued the call.
+             * @example opencode
+             */
+            client?: string | null;
+            /**
+             * Flags
+             * @description Red flags, e.g. `untrusted input`, `sensitive data`, `external egress`.
+             */
+            flags?: string[];
+            preview?: components["schemas"]["ApprovalPreview"] | null;
+            /**
+             * Reasons
+             * @description Why it was held: one line per holding control.
+             */
+            reasons?: string[];
         };
         /** ApprovalDecisionRequest */
         ApprovalDecisionRequest: {
@@ -1156,6 +1188,19 @@ export interface components {
             elevation_minutes?: number | null;
             /** Note */
             note?: string | null;
+        };
+        /**
+         * ApprovalPreview
+         * @description Redacted preview of what the held call would do (never raw secrets or personal data).
+         */
+        ApprovalPreview: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "diff" | "email" | "plan" | "text";
+            /** Body */
+            body: string;
         };
         /** ApprovalRef */
         ApprovalRef: {
@@ -1392,6 +1437,29 @@ export interface components {
          * @enum {string}
          */
         AuthMethod: "jwt" | "api_key" | "client_credentials" | "none";
+        /**
+         * BlockedEvidence
+         * @description Enforced block that opened a grouped incident (`blocked_request` / `blocked_response`).
+         */
+        BlockedEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "blocked_request" | "blocked_response";
+            /** Point */
+            point?: string | null;
+            /**
+             * Decided By
+             * @description Control id that decided the block.
+             */
+            decided_by?: string | null;
+        };
         /** Body_scanArtifact */
         Body_scanArtifact: {
             /** File */
@@ -1434,6 +1502,60 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** BudgetBreachEvidence */
+        BudgetBreachEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "budget_breach";
+            /** Level */
+            level?: ("soft" | "hard" | "loop") | null;
+            /**
+             * Node
+             * @example user:jan
+             * @example session:s-1
+             */
+            node?: string | null;
+            /** Scope */
+            scope?: string | null;
+            /**
+             * Session Id
+             * @description Set when the node is a session.
+             */
+            session_id?: string | null;
+            /**
+             * Meter
+             * @example usd_day
+             * @example gpu_seconds_session
+             */
+            meter?: string | null;
+            /** Limit */
+            limit?: number | null;
+            /** Used */
+            used?: number | null;
+            /** Projected */
+            projected?: number | null;
+            /**
+             * Action
+             * @description alert | block | degrade_to_local | require_approval ...
+             */
+            action?: string | null;
+            /** Breaker */
+            breaker?: ("closed" | "open" | "half_open") | null;
+            /** Cooldown S */
+            cooldown_s?: number | null;
+            /**
+             * Loop Rule
+             * @description Runaway-signal rule id when `level` is `loop`.
+             */
+            loop_rule?: string | null;
+        };
         /** BudgetNode */
         BudgetNode: {
             /**
@@ -1474,6 +1596,28 @@ export interface components {
             generated_at: string;
             /** Nodes */
             nodes: components["schemas"]["BudgetNode"][];
+        };
+        /** CanaryEvidence */
+        CanaryEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "canary_triggered";
+            /** Tool */
+            tool?: string | null;
+            /** Server */
+            server?: string | null;
+            /**
+             * Occurrences
+             * @description Canary values found (and redacted) in the result.
+             */
+            occurrences?: number | null;
         };
         /** ChainVerifyResult */
         ChainVerifyResult: {
@@ -1883,6 +2027,43 @@ export interface components {
             /** Last Error */
             last_error?: string | null;
         };
+        /** ForbiddenModelEvidence */
+        ForbiddenModelEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "forbidden_model";
+            /** Model */
+            model?: string | null;
+        };
+        /**
+         * GenericEvidence
+         * @description Fallback for categories without a dedicated shape: scalar facts copied from `detail`.
+         */
+        GenericEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "generic";
+            /** Category */
+            category: string;
+            /** Facts */
+            facts?: {
+                [key: string]: string | number | boolean;
+            };
+        };
         /** Grant */
         Grant: {
             /**
@@ -2207,11 +2388,16 @@ export interface components {
             notes?: components["schemas"]["IncidentNote"][];
             /**
              * Detail
-             * @description e.g. rug-pull description diff.
+             * @description Raw producer detail (free-form; see `evidence`).
              */
             detail?: {
                 [key: string]: unknown;
             };
+            /**
+             * Evidence
+             * @description Typed view of `detail`, discriminated on `kind` (the incident category).
+             */
+            evidence?: (components["schemas"]["McpRugPullEvidence"] | components["schemas"]["McpToolFlaggedEvidence"] | components["schemas"]["McpProtocolViolationEvidence"] | components["schemas"]["CanaryEvidence"] | components["schemas"]["BudgetBreachEvidence"] | components["schemas"]["ForbiddenModelEvidence"] | components["schemas"]["BlockedEvidence"] | components["schemas"]["PluginBypassEvidence"] | components["schemas"]["GenericEvidence"]) | null;
         };
         /** IncidentNote */
         IncidentNote: {
@@ -2315,6 +2501,74 @@ export interface components {
              */
             upstream_ms: number;
         };
+        /** McpProtocolViolationEvidence */
+        McpProtocolViolationEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "mcp_protocol_violation";
+            /** Server */
+            server?: string | null;
+            /**
+             * Violations
+             * @description Violation codes, e.g. `MCP_ORIGIN_MISMATCH`.
+             */
+            violations?: string[];
+        };
+        /**
+         * McpRugPullEvidence
+         * @description A pinned MCP tool changed after approval.
+         */
+        McpRugPullEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "mcp_rug_pull";
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+            /** Tool Id */
+            tool_id: string;
+            /**
+             * Status
+             * @description Pin status after the change: quarantined | drifted.
+             */
+            status?: string | null;
+            /**
+             * Approved Hash
+             * @description Pinned (approved) hash.
+             */
+            approved_hash?: string | null;
+            /** Approved At */
+            approved_at?: string | null;
+            /** New Hash */
+            new_hash?: string | null;
+            /** Changed At */
+            changed_at?: string | null;
+            /**
+             * Description Diff
+             * @description Unified-style diff, lines start with + - or space.
+             */
+            description_diff?: string | null;
+            /**
+             * Findings
+             * @description Value-free flag labels.
+             */
+            findings?: string[];
+        };
         /** McpServerInfo */
         McpServerInfo: {
             /** Id */
@@ -2348,6 +2602,34 @@ export interface components {
         McpToolApprovalRequest: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * McpToolFlaggedEvidence
+         * @description A new MCP tool was quarantined as poisoned, or collides with an existing tool name.
+         */
+        McpToolFlaggedEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "mcp_name_collision" | "mcp_tool_poisoning";
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+            /** Tool Id */
+            tool_id: string;
+            /** Status */
+            status?: string | null;
+            /** New Hash */
+            new_hash?: string | null;
+            /** Findings */
+            findings?: string[];
         };
         /** McpToolInfo */
         McpToolInfo: {
@@ -2598,6 +2880,25 @@ export interface components {
          * @enum {string}
          */
         Phase: "normalise" | "deterministic" | "similarity" | "semantic_l1" | "semantic_l2" | "decide" | "egress_hygiene";
+        /** PluginBypassEvidence */
+        PluginBypassEvidence: {
+            /**
+             * Summary
+             * @description One plain sentence written from a template, no raw values.
+             */
+            summary?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "plugin_bypass";
+            /** Tool */
+            tool?: string | null;
+            /** Tool Call Id Hash */
+            tool_call_id_hash?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+        };
         /** PolicyError */
         PolicyError: {
             /** File */
@@ -2671,6 +2972,17 @@ export interface components {
              */
             message: string;
         };
+        /**
+         * PolicyRollbackRequest
+         * @description Optional body of `POST /policy/versions/{id}/rollback` (the route still works with no body).
+         */
+        PolicyRollbackRequest: {
+            /**
+             * Reason
+             * @description Why the policy is rolled back (audit trail).
+             */
+            reason: string;
+        };
         /** PolicyStatus */
         PolicyStatus: {
             /** Version */
@@ -2718,6 +3030,11 @@ export interface components {
              * @default
              */
             message: string;
+            /**
+             * Reason
+             * @description Rollback reason given by the admin (source `rollback`).
+             */
+            reason?: string | null;
             /** Files Changed */
             files_changed?: string[];
         };
@@ -2744,6 +3061,11 @@ export interface components {
              * @default
              */
             message: string;
+            /**
+             * Reason
+             * @description Rollback reason given by the admin (source `rollback`).
+             */
+            reason?: string | null;
             /** Files Changed */
             files_changed?: string[];
             /**
@@ -2824,7 +3146,7 @@ export interface components {
             model_requested?: string | null;
             /**
              * Model
-             * @description Resolved public model id, e.g. `local/general`.
+             * @description Resolved public model id, e.g. `local/qwen3.8-27b`.
              */
             model: string;
             /** Connector */
@@ -2832,7 +3154,7 @@ export interface components {
             tier: components["schemas"]["ConnectorTier"];
             /**
              * Reason
-             * @example auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local
+             * @example auto → local/loan-memo: task=loan_memo (0.91), data=confidential → local
              */
             reason: string;
             /**
@@ -3793,7 +4115,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PolicyRollbackRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

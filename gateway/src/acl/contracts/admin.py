@@ -25,6 +25,7 @@ from .common import (
     ToolTier,
 )
 from .decide import Elevation
+from .feed import SignatureType
 
 # ---------------------------------------------------------------- generic
 
@@ -366,6 +367,15 @@ class EventSummary(StrictModel):
     )
     session_label: SessionLabelInfo | None = None
     client_ref: ClientRef | None = None
+    tool_preview: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Short redacted preview of a tool call (tool_call / MCP tools/call points), e.g. "
+            "`bash: git push origin main`. Secrets and detected sensitive spans are masked; null otherwise."
+        ),
+        examples=["bash: git push origin main"],
+    )
 
 
 TraceStepName = Literal[
@@ -612,6 +622,12 @@ class Approval(StrictModel):
     reasons: list[str] = Field(default_factory=list, description="Why it was held: one line per holding control.")
 
 
+class MetricCounts(StrictModel):
+    open_incidents: int = Field(description="Incidents in status open or triaged.")
+    pending_approvals: int = Field(description="Approvals waiting for a decision (expired ones are not counted).")
+    quarantined_tools: int = Field(description="MCP tools hidden until an admin re-approves them.")
+
+
 # ---------------------------------------------------------------- budgets
 
 
@@ -720,6 +736,95 @@ class FeedStatus(StrictModel):
     verified: bool = False
     last_sync_at: datetime | None = None
     last_error: str | None = None
+
+
+FeedTarget = Literal[
+    "package",
+    "domain",
+    "url",
+    "command",
+    "tool_description",
+    "prompt_text",
+    "answer_text",
+    "any_text",
+    "tool_hash",
+    "manifest_hash",
+    "yara",
+    "opcode",
+]
+FeedRuleTarget = Literal[
+    "package", "domain", "url", "command", "tool_description", "prompt_text", "answer_text", "any_text"
+]
+
+
+class FeedSignature(StrictModel):
+    id: RuleId = Field(examples=["SIG-PKG-LITELLM-01", "FEED-LOCAL-0001"])
+    title: str = Field(description="First sentence of the description (the id when there is none).")
+    description: str = ""
+    target: FeedTarget = Field(
+        description=(
+            "What the rule looks at: package (pip/npm install), domain (IOC host), url (path of a URL), "
+            "command (tool-call arguments), tool_description (MCP tool descriptions), prompt_text (user input), "
+            "answer_text (model output), any_text (every stage), tool_hash / manifest_hash (MCP pins), yara, opcode."
+        )
+    )
+    type: SignatureType = Field(description="The matcher the feed bundle uses.")
+    pattern: str
+    action: Action
+    severity: Severity
+    stages: list[InspectionPoint] = Field(
+        default_factory=list, description="Where it applies (the matcher's default stages when the entry has none)."
+    )
+    source: str = ""
+    reference: str | None = Field(default=None, description="First CVE id, else null.")
+    cve: list[str] = Field(default_factory=list)
+    owasp: list[str] = Field(default_factory=list)
+    atlas_technique: list[str] = Field(default_factory=list)
+    origin: Literal["feed", "policy"] = Field(
+        description="`feed`: entry of the active bundle. `policy`: offline baseline in policy `signatures.local_rules`."
+    )
+    expires: datetime | None = None
+    expired: bool = False
+    hits_24h: int | None = Field(default=None, description="Decisions that cited this rule id in the last 24 h.")
+    last_hit_at: datetime | None = Field(default=None, description="Latest such decision within the last 24 h.")
+
+
+class FeedRuleCreate(StrictModel):
+    id: RuleId = Field(examples=["FEED-LOCAL-0001"])
+    description: str = Field(min_length=3, max_length=500)
+    target: FeedRuleTarget
+    pattern: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=2000,
+        description=(
+            "domain: the domain (subdomains match); url / command / tool_description / prompt_text / answer_text / "
+            "any_text: a regex. Not used for `package`."
+        ),
+    )
+    ecosystem: Literal["pypi", "npm", "other"] = Field(default="pypi", description="`package` target only.")
+    package: str | None = Field(default=None, max_length=200, description="`package` target: package name.")
+    versions: list[str] = Field(
+        default_factory=list, description="`package` target: exact versions; empty or `*` = every version."
+    )
+    tools: list[str] = Field(
+        default_factory=list, description="`command` target: only for tools matching these name globs (e.g. `*bash*`)."
+    )
+    severity: Severity = Severity.high
+    action: Action = Action.block
+    expires: datetime | None = None
+    cve: list[str] = Field(default_factory=list)
+    owasp: list[str] = Field(default_factory=list)
+    atlas_technique: list[str] = Field(default_factory=list)
+    source: str = Field(default="panel", max_length=100)
+    sync_now: bool = Field(default=True, description="Ask the gateway to sync the feed right after adding.")
+
+
+class FeedRuleCreated(StrictModel):
+    rule: FeedSignature
+    bundle_version: int | None = Field(default=None, description="Version of the bundle the feed server published.")
+    synced: bool = Field(description="True when the gateway already runs a bundle that contains the rule.")
+    feed: FeedStatus
 
 
 class ArtifactFinding(StrictModel):

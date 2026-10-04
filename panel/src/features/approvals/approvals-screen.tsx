@@ -60,8 +60,8 @@ const columns: ColumnDef<ApprovalRow>[] = [
     meta: { className: "max-w-[260px]" },
     cell: ({ row: { original: r } }) => (
       <div className="flex min-w-0 flex-col gap-0.5">
-        <Truncate className="font-mono text-[12.5px]">{r.short}</Truncate>
-        <span className="font-mono text-[11.5px] text-muted">{r.a.id}</span>
+        <Truncate className="font-mono text-[12px]">{r.short}</Truncate>
+        <span className="font-mono text-[12px] text-muted">{r.a.id}</span>
       </div>
     ),
   },
@@ -72,7 +72,7 @@ const columns: ColumnDef<ApprovalRow>[] = [
     cell: ({ row: { original: r } }) => (
       <div className="min-w-0">
         <Truncate className="font-medium">{r.who.name}</Truncate>
-        <Truncate className="text-[11.5px] text-muted">{r.whoLine}</Truncate>
+        <Truncate className="text-[12px] text-muted">{r.whoLine}</Truncate>
       </div>
     ),
   },
@@ -80,7 +80,7 @@ const columns: ColumnDef<ApprovalRow>[] = [
     id: "why",
     header: "Why it was held",
     meta: { className: "max-w-[220px] text-muted" },
-    cell: ({ row: { original: r } }) => <Truncate>{r.reason.short}</Truncate>,
+    cell: ({ row: { original: r } }) => <Truncate>{r.reasons[0]}</Truncate>,
   },
   {
     id: "approver",

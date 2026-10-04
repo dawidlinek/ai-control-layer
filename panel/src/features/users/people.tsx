@@ -17,6 +17,7 @@ import {
   StatusBox,
   Truncate,
   useSelectedId,
+  linkClass,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { useElevations, useGrants, useRevokeGrant, useCreateGrant } from "@/features/grants/api";
@@ -71,7 +72,7 @@ export function PeopleTab({
             <Avatar name={u.display_name ?? u.username} size={28} />
             <span className="flex min-w-0 flex-col leading-[1.3]">
               <Truncate className="font-medium">{u.display_name ?? u.username}</Truncate>
-              <Truncate className="text-[11.5px] text-muted">{u.email ?? u.username}</Truncate>
+              <Truncate className="text-[12px] text-muted">{u.email ?? u.username}</Truncate>
             </span>
           </span>
         );
@@ -224,10 +225,10 @@ function PersonSidebar({ user, group, onClose }: { user: User; group: Group | un
           <h3 id="access-h" className="m-0 text-[12px] font-semibold">
             Access
           </h3>
-          <span className="text-[11.5px] text-muted">and where it comes from</span>
+          <span className="text-[12px] text-muted">and where it comes from</span>
           <div className="flex-1" />
           {isAdmin ? (
-            <Button size="sm" variant="ghost" className="text-accent" disabled={grantOptions.length === 0} onClick={() => start({ type: "new" })}>
+            <Button size="sm" variant="ghost" disabled={grantOptions.length === 0} onClick={() => start({ type: "new" })}>
               + Grant
             </Button>
           ) : (
@@ -352,20 +353,20 @@ function PersonSidebar({ user, group, onClose }: { user: User; group: Group | un
             <li key={e.event_id}>
               <Link
                 href={`/traffic?sel=${encodeURIComponent(e.trace_id ?? e.event_id)}`}
-                className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2 rounded-[4px] py-1.5 text-[12.5px] text-text no-underline hover:bg-raised"
+                className="grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-2 rounded-[4px] py-1.5 text-[13px] text-text no-underline hover:bg-raised"
               >
-                <span className="font-mono text-[11.5px] text-muted">{formatTime(e.timestamp)}</span>
+                <span className="font-mono text-[12px] text-muted">{formatTime(e.timestamp)}</span>
                 <span className="truncate font-mono text-[12px]">{e.tool ?? e.model ?? e.point ?? e.event_type}</span>
                 {e.action ? <DecisionBadge decision={e.action} /> : <span />}
               </Link>
             </li>
           ))}
         </ul>
-        <div className="mt-1 flex flex-wrap gap-4 text-[12.5px]">
-          <Link href={`/traffic?q=${encodeURIComponent(user.username)}`} className="text-accent">
+        <div className="mt-1 flex flex-wrap gap-4 text-[13px]">
+          <Link href={`/traffic?q=${encodeURIComponent(user.username)}`} className={linkClass}>
             All activity in Traffic →
           </Link>
-          <Link href={`/grants?q=${encodeURIComponent(user.username)}`} className="text-accent">
+          <Link href={`/grants?q=${encodeURIComponent(user.username)}`} className={linkClass}>
             Grant history →
           </Link>
           {myGrants.length > 0 && <span className="text-muted">{myGrants.length} grants on record</span>}
@@ -383,24 +384,24 @@ function AccessLine({ row, canAct, onAction }: { row: AccessRow; canAct: boolean
     <li
       data-access={row.key}
       className={cn(
-        "grid grid-cols-[56px_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-[6px] px-1.5 py-1.5 text-[12.5px]",
+        "grid grid-cols-[56px_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-[6px] px-1.5 py-1.5 text-[13px]",
         row.fresh && "bg-accent-soft",
       )}
     >
-      <span className="text-[11.5px] text-muted">{row.kind}</span>
+      <span className="text-[12px] text-muted">{row.kind}</span>
       <span className="flex min-w-0 flex-col">
         <span className="flex min-w-0 items-center gap-1.5">
           <PathIcon path={icon.path} size={12} strokeWidth={2.4} className={cn("shrink-0", icon.className)} aria-hidden={false} role="img" aria-label={icon.label} />
           <span className="truncate font-mono text-[12px]">{row.item}</span>
         </span>
-        <span className="truncate text-[11.5px] text-muted">{row.source}</span>
+        <span className="truncate text-[12px] text-muted">{row.source}</span>
       </span>
-      <span className={cn("whitespace-nowrap font-mono text-[11.5px]", soon ? "text-dec-downgrade" : "text-muted")}>
+      <span className={cn("whitespace-nowrap font-mono text-[12px]", soon ? "text-dec-downgrade" : "text-muted")}>
         {row.expiresAt ? expiresText(row.expiresAt, now) : ""}
       </span>
       <span>
         {canAct && row.action && (
-          <Button size="sm" variant="ghost" className={cn("min-h-7 px-2", row.action.type === "grant" || row.action.type === "restore" ? "text-accent" : "text-dec-block")} onClick={() => onAction(row.action!)} aria-label={`${actionLabel(row.action)} ${row.item}`}>
+          <Button size="sm" variant="ghost" className={cn("min-h-7 px-2", row.action.type === "grant" || row.action.type === "restore" ? "text-text" : "text-dec-block")} onClick={() => onAction(row.action!)} aria-label={`${actionLabel(row.action)} ${row.item}`}>
             {actionLabel(row.action)}
           </Button>
         )}

@@ -35,6 +35,7 @@ function cssVar(name: string, fallback: string): string {
 function defineTheme(dark: boolean): string {
   const name = dark ? "rogatka-dark" : "rogatka-light";
   const hex = (n: string, f: string) => cssVar(n, f).slice(1);
+  const ink = cssVar("--ink", dark ? "#e7e9ec" : "#111111");
   monaco.editor.defineTheme(name, {
     base: dark ? "vs-dark" : "vs",
     inherit: true,
@@ -46,10 +47,17 @@ function defineTheme(dark: boolean): string {
       { token: "comment", foreground: hex("--muted", dark ? "#9ba4ae" : "#56606b"), fontStyle: "italic" },
     ],
     colors: {
-      "editor.background": cssVar("--inset", dark ? "#101215" : "#eceef1"),
-      "editor.foreground": cssVar("--text", dark ? "#e7e9ec" : "#14171b"),
+      "editor.background": cssVar("--inset", dark ? "#101215" : "#f6f6f4"),
+      "editor.foreground": cssVar("--text", dark ? "#e7e9ec" : "#111111"),
       "editorLineNumber.foreground": cssVar("--muted", dark ? "#9ba4ae" : "#56606b"),
-      "editorGutter.background": cssVar("--inset", dark ? "#101215" : "#eceef1"),
+      "editorGutter.background": cssVar("--inset", dark ? "#101215" : "#f6f6f4"),
+      // Selection is neutral (ink at low opacity), never the Monaco default blue or brand red.
+      "editor.selectionBackground": `${ink}38`,
+      "editor.inactiveSelectionBackground": `${ink}22`,
+      "editor.selectionHighlightBackground": `${ink}1a`,
+      "editor.lineHighlightBackground": `${ink}0d`,
+      "editor.lineHighlightBorder": "#00000000",
+      "editorCursor.foreground": ink,
       "editorWidget.background": cssVar("--surface", dark ? "#15181c" : "#ffffff"),
       "editorWidget.border": cssVar("--border-strong", dark ? "#3a414a" : "#c3c9d1"),
     },
@@ -63,9 +71,9 @@ const LOCK_SVG = `url("data:image/svg+xml,${encodeURIComponent(
 
 /** Decoration classes (colours from the design tokens). */
 const DECORATION_CSS = `
-.rg-yaml-sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-.rg-yaml-lock { background: color-mix(in srgb, var(--dec-monitor) 9%, transparent); }
-.rg-yaml-lock-glyph { background-color: var(--muted); -webkit-mask: ${LOCK_SVG} center / 11px no-repeat; mask: ${LOCK_SVG} center / 11px no-repeat; }
+.rg-yaml-sel { background: color-mix(in srgb, var(--ink) 10%, transparent); box-shadow: inset 3px 0 0 var(--ink); }
+.rg-yaml-lock { background: color-mix(in srgb, var(--dec-monitor) 12%, transparent); }
+.rg-yaml-lock-glyph { background-color: var(--text-secondary); -webkit-mask: ${LOCK_SVG} center / 11px no-repeat; mask: ${LOCK_SVG} center / 11px no-repeat; }
 `;
 
 export function MonacoYamlEditor({ fileName, value, onChange, readOnly, highlightLine, lockedLines, errors, ariaLabel }: YamlEditorProps) {
@@ -133,14 +141,14 @@ export function MonacoYamlEditor({ fileName, value, onChange, readOnly, highligh
         theme={themeName}
         onChange={(v) => onChange(v ?? "")}
         onMount={onMount}
-        loading={<span className="text-[12.5px] text-muted">Loading the editor…</span>}
+        loading={<span className="text-[13px] text-muted">Loading the editor…</span>}
         options={{
           readOnly,
           readOnlyMessage: { value: "Only admins can change policy." },
           glyphMargin: true,
           minimap: { enabled: false },
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 12.5,
+          fontSize: 13,
           lineHeight: 21,
           tabSize: 2,
           insertSpaces: true,

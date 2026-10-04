@@ -75,6 +75,11 @@ def _applied(event: AuditEvent) -> list[Action]:
     return out
 
 
+def _tool_preview(event: AuditEvent) -> str | None:
+    v = event.detail.get("tool_preview")
+    return v[:120] if isinstance(v, str) and v else None
+
+
 def event_summary(
     event: AuditEvent,
     *,
@@ -124,6 +129,7 @@ def event_summary(
         changed_steps=changed,
         session_label=session_label_of(event, th),
         client_ref=client_ref,
+        tool_preview=_tool_preview(event),
     )
 
 

@@ -5,7 +5,7 @@ import { Card, FactsGrid, PageHeader, PlainSentence, SidebarSection } from "./la
 describe("PageHeader", () => {
   it("renders title, subtitle and right-hand actions", () => {
     render(<PageHeader title="Grants" subtitle="personal and temporary access" actions={<button>New grant</button>} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Grants" })).toHaveClass("text-[20px]", "font-semibold");
+    expect(screen.getByRole("heading", { level: 1, name: "Grants" })).toHaveClass("text-[22px]", "font-semibold");
     expect(screen.getByText("personal and temporary access")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New grant" })).toBeInTheDocument();
   });
@@ -42,7 +42,7 @@ describe("SidebarSection", () => {
       </SidebarSection>,
     );
     const region = screen.getByRole("region", { name: "What the model saw" });
-    expect(within(region).getByRole("heading", { level: 3 })).toHaveClass("uppercase", "tracking-[.08em]");
+    expect(within(region).getByRole("heading", { level: 3 })).toHaveClass("uppercase", "tracking-[.1em]");
     expect(within(region).getByText("212 ms")).toBeInTheDocument();
   });
 });

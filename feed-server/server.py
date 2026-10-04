@@ -99,7 +99,7 @@ ENTRY_FIELDS = {
     "expires",
     "metadata",
 }
-_ID = re.compile(r"^SIG-[A-Z0-9][A-Z0-9-]*$")
+_ID = re.compile(r"^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$")  # SIG-… (curated) or FEED-LOCAL-0001 (added in the panel)
 _REGEX_TYPES = {"regex", "arg_pattern", "url_path"}
 
 
@@ -119,7 +119,7 @@ def validate_entry(obj: object) -> dict:
         raise ValueError(f"unknown entry fields: {sorted(unknown)}")
     eid = obj.get("id")
     if not isinstance(eid, str) or not _ID.match(eid):
-        raise ValueError("id must match ^SIG-[A-Z0-9][A-Z0-9-]*$")
+        raise ValueError("id must match ^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$")
     if obj.get("type") not in SIGNATURE_TYPES:
         raise ValueError(f"type must be one of {sorted(SIGNATURE_TYPES)}")
     pattern = obj.get("pattern")

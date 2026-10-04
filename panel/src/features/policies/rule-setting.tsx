@@ -168,8 +168,8 @@ export function RuleSetting({ rule, file }: { rule: PolicyRule; file: PolicyFile
           className="flex flex-col gap-2 rounded-[8px] border border-accent-line bg-inset p-3"
           noValidate
         >
-          <b className="text-[12.5px] font-semibold">If you publish this</b>
-          {dry.isPending && <span className="text-[12.5px] text-muted">Replaying the last 500 requests against the change…</span>}
+          <b className="text-[13px] font-semibold">If you publish this</b>
+          {dry.isPending && <span className="text-[13px] text-muted">Replaying the last 500 requests against the change…</span>}
           {dry.isError && (
             <StatusBox variant="error" title="Could not check the impact">
               {errorMessage(dry.error)}
@@ -184,7 +184,7 @@ export function RuleSetting({ rule, file }: { rule: PolicyRule; file: PolicyFile
             <>
               <p className={cn("m-0 text-[13px] leading-[1.45]", dry.isFetching && "opacity-60")}>{impactSentence(r)}</p>
               {suite && (
-                <dl className="m-0 grid grid-cols-[minmax(0,1fr)_max-content] gap-x-3 gap-y-1 text-[12.5px]">
+                <dl className="m-0 grid grid-cols-[minmax(0,1fr)_max-content] gap-x-3 gap-y-1 text-[13px]">
                   <dt className="text-muted">Attacks that get through</dt>
                   <dd className="m-0 font-mono">
                     {pct(suite.asrBefore)} →{" "}

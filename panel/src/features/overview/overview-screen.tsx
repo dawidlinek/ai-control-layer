@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Card, DecisionBadge, DecisionChips, ErrorState, LoadingRows, Meter, PageHeader, PathIcon, Segmented } from "@/components/rogatka";
+import { Card, DecisionBadge, DecisionChips, ErrorState, LoadingRows, Meter, PageHeader, PathIcon, Segmented, linkClass } from "@/components/rogatka";
 import { useIncidents } from "@/lib/api/hooks";
 import type { EventSummary, ModelCost, OverviewSummary } from "@/lib/api/types";
 import { DECISIONS, SEVERITIES, SEVERITY_ICON, SEVERITY_VAR, toSeverity, type Decision, type Severity } from "@/lib/decisions";
@@ -26,7 +26,11 @@ const MODEL_NOTE: Record<string, string> = {
   guards: "classifier + NER",
 };
 
-const linkCls = "text-[12.5px] text-accent no-underline hover:underline";
+// Stat block (STYLEGUIDE section 4): 2 px accent top rule, big number, one-line caption.
+const STAT_BLOCK = "flex flex-col gap-1 self-start border-t-2 border-accent pt-2.5";
+const STAT_NUMBER = "font-mono text-[36px] font-bold leading-none tracking-[-0.03em]";
+const STAT_CAPTION = "text-[14px] text-muted";
+const linkCls = `text-[13px] ${linkClass}`;
 
 /** `318k`, `1.4M`, `412`. */
 export function formatTokens(n: number): string {
@@ -101,9 +105,9 @@ function HappeningCard({ range, summary, ...state }: CardProps & { range: Range;
           const legend = DECISIONS.filter((d) => (s.decisions_by_action[d] ?? 0) > 0);
           return (
             <>
-              <div className="flex items-baseline gap-2.5">
-                <span className="font-mono text-[34px] font-semibold tracking-[-0.02em]">{formatNumber(s.decisions_total)}</span>
-                <span className="text-muted">decisions · {RANGE_TEXT[range]}</span>
+              <div className={STAT_BLOCK}>
+                <span className={STAT_NUMBER}>{formatNumber(s.decisions_total)}</span>
+                <span className={STAT_CAPTION}>decisions · {RANGE_TEXT[range]}</span>
               </div>
               <DecisionsChart
                 buckets={s.timeline}
@@ -152,7 +156,7 @@ function NotableRow({ event, who }: { event: EventSummary; who: string }) {
       href={`/traffic?sel=${encodeURIComponent(event.trace_id ?? event.event_id)}`}
       className="-mx-1.5 grid grid-cols-[58px_minmax(0,1fr)] gap-x-2.5 gap-y-1 rounded-[6px] px-1.5 py-1.5 text-text no-underline hover:bg-raised"
     >
-      <span className="pt-px font-mono text-[11.5px] text-muted">{formatTime(event.timestamp)}</span>
+      <span className="pt-px font-mono text-[12px] text-muted">{formatTime(event.timestamp)}</span>
       <span className="flex min-w-0 flex-col gap-1">
         <span className="line-clamp-2">
           <b className="font-semibold">{who}</b> <span className="text-muted">— {event.summary || `${event.point ?? "request"}: ${event.action}`}</span>
@@ -179,9 +183,9 @@ function SafeCard({ day, ...state }: CardProps & { day?: OverviewSummary }) {
         <ErrorState error={incidents.error} onRetry={() => void incidents.refetch()} />
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Link href="/incidents" className="flex items-baseline gap-2 text-text no-underline hover:underline">
-            <span className="font-mono text-[28px] font-semibold tracking-[-0.02em]">{open.length}</span>
-            <span className="text-muted">open {open.length === 1 ? "incident" : "incidents"}</span>
+          <Link href="/incidents" className={`${STAT_BLOCK} text-text no-underline hover:underline`}>
+            <span className={STAT_NUMBER}>{open.length}</span>
+            <span className={STAT_CAPTION}>open {open.length === 1 ? "incident" : "incidents"}</span>
           </Link>
           <span className="flex flex-wrap gap-1.5">
             {SEVERITIES.filter((s) => bySeverity.has(s)).map((s) => (
@@ -259,9 +263,9 @@ function CostCard({ summary, ...state }: CardProps & { summary?: OverviewSummary
             <>
               <div className="flex flex-wrap gap-x-7 gap-y-3.5">
                 <div className="flex min-w-0 flex-[1.3_1_240px] flex-col gap-1.5">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-[28px] font-semibold tracking-[-0.02em]">{formatUsd(s.usd_today)}</span>
-                    <span className="text-muted">{limit ? `/ ${formatUsd(limit)} USD today` : "USD today"}</span>
+                  <div className={STAT_BLOCK}>
+                    <span className={STAT_NUMBER}>{formatUsd(s.usd_today)}</span>
+                    <span className={STAT_CAPTION}>{limit ? `/ ${formatUsd(limit)} USD today` : "USD today"}</span>
                   </div>
                   {limit ? (
                     <Meter label="Spend today" value={s.usd_today} max={limit} forecast={s.usd_forecast_day ?? undefined} className="h-2" />
@@ -283,9 +287,9 @@ function CostCard({ summary, ...state }: CardProps & { summary?: OverviewSummary
                   <div className="text-[12px] text-muted">{gpuPct !== null ? `${gpuPct}% used` : "no daily limit"}</div>
                 </div>
               </div>
-              <table aria-label="Usage by model today" className="w-full border-collapse border-t border-border text-[12px]">
+              <table aria-label="Usage by model today" className="w-full border-collapse border-t border-border text-[13px]">
                 <thead>
-                  <tr className="text-[10.5px] font-semibold uppercase tracking-[.05em] text-muted">
+                  <tr className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted">
                     <th scope="col" className="border-b border-border py-1 text-left font-semibold">Model · today</th>
                     <th scope="col" className="w-32 border-b border-border py-1 text-right font-semibold">Tokens in / out</th>
                     <th scope="col" className="w-24 border-b border-border py-1 text-right font-semibold">Usage</th>
@@ -301,7 +305,7 @@ function CostCard({ summary, ...state }: CardProps & { summary?: OverviewSummary
                           </span>
                           <span className="h-[3px] rounded-[2px] bg-inset" aria-hidden>
                             <span
-                              className={cn("block h-[3px] rounded-[2px]", m.tier === "cloud" ? "bg-accent" : "bg-border-strong")}
+                              className={cn("block h-[3px] rounded-[2px]", m.tier === "cloud" ? "bg-dec-monitor" : "bg-dec-route-local")}
                               style={{ width: `${Math.max(2, (m.share / maxShare) * 100)}%` }}
                             />
                           </span>

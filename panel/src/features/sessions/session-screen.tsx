@@ -88,18 +88,18 @@ export function SessionScreen({ id }: { id: string }) {
       {t && (
         <>
           {isSensitiveLabel(t.session_label) && <SessionLabelLine label={t.session_label} className="self-start" />}
-          <p className="m-0 text-[12.5px] text-muted">
+          <p className="m-0 text-[13px] text-muted">
             Read-only. Shown as Rogatka recorded it: personal data and secrets appear as placeholders.
           </p>
-          {t.truncated && <p className="m-0 text-[12.5px] text-muted">Only the most recent turns are shown.</p>}
+          {t.truncated && <p className="m-0 text-[13px] text-muted">Only the most recent turns are shown.</p>}
           {t.turns.length === 0 ? (
             <div className="rounded-[8px] border border-border bg-surface">
               <EmptyState title="No turns recorded" />
             </div>
           ) : (
-            <ol aria-label="Turns" className="m-0 flex max-w-[880px] list-none flex-col gap-2.5 p-0">
-              {t.turns.map((turn) => (
-                <Turn key={turn.event_id} turn={turn} who={t.username ? people.nameOf(t.username) : null} />
+            <ol aria-label="Turns" className="m-0 flex max-w-[880px] list-none flex-col p-0">
+              {t.turns.map((turn, i) => (
+                <Turn key={turn.event_id} turn={turn} last={i === t.turns.length - 1} who={t.username ? people.nameOf(t.username) : null} />
               ))}
             </ol>
           )}
@@ -109,39 +109,42 @@ export function SessionScreen({ id }: { id: string }) {
   );
 }
 
-function Turn({ turn, who }: { turn: TranscriptTurn; who: string | null }) {
+function Turn({ turn, who, last }: { turn: TranscriptTurn; who: string | null; last: boolean }) {
   const traceRef = turn.trace_id ?? turn.event_id;
   const role = turn.role === "user" && who ? who : ROLE_LABEL[turn.role];
   const what = turn.model ?? turn.tool;
   return (
-    <li
-      data-turn={turn.event_id}
-      data-role={turn.role}
-      className="flex flex-col gap-2 rounded-[8px] border border-border bg-surface px-3.5 py-3"
-    >
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12.5px]">
-        <b className="font-semibold">{role}</b>
-        <time dateTime={turn.timestamp} className="font-mono text-[12px] text-muted">
-          {formatTime(turn.timestamp)}
-        </time>
-        {what && <span className="font-mono text-[12px] text-muted">{what}</span>}
-        <div className="flex-1" />
-        <DecisionChips decisions={decisionsOf(turn)} />
-        {turn.rule_ids.map((r) => (
-          <RuleChip key={r} ruleId={r} />
-        ))}
-        <Link href={`/traffic?sel=${encodeURIComponent(traceRef)}`} className="font-mono text-[12px]" aria-label={`Open trace ${traceRef} in Traffic`}>
-          {traceRef} →
-        </Link>
-      </div>
-      {turn.text ? (
-        <div className={turn.role === "tool_call" ? "font-mono text-[12.5px]" : "text-[13px] leading-[1.7]"}>
-          <RedactedText text={turn.text} />
+    <li data-turn={turn.event_id} data-role={turn.role} className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3">
+      {/* brand motif (STYLEGUIDE section 4): 2 px accent rail, 12 px hollow ring per turn, 14 px filled dot for the last */}
+      <span aria-hidden className="flex flex-col items-center">
+        <span className={last ? "mt-[15px] size-3.5 shrink-0 rounded-full border-2 border-accent bg-accent" : "mt-4 size-3 shrink-0 rounded-full border-2 border-accent bg-bg"} />
+        <span className={last ? "w-0.5 flex-1 bg-transparent" : "w-0.5 flex-1 bg-accent"} />
+      </span>
+      <div className="mb-2.5 flex flex-col gap-2 rounded-[8px] border border-border bg-surface px-3.5 py-3">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[14px]">
+          <b className="font-semibold">{role}</b>
+          <time dateTime={turn.timestamp} className="font-mono text-[12px] text-muted">
+            {formatTime(turn.timestamp)}
+          </time>
+          {what && <span className="font-mono text-[12px] text-muted">{what}</span>}
+          <div className="flex-1" />
+          <DecisionChips decisions={decisionsOf(turn)} />
+          {turn.rule_ids.map((r) => (
+            <RuleChip key={r} ruleId={r} />
+          ))}
+          <Link href={`/traffic?sel=${encodeURIComponent(traceRef)}`} className="font-mono text-[12px]" aria-label={`Open trace ${traceRef} in Traffic`}>
+            {traceRef} →
+          </Link>
         </div>
-      ) : (
-        <span className="text-[12.5px] italic text-muted">Content not retained.</span>
-      )}
-      {!isAllowedOnly(turn) && turn.summary && <p className="m-0 text-[12.5px] text-muted">{turn.summary}</p>}
+        {turn.text ? (
+          <div className={turn.role === "tool_call" ? "font-mono text-[13px]" : "text-[14px] leading-[1.7]"}>
+            <RedactedText text={turn.text} />
+          </div>
+        ) : (
+          <span className="text-[14px] italic text-muted">Content not retained.</span>
+        )}
+        {!isAllowedOnly(turn) && turn.summary && <p className="m-0 text-[14px] text-muted">{turn.summary}</p>}
+      </div>
     </li>
   );
 }

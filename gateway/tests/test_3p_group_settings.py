@@ -407,7 +407,8 @@ def test_tools_section_is_created_for_a_group_without_tools(stack: Stack) -> Non
     assert stack.settings(PLAIN)["tools"] == []
     extra = stack.read("groups.yaml") + f"  qa-bare:\n    description: no tools yet\n    models: [{ids['local']}]\n"
     (stack.dir / "groups.yaml").write_text(extra, encoding="utf-8", newline="\n")
-    assert stack.client.portal.call(stack.app.state.policy_service.reload)  # type: ignore[union-attr]
+    # The file watcher may pick the edit up first, then this reload finds nothing new and returns False.
+    stack.client.portal.call(stack.app.state.policy_service.reload)  # type: ignore[union-attr]
     assert "qa-bare" in stack.app.state.engine.policy.groups
     r = stack.put("qa-bare", stack.body("qa-bare", tools=[ids["tool_a"], ids["tool_b"]], preset="strict"))
     assert r.status_code == 200, r.text

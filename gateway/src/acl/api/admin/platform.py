@@ -7,23 +7,33 @@ Each section is owned by the phase noted; the route signatures are the contract.
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 
+from acl.api.admin.paging import TOTAL_COUNT_RESPONSES, set_total
 from acl.api.deps import ERROR_RESPONSES, Admin, Viewer, not_implemented
-from acl.audit.queries import spend_by_connector, usage_by_model
+from acl.audit.queries import rule_hits, spend_by_connector, usage_by_model
 from acl.contracts.admin import (
     ConnectorStatus,
+    FeedRuleCreate,
+    FeedRuleCreated,
+    FeedSignature,
     FeedStatus,
+    FeedTarget,
     KillSwitchRequest,
     ModelInfo,
 )
 from acl.contracts.audit import EventType
 from acl.contracts.common import Severity
+from acl.feed.admin import FeedAdminClient, FeedAdminError, RuleInvalid, build_entry, describe
+from acl.feed.compile import CompiledEntry, compile_entries, compile_entry
 from acl.policy.models import ModelEntry, Policy
 from acl.routing.registry import RoutingTable
 
+log = logging.getLogger(__name__)
 router = APIRouter(responses=ERROR_RESPONSES)
 
 # ---------------------------------------------------------------- models & connectors (1A / 3B)
@@ -197,3 +207,131 @@ async def feed_sync(request: Request, p: Admin) -> FeedStatus:
         not_implemented("feed")
     await sync.sync_once()
     return sync.store.status()
+
+
+def _active_signatures(request: Request) -> list[tuple[CompiledEntry, str]]:
+    # The merged active set, as SEC-SIG-01 sees it: bundle entries, plus the policy's offline baseline
+    # (`signatures.local_rules`) for ids the feed does not carry. The feed wins on a clash.
+    store = getattr(request.app.state, "feed_store", None)
+    if store is None:
+        not_implemented("feed")
+    bundle = store.current()
+    out: list[tuple[CompiledEntry, str]] = [(e, "feed") for e in (bundle.entries if bundle else ())]
+    engine = request.app.state.engine
+    if engine is not None:
+        seen = {e.id for e, _ in out}
+        local, _errors = compile_entries(engine.policy.signatures.local_rules)
+        out.extend((e, "policy") for e in local if e.id not in seen)
+    return out
+
+
+_SEVERITY_ORDER = {s: i for i, s in enumerate(Severity)}
+
+
+@router.get(
+    "/feed/signatures",
+    response_model=list[FeedSignature],
+    tags=["feed"],
+    operation_id="listFeedSignatures",
+    responses=TOTAL_COUNT_RESPONSES,
+)
+async def feed_signatures(
+    request: Request,
+    response: Response,
+    p: Viewer,
+    target: FeedTarget | None = None,
+    q: str | None = None,
+    limit: int = 500,
+) -> list[FeedSignature]:
+    # Signatures of the active bundle (+ the policy's offline baseline) with 24 h hit counts from the audit index.
+    # Sorted most severe first. (A comment, not a docstring: it would change the generated OpenAPI contract.)
+    now = time.time()
+    rows = [(e, origin) for e, origin in _active_signatures(request) if q is None or _matches(e, q)]
+    sigs = [describe(e, origin=origin, now=now) for e, origin in rows]
+    if target is not None:
+        sigs = [s for s in sigs if s.target == target]
+    sigs.sort(key=lambda s: (-_SEVERITY_ORDER[s.severity], s.id))
+    set_total(response, len(sigs))
+    sigs = sigs[: max(1, min(limit, 2000))]
+    hits = await _hits_24h(request, [s.id for s in sigs])
+    return [s.model_copy(update={"hits_24h": hits[s.id][0], "last_hit_at": hits[s.id][1]}) if hits else s for s in sigs]
+
+
+def _matches(ce: CompiledEntry, q: str) -> bool:
+    needle = q.strip().lower()
+    e = ce.entry
+    return not needle or needle in e.id.lower() or needle in e.description.lower() or needle in e.pattern.lower()
+
+
+async def _hits_24h(request: Request, ids: list[str]) -> dict:
+    sessions = getattr(request.app.state, "db", None)
+    if sessions is None or not ids:
+        return {}
+    try:
+        return await rule_hits(sessions, ids, datetime.now(UTC) - timedelta(hours=24))
+    except Exception:
+        log.exception("could not count signature hits")
+        return {}
+
+
+@router.post(
+    "/feed/rules",
+    response_model=FeedRuleCreated,
+    status_code=201,
+    tags=["feed"],
+    operation_id="addFeedRule",
+    responses={
+        409: {"description": "A rule with this id already exists"},
+        422: {"description": "The rule is invalid (bad regex, missing field, ...)"},
+        502: {"description": "The feed server is unreachable or rejected the request"},
+        503: {"description": "Rule editing is not configured"},
+    },
+)
+async def add_feed_rule(request: Request, body: FeedRuleCreate, p: Admin) -> FeedRuleCreated:
+    # The feed server stays the source of truth: the rule is published there (new signed bundle), then the gateway
+    # syncs it like any other change. (A comment, not a docstring: it would change the generated OpenAPI contract.)
+    client: FeedAdminClient | None = getattr(request.app.state, "feed_admin", None)
+    sync = getattr(request.app.state, "feed_sync", None)
+    store = getattr(request.app.state, "feed_store", None)
+    if client is None or sync is None or store is None:
+        not_implemented("feed")
+    if not client.configured:
+        raise HTTPException(503, detail="adding feed rules is not configured (feed URL / ACL_FEED_ADMIN_TOKEN)")
+    try:
+        entry = build_entry(body)
+    except RuleInvalid as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+    if any(e.id == entry.id for e, _ in _active_signatures(request)):
+        raise HTTPException(409, detail=f"a rule with id {entry.id} already exists")
+    try:
+        bundle_version = await client.add_entry(entry)
+    except FeedAdminError as exc:
+        raise HTTPException(exc.status, detail=exc.message) from exc
+    audit = getattr(request.app.state, "audit", None)
+    if audit is not None:
+        await audit.record_event(
+            EventType.feed_update,
+            severity=Severity.info,
+            detail={  # the pattern itself is not recorded: it may be a literal secret someone wants blocked
+                "event": "rule_added",
+                "rule_id": entry.id,
+                "target": body.target,
+                "type": entry.type.value,
+                "action": entry.action.value,
+                "rule_severity": entry.severity.value,
+                "pattern_chars": len(entry.pattern),
+                "feed_bundle_version": bundle_version,
+                "rule_ids": [entry.id],
+            },
+            principal=p,
+        )
+    if body.sync_now:
+        await sync.sync_once()
+    bundle = store.current()
+    synced = bundle is not None and any(e.id == entry.id for e in bundle.entries)
+    return FeedRuleCreated(
+        rule=describe(compile_entry(entry), origin="feed", hits=(0, None)),
+        bundle_version=bundle_version,
+        synced=synced,
+        feed=store.status(),
+    )

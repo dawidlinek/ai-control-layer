@@ -1,7 +1,7 @@
 # Rogatka Dashboard: conventions for screen agents
 
-The admin panel of Rogatka (repo `ai-control-layer`). Source of truth for scope and look: `docs/ux/HANDOFF.md`
-(wins over older UX docs). Design prototypes: `docs/ux/design-reference/*.dc.html` (read for copy, data, markup;
+The admin panel of Rogatka (repo `ai-control-layer`). Source of truth for scope: `docs/ux/HANDOFF.md`
+(wins over older UX docs); for colour, type and brand marks: `docs/ux/STYLEGUIDE.md` (agreed 2026-10-04, wins over HANDOFF section 3-4). Design prototypes: `docs/ux/design-reference/*.dc.html` (read for copy, data, markup;
 they are **not** production code). API: `contracts/admin-api.openapi.yaml` (read-only for you).
 
 Stack: Next.js 15 (App Router) + TypeScript strict, Tailwind v4, shadcn/ui on Radix (`radix-ui`), lucide-react,
@@ -21,7 +21,7 @@ Testing Library, Playwright. Package manager: pnpm (`pnpm -C panel ...`). Never 
 | `gen:api` | Regenerate `src/lib/api/schema.d.ts` from `../contracts/admin-api.openapi.yaml` (commit the result) |
 
 Definition of done for a screen: `typecheck`, `lint`, `test`, `build` and `e2e` pass; the screen matches its prototype
-(spacing, sizes, copy, data), works in dark and light, and has tests for each interaction listed in HANDOFF section 5.
+(spacing, sizes, copy, data), works in light (default) and dark, and has tests for each interaction listed in HANDOFF section 5.
 
 ## Folder layout
 
@@ -264,10 +264,10 @@ Rules for fixtures:
 | `ToggleChip` | `label*`, `on*`, `onChange?`, `disabled?` | `✓ allowed` / `+ not` (role switch) |
 | `StatusBox` | `variant?: "success"\|"info"\|"warning"\|"error"`, `title?`, `children?` | Inline result of an action; error is an alert |
 | `FactsGrid` | `facts*: {label, value, mono?}[]` | 2-column key facts; values ellipsise |
-| `PlainSentence` | `children*` | The one sentence at the top of a sidebar (templates, never an LLM) |
-| `PageHeader` | `title*`, `subtitle?`, `actions?` | h1 20 px / 600 + right-hand actions |
-| `Card` | `title?`, section props | Overview card (surface, border, 8 px radius, 16 px padding) |
-| `SidebarSection` | `title*`, `aside?`, `children*` | Section with 11 px / 600 / uppercase / .08em label and bottom border |
+| `PlainSentence` | `children*` | The one sentence at the top of a sidebar (16 px / 500 / 1.45; templates, never an LLM) |
+| `PageHeader` | `title*`, `subtitle?`, `actions?` | h1 22 px / 600 / -0.01em + right-hand actions |
+| `Card` | `title?`, section props | Overview card (surface, 1 px border, 8 px radius, 16 px padding, no shadow) |
+| `SidebarSection` | `title*`, `aside?`, `children*` | Section with 11 px / 700 / uppercase / .1em muted label and bottom border |
 | `SidebarHeader` | `label*`, `title?`, `copyText?`, `actions?`, `onClose?` | First row of a sidebar; the x closes (uses the context of `ListWithSidebar`) |
 | `SidebarBlock` / `SidebarActions` | `children*` | Unlabelled intro block / action footer |
 | `ListWithSidebar` | `list*`, `sidebar*`, `open*`, `onClose*`, `sidebarLabel*` | The list + sidebar layout; Esc closes |
@@ -282,14 +282,15 @@ Rules for fixtures:
 | `Pagination` | `page*`, `onPageChange*`, `pageSize*`, `pageCount?` or `hasNext?`, `onPageSizeChange?`, `pageSizes?` | "Rows per page 25 v", `< 1 2 3 ... N >`. The contract has no totals: use `hasNext` for cursor lists |
 | `DiffBox` | `title?`, `lines*: {sign: "+"\|"-"\|"~"\|" ", text}[]`, `addedTone?: "good"\|"bad"`, `removedTone?: "bad"\|"good"`, `ariaLabel?` | Bordered mono diff (git diff, plan, tool description). `addedTone="bad"` paints added lines red (rug pull); rows carry `data-sign` |
 | `useNow(intervalMs = 1000, active = true)`, `secondsUntil(iso, now)` | returns ms since epoch | Re-rendering clock for countdowns and relative labels; `active = false` stops the timer |
-| `StepTimeline` | `steps*: {id,name,result,meta?,changed?,detail?}[]`, `defaultOpenId?` / `openId?`+`onOpenChange?` | Trace "How the decision was made" |
-| `Meter` | `value*`, `max*`, `label*`, `forecast?`, `danger?` | Usage bar: accent, orange >= 80 %, red at the limit or `danger`; `meterState()` |
+| `StepTimeline` | `steps*: {id,name,result,meta?,changed?,detail?}[]`, `defaultOpenId?` / `openId?`+`onOpenChange?` | Trace "How the decision was made". Brand motif: 2 px accent rail, 12 px hollow accent ring per step, 14 px filled dot for the last step; `changed` only bolds the step |
+| `BrandLockup`, `LogoTile`, `BrandTag` | `tag?` (default "Dashboard"), `size?` | Logo: Szlaban mark on an ink tile + "Rogatka" 600 + red filled tag. Used by the top bar, sign-in, signed-out, no-access |
+| `Meter` | `value*`, `max*`, `label*`, `forecast?`, `danger?` | Usage bar: ink, orange >= 80 %, red (block) at the limit or `danger`; `meterState()` |
 | `Avatar` | `name*`, `size?` | Initials; `initialsOf()` |
 | `TimeCell`, `RelativeTime` | `iso*` | Mono time + "today" / compact age ("38 m"); helpers `formatTime`, `formatDay`, `formatWhen`, `formatAge` also in `@/lib/format` |
 | `EmptyState`, `ErrorState`, `LoadingRows` | see source | Empty / error (with retry) / skeleton |
 | `PathIcon`, `ICON_PATHS`, `RogatkaMark` | `path*`, `size?`, `strokeWidth?` | Stroke icons from the prototype paths; use lucide-react for everything else |
 
-`@/components/ui`: `Button` (`variant`: `primary` accent, `danger` solid red, `secondary` default, `ghost`; `size`: `md` 32 px, `lg` 36 px, `sm`, `icon`; `asChild`),
+`@/components/ui`: `Button` (`variant`: `primary` ink fill (inverted light fill in dark), `danger` `accent-text` fill with white label (Deny only), `secondary` 1 px `border-strong` (default), `ghost`; `size`: `md` / `sm` 34 px, `lg` 38 px, `icon`; `asChild`; no red primary buttons),
 `Input`, `Textarea`, `Label`, `Dialog*`, `DropdownMenu*`, `Popover*`, `Select` (`SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectGroup`, `SelectLabel`, `SelectSeparator`; Radix Select, trigger styled like the inset form fields; use `onValueChange`, and `Controller` inside react-hook-form), `Switch`, `Tooltip*`, `Checkbox`, `Separator`.
 Need another shadcn component (tabs, sheet...)? `pnpm -C panel dlx shadcn@latest add <name>`, then replace its colour classes with ours:
 
@@ -298,19 +299,29 @@ Need another shadcn component (tabs, sheet...)? `pnpm -C panel dlx shadcn@latest
 | `bg-background` / `text-foreground` | `bg-bg` / `text-text` |
 | `bg-card`, `bg-popover` | `bg-surface` |
 | `bg-muted` / `text-muted-foreground` | `bg-raised` / `text-muted` |
-| `bg-accent` (hover surface) | `bg-raised`; our `bg-accent` is the blue |
-| `bg-primary text-primary-foreground` | `bg-accent text-on-accent` |
+| `bg-accent` (hover surface) | `bg-raised`; our `bg-accent` is the brand red (marks only) |
+| `bg-primary text-primary-foreground` | `bg-ink text-on-ink` |
 | `bg-destructive` | `bg-dec-block` |
 | `border-input`, `border` | `border-border` (`border-border-strong` for emphasis) |
 | `ring-ring` | the global `:focus-visible` outline already applies |
 
 ### Tokens and class names (`src/app/globals.css`)
 
-CSS variables (dark default, `:root[data-theme="light"]` overrides) mapped to Tailwind colours:
-`bg-bg`, `bg-surface` (cards, sidebar, table), `bg-raised`, `bg-inset` (inputs, code), `border-border`, `border-border-strong`, `text-text`, `text-muted`,
-`bg-accent`, `text-accent`, `text-on-accent`, `bg-accent-soft` (selection), `border-accent-line`, decisions `text-dec-allow|monitor|redact|pseudonymise|sanitize|downgrade|route-local|require-approval|block`
-(same suffixes for `bg-`), severities `text-sev-critical|high|medium|low`. Radii: chips 4 px (`rounded-[4px]`), controls 6 px, cards 8 px. Fonts: `font-sans` (IBM Plex Sans), `font-mono`
-(IBM Plex Mono: ids, times, numbers, code, decision labels). Base 13 px / 1.45. Section labels: `text-[11px] font-semibold uppercase tracking-[.08em] text-muted`.
+CSS variables (**light default**, `:root[data-theme="dark"]` overrides; values in `docs/ux/STYLEGUIDE.md` section 2) mapped to Tailwind colours:
+`bg-bg`, `bg-surface` (cards, sidebar, table), `bg-raised` (hover, quiet panels = `surface-subtle` `#f6f6f4`), `bg-inset` (inputs, code), `border-border` (`#d9dce3`),
+`border-border-strong` (`#c3c9d1`, inputs and chips), `bg-ink` / `text-on-ink` (`#111`, inverted in dark: primary buttons, logo tile, checked checkbox / switch, normal meter),
+`text-text` (`#111`), `text-text-secondary` (`#3d4450`), `text-muted` (`#56606b`).
+Brand red (marks only: logo tag, 2 px header rule, active-nav bar, timeline rail and rings, stat-block top rule): `bg-accent` / `border-accent` (`#e3322b`; dark `#f0554d`),
+`text-accent-text` / `bg-accent-text` (`#c4261f`, red text below 24 px and the Deny fill with `text-on-accent`), `bg-accent-pressed` (`#8f1b16`), `bg-accent-50` (`#fff5f4`), `text-on-accent`.
+`text-accent` is kept for old call sites and resolves to `accent-text` (see the rule in `globals.css`), so small red text is always AA.
+Selection and focus are **neutral, never red**: `bg-accent-soft` (ink at 6 %) is the selected row / active tab / hover-on-selection fill, `border-accent-line` (ink at 45 %) its border,
+the global focus ring is `--ink`, the selected table row has a 3 px ink bar. Red on screen therefore keeps meaning block / high severity.
+Decisions `text-dec-allow|monitor|redact|pseudonymise|sanitize|downgrade|route-local|require-approval|block` (same suffixes for `bg-`), severities `text-sev-critical|high|medium|low`
+(unchanged from HANDOFF section 4). Radii: chips 4 px (`rounded-[4px]`), controls 6 px, cards 8-10 px; cards are 1 px border, no shadow or gradient (shadow only on popovers and dialogs).
+Fonts: `font-sans` (Instrument Sans 400/500/600/700, Google Fonts via `next/font`), `font-mono` (IBM Plex Mono: ids, times, numbers, code, decision labels).
+Scale: base 14 px / 1.45; page title 22 px / 600 / -0.01em; plain sentence 16 px / 500 / 1.45; table cells 14 px; controls 13.5-14 px; mono 12-13 px;
+section label `text-[11px] font-bold uppercase tracking-[.1em] text-muted`; Overview stat numbers 36 px / 700 / -0.03em under a 2 px accent top rule.
+Theme: cookie `rogatka-theme`; missing = light.
 Tint chips: set `style={{ "--c": "var(--dec-block)" }}` and class `tint` (text = colour, background 14 % / 10 %, border 32 % / 30 %).
 Charts (Recharts) take colours from the CSS variables (`var(--dec-block)`), never hard-coded hex, so both themes work. `lib/decisions.ts` has `DECISION_VAR`, `DECISION_BG_CLASS`,
 `DECISION_TEXT_CLASS`, `SEVERITY_VAR`, icon paths. Tailwind only sees literal class names: never build `text-dec-${x}` dynamically, use the maps.
@@ -340,7 +351,7 @@ Keyboard (global, in the shell): `?` help, `g` then `o t i a u g p m l k b n` go
 - Auth: Auth.js v5 + Keycloak. Tokens live only in the encrypted session cookie; the browser gets name, e-mail, username, roles, groups. The proxy route reads the access token
   from the cookie and refreshes it when expired. Config: `AUTH_SECRET`, `AUTH_KEYCLOAK_ID`, `AUTH_KEYCLOAK_SECRET`, `AUTH_KEYCLOAK_ISSUER` (+ optional
   `AUTH_KEYCLOAK_INTERNAL_ISSUER` inside Docker), `ROGATKA_GATEWAY_URL`. See `.env.example` and `deploy/compose.panel.yml`.
-- Theme: cookie `rogatka-theme`, rendered by the server on `<html data-theme>` (no flash). `useTheme()` from `components/shell/theme`.
+- Theme: cookie `rogatka-theme` (missing = light), rendered by the server on `<html data-theme>` (no flash). `useTheme()` from `components/shell/theme`.
 - Mock mode vs real: `NEXT_PUBLIC_API_MOCKING` is inlined at build time (the MSW layer is not in normal builds); `ROGATKA_AUTH` is read at runtime.
 - Docker: `panel/Dockerfile` (standalone output, non-root), `deploy/compose.panel.yml` (profile `panel`, port 3000).
 

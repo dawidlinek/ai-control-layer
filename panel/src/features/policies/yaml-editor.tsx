@@ -20,7 +20,7 @@ export interface YamlEditorProps {
 
 function EditorLoading() {
   return (
-    <div role="status" className="flex h-[560px] items-center justify-center bg-inset text-[12.5px] text-muted">
+    <div role="status" className="flex h-[560px] items-center justify-center bg-inset text-[13px] text-muted">
       Loading the editor…
     </div>
   );

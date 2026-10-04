@@ -56,6 +56,8 @@ OPTIMISE  Automation Insights /insights (tabs Repeated tasks | Skills | Speciali
 
 ## 3. Global UI patterns
 
+> **Update 2026-10-04:** `docs/ux/STYLEGUIDE.md` (agreed) now defines colour, type and brand marks. Where this section says dark-first, blue accent, IBM Plex Sans, 13 px base or an accent-tinted active nav item, the style guide wins: light default, red brand marks only, Instrument Sans, 14 px base, ink primary buttons, red indicator bar on the active nav item. Layout, screens and interaction rules below are unchanged.
+
 **Shell.** Top bar: logo lockup (left), profile button (right) showing avatar initials, name and role ("Katarzyna Wójcik · Security analyst"). Clicking it opens a menu: name, e-mail, role chips (role + Keycloak group), **Notifications**, **Keyboard shortcuts**, a working **Dark / Light theme switch**, **Sign out**. No search, no bell.
 Left sidebar (≥200 px; stacks above content on narrow screens): sections with uppercase 10.5 px headers — *(none)* Overview · MONITOR · ACCESS · GOVERN · OPTIMISE. Active item: accent-tinted background, weight 600. Count badges: Incidents 7, Approvals 3.
 
@@ -76,6 +78,8 @@ Left sidebar (≥200 px; stacks above content on narrow screens): sections with 
 **Interaction rules.** Every action that changes policy says so ("Saved as policy v9", "writes groups.yaml"). Publish/approve/grant flows show the result inline in the sidebar (green status box). Deny is the primary (solid red) button in approvals. Org-locked items are read-only with a lock icon.
 
 ## 4. Design tokens (from the prototypes)
+
+> **Update 2026-10-04:** `docs/ux/STYLEGUIDE.md` (agreed) now defines colour, type and brand marks and replaces the fonts, base size and the neutral/accent tokens below (light is the default theme, accent is red `#e3322b` / `#f0554d` in dark, decision colours unchanged). The tokens in `panel/src/app/globals.css` are the implemented values.
 
 **Fonts:** IBM Plex Sans (400/500/600) for UI, IBM Plex Mono (400/500) for IDs, numbers, code, decision labels. Base 13 px / line-height 1.45.
 

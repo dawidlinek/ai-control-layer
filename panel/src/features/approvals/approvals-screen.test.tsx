@@ -8,7 +8,7 @@ import { approvals } from "@/mocks/db/approvals";
 import { useNavCounts } from "@/lib/api/hooks";
 import { DEV_USER } from "@/lib/auth/user";
 import { ApprovalsScreen } from "./approvals-screen";
-import { parseArguments, parseReason } from "./readers";
+import { approverLabel, parseArguments, previewOf, reasonsOf } from "./readers";
 
 function PendingBadge() {
   const { approvals: n } = useNavCounts();
@@ -29,12 +29,12 @@ describe("ApprovalsScreen", () => {
     expect(screen.getByText("Requests nobody answers are denied after 10 minutes")).toBeInTheDocument();
     const jan = within(t).getByText("apr-0193").closest("tr")!;
     expect(within(jan).getByText("git push")).toBeInTheDocument();
-    expect(within(jan).getByText("Rule of Two")).toBeInTheDocument();
+    expect(within(jan).getByText(/^Rule of Two/)).toBeInTheDocument();
     expect(within(jan).getByText("Security team")).toBeInTheDocument();
     expect(jan.querySelector("[data-urgent]")).not.toBeNull();
     const bot = within(t).getByText("apr-0194").closest("tr")!;
     expect(within(bot).getByText("Team lead")).toBeInTheDocument();
-    expect(within(bot).getByText("agent for Anna Nowak")).toBeInTheDocument();
+    expect(within(bot).getByText("agent")).toBeInTheDocument();
     expect(bot.querySelector("[data-urgent]")).toBeNull();
   });
 
@@ -69,13 +69,13 @@ describe("ApprovalsScreen", () => {
     expect(within(s).getByText("confidential")).toBeInTheDocument();
     expect(within(s).getByRole("link", { name: "tr_9b21e4" })).toHaveAttribute("href", "/traffic?sel=tr_9b21e4");
     expect(within(s).getByRole("link", { name: "SEC-FLOW-01" })).toBeInTheDocument();
+    const flags = within(within(s).getByRole("list", { name: "Red flags" })).getAllByRole("listitem");
+    expect(flags.map((li) => li.textContent)).toEqual(["untrusted input", "sensitive data", "external egress"]);
     const reasons = within(within(s).getByRole("list", { name: "Reasons" })).getAllByRole("listitem");
     expect(reasons.map((li) => li.textContent)).toEqual([
-      expect.stringContaining("untrusted"),
-      expect.stringContaining("sensitive"),
-      expect.stringContaining("external"),
+      expect.stringContaining("untrusted text"),
+      expect.stringContaining("outside the company"),
     ]);
-    expect(within(reasons[0]).getByRole("link")).toHaveAttribute("href", "/traffic?sel=tr_9a8810");
     expect(within(s).getByRole("link", { name: "Open full session s_9e21 →" })).toHaveAttribute("href", "/sessions/s_9e21");
   });
 
@@ -108,12 +108,12 @@ describe("ApprovalsScreen", () => {
     expect(screen.getByRole("tab", { name: /Waiting\s*2/ })).toBeInTheDocument();
   });
 
-  it("denies without a reason (Deny is the primary red button)", async () => {
+  it("denies without a reason (Deny is the solid danger button)", async () => {
     const { user } = renderApp(<ApprovalsScreen />, { searchParams: "?sel=apr-0193" });
     await table();
     const s = await waitFor(sidebar);
     const deny = within(s).getByRole("button", { name: "Deny" });
-    expect(deny.className).toContain("bg-dec-block");
+    expect(deny.className).toContain("bg-accent-text");
     await user.click(deny);
     expect(await within(sidebar()).findByText("Denied")).toBeInTheDocument();
     expect(sidebar()).toHaveTextContent("The client shows the denial with rule SEC-FLOW-01 and trace tr_9b21e4.");
@@ -183,16 +183,30 @@ describe("ApprovalsScreen", () => {
 });
 
 describe("approval readers", () => {
-  it("tolerates a one-line preview and reason", () => {
-    const p = parseArguments({ arguments_preview: "rm -rf build", tool: "bash" });
-    expect(p).toMatchObject({ command: "rm -rf build", details: [], preview: null, dataClass: null });
-    expect(parseReason({ reason: "irreversible command" })).toEqual({ short: "irreversible command", sources: [] });
+  it("tolerates a one-line preview and reason from an older gateway", () => {
+    const p = parseArguments({ arguments_preview: "rm -rf build" });
+    expect(p).toMatchObject({ command: "rm -rf build", details: [], device: null });
+    expect(reasonsOf({ reasons: [], reason: "irreversible command" })).toEqual(["irreversible command"]);
+    expect(reasonsOf({ reasons: [], reason: "" })).toEqual(["held for a person"]);
+    expect(previewOf({ preview: null })).toBeNull();
+    expect(approverLabel({ approver_scope: "user", approver_label: null })).toBe("Team lead");
+    expect(approverLabel({ approver_scope: "user", approver_label: "Security team" })).toBe("Security team");
+  });
+
+  it("reads the typed reasons and preview first", () => {
+    expect(reasonsOf({ reasons: ["a", "b"], reason: "ignored" })).toEqual(["a", "b"]);
+    const p = previewOf({ preview: { type: "diff", body: "-old\n+new\n ctx" } });
+    expect(p).toMatchObject({ kind: "diff", title: "Changes" });
+    expect(p!.lines).toEqual([
+      { sign: "-", text: "old" },
+      { sign: "+", text: "new" },
+      { sign: " ", text: "ctx" },
+    ]);
   });
 
   it("flags company vs external targets deterministically", () => {
     const p = parseArguments({
       arguments_preview: "x\nRemote: git.corp.example/dev/a\nTo: a@corp.example, b@partner.pl\nSecret scan: none",
-      tool: "bash",
     });
     expect(p.details.map((d) => d.flag)).toEqual([undefined, "outside @corp.example", undefined]);
   });

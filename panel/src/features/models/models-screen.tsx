@@ -22,8 +22,8 @@ const columns: ColumnDef<Row>[] = [
     meta: { className: "max-w-[260px]" },
     cell: ({ row: { original: m } }) => (
       <div className={cn("flex min-w-0 flex-col", m.off && "opacity-55")}>
-        <Truncate className="font-mono text-[12.5px]">{m.id}</Truncate>
-        <Truncate className="text-[11.5px] text-muted">
+        <Truncate className="font-mono text-[12px]">{m.id}</Truncate>
+        <Truncate className="text-[12px] text-muted">
           {roleText(m)}
           {m.off && " · off"}
         </Truncate>
@@ -38,7 +38,7 @@ const columns: ColumnDef<Row>[] = [
       <span
         className={cn(
           "rounded-[4px] border px-1.5 font-mono text-[11px]",
-          m.tier === "cloud" ? "border-accent-line text-accent" : "border-border text-muted",
+          m.tier === "cloud" ? "border-dec-monitor/45 text-dec-monitor" : "border-dec-route-local/45 text-dec-route-local",
         )}
       >
         {m.tier}

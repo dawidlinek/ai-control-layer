@@ -8,7 +8,7 @@ export function Input({ className, type = "text", ...props }: React.ComponentPro
       type={type}
       data-slot="input"
       className={cn(
-        "min-h-8 w-full min-w-0 rounded-[6px] border border-border bg-inset px-2.5 text-[12.5px] text-text placeholder:text-muted disabled:opacity-50",
+        "min-h-[34px] w-full min-w-0 rounded-[6px] border border-border-strong bg-inset px-2.5 text-[14px] text-text placeholder:text-muted disabled:opacity-50",
         className,
       )}
       {...props}
@@ -21,7 +21,7 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
     <textarea
       data-slot="textarea"
       className={cn(
-        "min-h-16 w-full rounded-[6px] border border-border bg-inset px-2.5 py-1.5 text-[12.5px] text-text placeholder:text-muted disabled:opacity-50",
+        "min-h-16 w-full rounded-[6px] border border-border-strong bg-inset px-2.5 py-1.5 text-[14px] text-text placeholder:text-muted disabled:opacity-50",
         className,
       )}
       {...props}
@@ -30,5 +30,5 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
 }
 
 export function Label({ className, ...props }: React.ComponentProps<"label">) {
-  return <label data-slot="label" className={cn("text-[11px] text-muted", className)} {...props} />;
+  return <label data-slot="label" className={cn("text-[12px] text-muted", className)} {...props} />;
 }

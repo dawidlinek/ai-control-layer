@@ -11,13 +11,13 @@ export function meterState(used: number, limit: number, forceDanger = false): Me
 }
 
 const FILL: Record<MeterState, string> = {
-  normal: "bg-accent",
+  normal: "bg-ink",
   warning: "bg-dec-require-approval",
   danger: "bg-dec-block",
 };
 
 /**
- * Horizontal usage bar. accent normally, orange at >= 80 %, red when over the limit or `danger`.
+ * Horizontal usage bar. ink normally, orange at >= 80 %, red when over the limit or `danger`.
  * `forecast` (same unit as `value` / `max`) draws a tick where usage is expected to end.
  */
 export function Meter({

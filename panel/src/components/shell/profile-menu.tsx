@@ -56,7 +56,7 @@ export function ProfileMenu({ onOpenShortcuts, shortcutsOpen, onShortcutsOpenCha
           >
             <Avatar name={user.name} size={30} />
             <span className="flex flex-col items-start leading-[1.2]">
-              <span className="text-[12.5px]">{user.name}</span>
+              <span className="text-[13.5px]">{user.name}</span>
               <span className="text-[11px] text-muted">{title}</span>
             </span>
             <PathIcon path={open ? ICON_PATHS.chevronUp : ICON_PATHS.chevronDown} size={12} strokeWidth={2.4} />
@@ -104,8 +104,8 @@ export function ProfileMenu({ onOpenShortcuts, shortcutsOpen, onShortcutsOpenCha
               value={theme}
               onChange={setTheme}
               options={[
-                { value: "dark", label: "Dark" },
                 { value: "light", label: "Light" },
+                { value: "dark", label: "Dark" },
               ]}
             />
           </div>

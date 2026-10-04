@@ -18,6 +18,7 @@ import {
   Truncate,
   useNow,
   useSelectedId,
+  linkClass,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { useHasRole } from "@/lib/auth/user-context";
@@ -239,7 +240,7 @@ export function BudgetsScreen() {
               type="button"
               aria-pressed={showIdle}
               onClick={() => setShowIdle((v) => !v)}
-              className="self-start text-[12.5px] text-accent hover:underline"
+              className={cn(linkClass, "self-start text-[13px]")}
             >
               {showIdle ? "Hide idle sessions" : `Show ${idleCount} idle ${idleCount === 1 ? "session" : "sessions"}`}
             </button>
@@ -367,7 +368,7 @@ function BudgetSidebar({ node, period, now, name }: { node: BudgetNode; period: 
       {open && (
         <div
           role="status"
-          className="tint mx-3.5 mt-3.5 rounded-[6px] px-3 py-2.5 text-[12.5px] text-text"
+          className="tint mx-3.5 mt-3.5 rounded-[6px] px-3 py-2.5 text-[13px] text-text"
           style={{ "--c": "var(--dec-block)" } as React.CSSProperties}
         >
           <b className="font-semibold text-dec-block">Breaker open.</b> {node.breaker?.reason ?? "Requests are stopped until the breaker closes."}
@@ -400,7 +401,7 @@ function BudgetSidebar({ node, period, now, name }: { node: BudgetNode; period: 
                 />
               ))}
             </div>
-            <div className="flex justify-between font-mono text-[10.5px] text-muted" aria-hidden>
+            <div className="flex justify-between font-mono text-[11px] text-muted" aria-hidden>
               <span>00:00</span>
               <span>{String(Math.floor(hours.length / 2)).padStart(2, "0")}:00</span>
               <span>now</span>
@@ -412,12 +413,12 @@ function BudgetSidebar({ node, period, now, name }: { node: BudgetNode; period: 
         <SidebarSection title="By model" aside={period === "today" ? "today" : "this month"}>
           <ul aria-label="By model" className="m-0 flex list-none flex-col gap-1.5 p-0">
             {models.map((m) => (
-              <li key={m.model} className="grid grid-cols-[minmax(0,1fr)_100px] items-center gap-2.5 text-[12.5px]">
+              <li key={m.model} className="grid grid-cols-[minmax(0,1fr)_100px] items-center gap-2.5 text-[13px]">
                 <span className="flex min-w-0 flex-col gap-[3px]">
                   <span className="truncate font-mono text-[12px]">{m.model}</span>
                   <span className="h-[3px] rounded-[2px] bg-inset" aria-hidden>
                     <span
-                      className={cn("block h-[3px] rounded-[2px]", m.unit === "usd" ? "bg-accent" : "bg-border-strong")}
+                      className={cn("block h-[3px] rounded-[2px]", m.unit === "usd" ? "bg-dec-monitor" : "bg-dec-route-local")}
                       style={{ width: `${maxBy[m.unit] > 0 ? Math.max(2, (m.value / maxBy[m.unit]) * 100) : 0}%` }}
                     />
                   </span>
@@ -429,9 +430,9 @@ function BudgetSidebar({ node, period, now, name }: { node: BudgetNode; period: 
         </SidebarSection>
       )}
       <div className="flex flex-col gap-2 px-3.5 pt-3.5">
-        <span className="text-[12.5px] text-muted">
+        <span className="text-[13px] text-muted">
           Limit set in{" "}
-          <Link href={source.href} className="font-mono text-accent">
+          <Link href={source.href} className={cn(linkClass, "font-mono")}>
             {source.label}
           </Link>{" "}
           · alert at 80%
@@ -467,7 +468,7 @@ function BudgetSidebar({ node, period, now, name }: { node: BudgetNode; period: 
             Change limit…
           </Button>
         )}
-        <Link href={trafficHref(node)} className="self-center text-[12.5px] text-accent">
+        <Link href={trafficHref(node)} className={cn(linkClass, "self-center text-[13px]")}>
           Requests in Traffic →
         </Link>
       </SidebarActions>

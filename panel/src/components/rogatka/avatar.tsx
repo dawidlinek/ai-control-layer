@@ -27,7 +27,7 @@ export function Avatar({
       aria-hidden="true"
       data-avatar
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent",
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-text",
         className,
       )}
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.37)) }}

@@ -23,7 +23,7 @@ export function DropdownMenuContent({
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          "rg-pop z-50 min-w-40 rounded-[10px] border border-border-strong bg-surface p-1.5 text-[13px] text-text shadow-[var(--shadow-pop)]",
+          "rg-pop z-50 min-w-40 rounded-[10px] border border-border-strong bg-surface p-1.5 text-[14px] text-text shadow-[var(--shadow-pop)]",
           className,
         )}
         {...props}
@@ -33,7 +33,7 @@ export function DropdownMenuContent({
 }
 
 const itemBase =
-  "relative flex min-h-9 cursor-pointer select-none items-center gap-2.5 rounded-[6px] px-2.5 text-[13px] outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-raised";
+  "relative flex min-h-9 cursor-pointer select-none items-center gap-2.5 rounded-[6px] px-2.5 text-[14px] outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-raised";
 
 export function DropdownMenuItem({ className, ...props }: React.ComponentProps<typeof Primitive.Item>) {
   return <Primitive.Item data-slot="dropdown-menu-item" className={cn(itemBase, className)} {...props} />;
@@ -48,7 +48,7 @@ export function DropdownMenuCheckboxItem({
     <Primitive.CheckboxItem className={cn(itemBase, "pl-8", className)} {...props}>
       <span className="absolute left-2.5 flex size-4 items-center justify-center">
         <Primitive.ItemIndicator>
-          <Check className="size-3.5 text-accent" aria-hidden />
+          <Check className="size-3.5 text-text" aria-hidden />
         </Primitive.ItemIndicator>
       </span>
       {children}
@@ -65,7 +65,7 @@ export function DropdownMenuRadioItem({
     <Primitive.RadioItem className={cn(itemBase, "pl-8", className)} {...props}>
       <span className="absolute left-2.5 flex size-4 items-center justify-center">
         <Primitive.ItemIndicator>
-          <Circle className="size-2 fill-accent text-accent" aria-hidden />
+          <Circle className="size-2 fill-text text-text" aria-hidden />
         </Primitive.ItemIndicator>
       </span>
       {children}
@@ -76,7 +76,7 @@ export function DropdownMenuRadioItem({
 export function DropdownMenuLabel({ className, ...props }: React.ComponentProps<typeof Primitive.Label>) {
   return (
     <Primitive.Label
-      className={cn("px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[.08em] text-muted", className)}
+      className={cn("px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.1em] text-muted", className)}
       {...props}
     />
   );

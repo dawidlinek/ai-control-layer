@@ -80,25 +80,26 @@ test.describe("shell", () => {
   test("theme switch persists across reload without a flash", async ({ page }) => {
     await page.goto("/");
     const html = page.locator("html");
-    await expect(html).toHaveAttribute("data-theme", "dark");
-    const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-
-    await page.getByRole("button", { name: "Account menu" }).click();
-    await page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "Light" }).click();
+    // Light is the default (no cookie).
     await expect(html).toHaveAttribute("data-theme", "light");
     const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(lightBg).not.toBe(darkBg);
-
-    await page.reload({ waitUntil: "commit" });
-    // The server renders the attribute from the cookie: it is right before any script runs.
-    await expect(html).toHaveAttribute("data-theme", "light");
-    await expect(page.getByRole("button", { name: "Account menu" })).toBeVisible();
-    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(lightBg);
 
     await page.getByRole("button", { name: "Account menu" }).click();
     await page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "Dark" }).click();
-    await page.reload();
     await expect(html).toHaveAttribute("data-theme", "dark");
+    const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(darkBg).not.toBe(lightBg);
+
+    await page.reload({ waitUntil: "commit" });
+    // The server renders the attribute from the cookie: it is right before any script runs.
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    await expect(page.getByRole("button", { name: "Account menu" })).toBeVisible();
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(darkBg);
+
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "Light" }).click();
+    await page.reload();
+    await expect(html).toHaveAttribute("data-theme", "light");
   });
 
   test("dev mode: ?role=viewer shows the viewer role", async ({ page }) => {

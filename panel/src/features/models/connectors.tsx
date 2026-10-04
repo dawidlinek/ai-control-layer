@@ -110,7 +110,7 @@ function ConnectorCard({
         </span>
         <label
           htmlFor={switchId}
-          className="inline-flex min-h-8 cursor-pointer items-center gap-2 text-[12.5px]"
+          className="inline-flex min-h-8 cursor-pointer items-center gap-2 text-[13px]"
           title={isAdmin ? undefined : "Only admins can switch connectors on or off"}
         >
           <Switch
@@ -123,7 +123,7 @@ function ConnectorCard({
           {on ? "On" : "Off"}
         </label>
       </div>
-      <div className="grid grid-cols-3 gap-2 text-[12.5px]">
+      <div className="grid grid-cols-3 gap-2 text-[13px]">
         <span className="flex min-w-0 flex-col">
           <span className="text-[11px] text-muted">Health</span>
           <span className="inline-flex items-center gap-1.5" title={c.last_error ?? undefined}>

@@ -87,7 +87,7 @@ function columns(nameOf: NameOf): ColumnDef<EventSummary>[] {
       cell: ({ row }) => (
         <div className="min-w-0 max-w-[170px]">
           <Truncate className="font-medium">{whoName(row.original, nameOf)}</Truncate>
-          <Truncate className="text-[11.5px] text-muted">{clientLine(row.original)}</Truncate>
+          <Truncate className="text-[12px] text-muted">{clientLine(row.original)}</Truncate>
         </div>
       ),
       meta: { className: "w-[170px]" },
@@ -124,7 +124,7 @@ function columns(nameOf: NameOf): ColumnDef<EventSummary>[] {
       cell: ({ row }) => {
         const [first, ...rest] = row.original.rule_ids;
         return (
-          <Truncate className="font-mono text-[11.5px] text-muted">
+          <Truncate className="font-mono text-[12px] text-muted">
             {first ?? "—"}
             {rest.length ? ` +${rest.length}` : ""}
           </Truncate>

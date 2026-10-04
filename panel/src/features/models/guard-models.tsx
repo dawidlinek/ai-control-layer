@@ -52,9 +52,9 @@ export function GuardModels({ models }: { models: readonly ModelInfo[] }) {
     <div className="rounded-[8px] border border-border bg-surface">
       <SidebarSection title="Guard models" aside="read-only · they can only make a decision stricter" className="border-b-0 pb-1">
         <div className="rg-scroll overflow-x-auto">
-          <table aria-label="Guard models" className="w-full min-w-[620px] border-separate border-spacing-0 text-[12.5px]">
+          <table aria-label="Guard models" className="w-full min-w-[620px] border-separate border-spacing-0 text-[14px]">
             <thead>
-              <tr className="text-left text-[10.5px] font-semibold uppercase tracking-[.05em] text-muted">
+              <tr className="text-left text-[11px] font-semibold uppercase tracking-[.05em] text-muted">
                 <th scope="col" className="py-1.5 pr-3 font-semibold">Guard</th>
                 <th scope="col" className="py-1.5 pr-3 font-semibold">Model</th>
                 <th scope="col" className="py-1.5 pr-3 font-semibold">Used for</th>
