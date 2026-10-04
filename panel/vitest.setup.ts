@@ -1,8 +1,11 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "@/mocks/server";
 import { resetMockDb } from "@/mocks/db/registry";
+
+// findBy* / waitFor: the 1 s default is too tight when the suite runs in parallel.
+configure({ asyncUtilTimeout: 5_000 });
 
 // `next/navigation` has no router outside Next: use the stand-in from src/test/router.ts.
 vi.mock("next/navigation", async () => (await import("@/test/router")).navigationMock);

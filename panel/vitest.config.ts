@@ -12,6 +12,9 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
+    // jsdom + Radix screens are CPU-heavy: a worker per core starves each test on big machines (Windows dev hosts).
+    maxWorkers: "50%",
+    testTimeout: 20_000,
     env: {
       NEXT_PUBLIC_API_BASE_URL: "http://localhost:3000",
     },
