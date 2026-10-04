@@ -44,6 +44,11 @@ models:
     data_classes: [public, internal, confidential, restricted]
     pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
 
+  # Models whose weights come from a file (our own fine-tunes, Hugging Face downloads) can carry an artifact reference:
+  #     artifact: {sha256: "<64 hex of the model file>", scan_id: art-0123456789ab}    # scan_id is optional
+  # The model is then only available while a passing artifact scan with that sha256 exists
+  # (POST /admin/v1/artifacts/scan; SEC-ART-01 allows only safetensors/GGUF unless an exception is granted).
+
   # Prompt-configured specialist stand-in (fine-tuning is out of scope): same upstream as
   # local/pl with a fixed system prompt; `auto` routes here for task=loan_memo.
   - id: local/loan-memo-pl

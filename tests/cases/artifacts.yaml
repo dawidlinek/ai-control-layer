@@ -1,0 +1,347 @@
+# SEC-ART-01 (model-artifact scanner) at the artifact_load point. Fixtures are generated in code by
+# acl.artifacts.testing (`local_path: "fixture:<name>"`); the payload hash, size and filename are filled in by the harness.
+# Default policy: only safetensors and GGUF load; everything else is blocked, malicious files with a specific rule.
+# Every negative is paired with a near-miss positive that differs in the one thing under test.
+
+# ---------------------------------------------------------------- pickle execution
+- id: art-pickle-os-system-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-pickle-exec
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:pickle_os_system", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-PICKLE-01]}
+  matrix: {monitor: monitor, balanced: block, strict: block, paranoid: block}
+
+- id: art-safetensors-benign-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-pickle-exec
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-torch-zip-os-system-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-torch-zip
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:torch_zip_os_system", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-PICKLE-01]}
+
+- id: art-gguf-allowed-near-torch
+  control: SEC-ART-01
+  kind: positive
+  pair: art-torch-zip
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-hidden-pickle-member-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-hidden-member
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:torch_zip_hidden_member", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-PICKLE-01]}
+
+- id: art-safetensors-metadata-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-hidden-member
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors_metadata", source: upload}
+  expect: {action: allow, rule_id: null}
+
+# ---------------------------------------------------------------- nullifAI-style evasion
+- id: art-7z-wrapped-pickle-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-7z
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:pickle_7z_wrapped", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-ARCHIVE-01]}
+  matrix: {monitor: monitor, balanced: block, strict: block, paranoid: block}
+
+- id: art-gguf-benign-allowed-near-7z
+  control: SEC-ART-01
+  kind: positive
+  pair: art-7z
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-broken-pickle-stream-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-broken-stream
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:pickle_broken_stream", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-PICKLE-03]}
+
+- id: art-safetensors-metadata-allowed-near-broken
+  control: SEC-ART-01
+  kind: positive
+  pair: art-broken-stream
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors_metadata", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-disguised-pickle-safetensors-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-disguised
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:safetensors_disguised_pickle", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-FORMAT-02]}
+
+- id: art-real-safetensors-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-disguised
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-zip-nested-archive-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-nested
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:zip_nested_archive", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-ARCHIVE-02]}
+
+- id: art-gguf-allowed-near-nested
+  control: SEC-ART-01
+  kind: positive
+  pair: art-nested
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+# ---------------------------------------------------------------- Keras
+- id: art-keras-lambda-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-keras
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:keras_lambda", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-KERAS-01]}
+
+- id: art-gguf-safe-chat-template-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-keras
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf_template", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-keras-module-reference-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-keras-module
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:keras_module_ref", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-KERAS-02]}
+
+- id: art-gguf-allowed-near-keras-module
+  control: SEC-ART-01
+  kind: positive
+  pair: art-keras-module
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-keras-benign-blocked-format
+  control: SEC-ART-01
+  kind: negative
+  pair: art-keras-benign
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:keras_benign", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-FORMAT-01]}
+
+- id: art-safetensors-allowed-near-keras-benign
+  control: SEC-ART-01
+  kind: positive
+  pair: art-keras-benign
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors", source: upload}
+  expect: {action: allow, rule_id: null}
+
+# ---------------------------------------------------------------- GGUF
+- id: art-gguf-malformed-header-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-gguf-header
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:gguf_huge_kv_count", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-GGUF-01]}
+
+- id: art-gguf-wellformed-header-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-gguf-header
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-gguf-tensor-out-of-bounds-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-gguf-tensor
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:gguf_tensor_out_of_bounds", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-GGUF-01]}
+
+- id: art-gguf-tensors-in-bounds-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-gguf-tensor
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-gguf-template-injection-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-gguf-template
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:gguf_template_injection", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-GGUF-02]}
+
+- id: art-gguf-benign-template-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-gguf-template
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf_template", source: upload}
+  expect: {action: allow, rule_id: null}
+
+# ---------------------------------------------------------------- safetensors
+- id: art-safetensors-overlapping-offsets-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-st-header
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:safetensors_offsets_overlap", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-ST-01]}
+
+- id: art-safetensors-contiguous-offsets-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-st-header
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-safetensors-zip-polyglot-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-polyglot
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:safetensors_zip_polyglot", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-FORMAT-02]}
+
+- id: art-safetensors-plain-allowed-near-polyglot
+  control: SEC-ART-01
+  kind: positive
+  pair: art-polyglot
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors_metadata", source: upload}
+  expect: {action: allow, rule_id: null}
+
+# ---------------------------------------------------------------- default deny and provenance
+- id: art-benign-pickle-default-deny
+  control: SEC-ART-01
+  kind: negative
+  pair: art-default-deny
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:pickle_benign_blocked", source: upload}
+  expect: {action: block, rule_id: [SEC-ART-01, ART-FORMAT-01]}
+
+- id: art-gguf-allowed-near-default-deny
+  control: SEC-ART-01
+  kind: positive
+  pair: art-default-deny
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_gguf", source: upload}
+  expect: {action: allow, rule_id: null}
+
+- id: art-hf-unpinned-revision-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-hf
+  point: artifact_load
+  input:
+    kind: artifact
+    filename: auto
+    sha256: auto
+    size: auto
+    local_path: "fixture:benign_safetensors"
+    source: "hf:meta-llama/Llama-3.1-8B@main"
+  expect: {action: block, rule_id: [SEC-ART-01, ART-HF-01]}
+  matrix: {monitor: monitor, balanced: block, strict: block, paranoid: block}
+
+- id: art-hf-pinned-allowlisted-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-hf
+  point: artifact_load
+  input:
+    kind: artifact
+    filename: auto
+    sha256: auto
+    size: auto
+    local_path: "fixture:benign_safetensors"
+    source: "hf:meta-llama/Llama-3.1-8B@0123456789abcdef0123456789abcdef01234567"
+  expect: {action: allow, rule_id: null}
+
+- id: art-hf-repo-not-allowlisted-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-hf-repo
+  point: artifact_load
+  input:
+    kind: artifact
+    filename: auto
+    sha256: auto
+    size: auto
+    local_path: "fixture:benign_safetensors"
+    source: "hf:evil-org/llama-3-8b@0123456789abcdef0123456789abcdef01234567"
+  expect: {action: block, rule_id: [SEC-ART-01, ART-HF-02]}
+
+- id: art-hf-allowlisted-repo-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-hf-repo
+  point: artifact_load
+  input:
+    kind: artifact
+    filename: auto
+    sha256: auto
+    size: auto
+    local_path: "fixture:benign_safetensors"
+    source: "hf:Qwen/Qwen2.5-7B@fedcba9876543210fedcba9876543210fedcba98"
+  expect: {action: allow, rule_id: null}
+
+- id: art-declared-hash-mismatch-blocked
+  control: SEC-ART-01
+  kind: negative
+  pair: art-hash
+  point: artifact_load
+  input:
+    kind: artifact
+    filename: auto
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    size: auto
+    local_path: "fixture:benign_safetensors"
+    source: upload
+  expect: {action: block, rule_id: [SEC-ART-01, ART-HASH-01]}
+
+- id: art-declared-hash-matches-allowed
+  control: SEC-ART-01
+  kind: positive
+  pair: art-hash
+  point: artifact_load
+  input: {kind: artifact, filename: auto, sha256: auto, size: auto, local_path: "fixture:benign_safetensors", source: upload}
+  expect: {action: allow, rule_id: null}

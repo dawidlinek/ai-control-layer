@@ -1739,63 +1739,6 @@ paths:
           description: Not implemented yet
       security:
       - HTTPBearer: []
-  /admin/v1/artifacts/scan:
-    post:
-      tags:
-      - artifacts
-      summary: Scan Artifact
-      operationId: scanArtifact
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Body_scanArtifact'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ArtifactScanResult'
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - HTTPBearer: []
-  /admin/v1/artifacts:
-    get:
-      tags:
-      - artifacts
-      summary: List Artifacts
-      operationId: listArtifacts
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/ArtifactScanResult'
-                type: array
-                title: Response Listartifacts
-        '401':
-          description: Missing or invalid credentials
-        '403':
-          description: Insufficient role / forbidden resource
-        '501':
-          description: Not implemented yet
-      security:
-      - HTTPBearer: []
   /admin/v1/insights/clusters:
     get:
       tags:
@@ -2013,6 +1956,103 @@ paths:
           description: Insufficient role / forbidden resource
         '501':
           description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/artifacts/scan:
+    post:
+      tags:
+      - artifacts
+      summary: Scan Artifact
+      operationId: scanArtifact
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_scanArtifact'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactScanResult'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '413':
+          description: File larger than the scanner limit
+        '503':
+          description: Scanner unavailable
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /admin/v1/artifacts:
+    get:
+      tags:
+      - artifacts
+      summary: List Artifacts
+      operationId: listArtifacts
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ArtifactScanResult'
+                type: array
+                title: Response Listartifacts
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/artifacts/{scan_id}:
+    get:
+      tags:
+      - artifacts
+      summary: Get Artifact
+      operationId: getArtifact
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: scan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Scan Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactScanResult'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '404':
+          description: Unknown scan id
         '422':
           description: Validation Error
           content:
@@ -2808,6 +2848,11 @@ components:
           type: string
           contentMediaType: application/octet-stream
           title: File
+        source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source
       type: object
       required:
       - file

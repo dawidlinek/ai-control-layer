@@ -9,12 +9,11 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Request
 
 from acl.api.deps import ERROR_RESPONSES, Admin, Viewer, not_implemented
 from acl.audit.queries import spend_by_connector
 from acl.contracts.admin import (
-    ArtifactScanResult,
     ConnectorStatus,
     FeedStatus,
     InsightCluster,
@@ -24,7 +23,7 @@ from acl.contracts.admin import (
 )
 from acl.contracts.audit import EventType
 from acl.contracts.common import Severity
-from acl.policy.models import Policy
+from acl.policy.models import ModelEntry, Policy
 from acl.routing.registry import RoutingTable
 
 router = APIRouter(responses=ERROR_RESPONSES)
@@ -115,6 +114,21 @@ async def kill_switch(request: Request, connector_id: str, body: KillSwitchReque
     return await _connector_status(request, connector_id, policy, table, await _spend_day(request))
 
 
+def _artifact_status(request: Request, m: ModelEntry) -> str:
+    """`n/a` without an artifact ref; otherwise from the scan store (4A): scanned_ok | scanned_bad | unscanned."""
+    store = getattr(request.app.state, "artifacts", None)
+    if m.artifact is None:
+        return "n/a"
+    return "unscanned" if store is None else store.status(m.artifact)
+
+
+def _artifact_problem(request: Request, m: ModelEntry) -> str | None:
+    store = getattr(request.app.state, "artifacts", None)
+    if m.artifact is None:
+        return None
+    return "artifact is not scanned" if store is None else store.gate_problem(m.artifact)
+
+
 @router.get("/models", response_model=list[ModelInfo], tags=["models"], operation_id="listModelsAdmin")
 async def models(request: Request, p: Viewer) -> list[ModelInfo]:
     policy, table = _policy_and_table(request)
@@ -126,7 +140,7 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
     for m in policy.models:
         cfg = policy.connectors[m.connector]
         handle = table.models[m.id]
-        artifact = "n/a" if m.artifact is None else "scanned_ok" if m.artifact.scan_id else "unscanned"
+        artifact = _artifact_status(request, m)
         out.append(
             ModelInfo(
                 id=m.id,
@@ -138,7 +152,9 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
                 pricing=m.pricing.model_dump(exclude_none=True),
                 artifact_status=artifact,  # type: ignore[arg-type]
                 enabled=m.enabled and cfg.enabled and not request.app.state.connectors.is_killed(m.connector),
-                available=handle.unavailable is None and table.connectors[m.connector].unavailable is None,
+                available=handle.unavailable is None
+                and table.connectors[m.connector].unavailable is None
+                and _artifact_problem(request, m) is None,
             )
         )
     return out
@@ -165,19 +181,6 @@ async def feed_sync(request: Request, p: Admin) -> FeedStatus:
         not_implemented("feed")
     await sync.sync_once()
     return sync.store.status()
-
-
-# ---------------------------------------------------------------- artifacts (4A)
-
-
-@router.post("/artifacts/scan", response_model=ArtifactScanResult, tags=["artifacts"], operation_id="scanArtifact")
-async def scan_artifact(file: UploadFile, p: Admin) -> ArtifactScanResult:
-    not_implemented("artifact scan")
-
-
-@router.get("/artifacts", response_model=list[ArtifactScanResult], tags=["artifacts"], operation_id="listArtifacts")
-async def list_artifacts(p: Viewer) -> list[ArtifactScanResult]:
-    not_implemented("artifacts")
 
 
 # ---------------------------------------------------------------- insights (4B)

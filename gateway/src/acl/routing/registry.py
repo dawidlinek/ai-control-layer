@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
 from acl.policy.env import MissingEnv, is_ref, resolve
@@ -80,6 +80,9 @@ class RoutingTable:
             return "unknown model"
         if not m.entry.enabled:
             return "model disabled"
+        gate = getattr(self.registry, "artifact_gate", None)
+        if gate is not None and (problem := gate(m.entry)) is not None:
+            return problem
         return m.unavailable or self.connector_problem(m.entry.connector)
 
     def connector_for(self, model_id: str) -> Connector | None:
@@ -99,6 +102,8 @@ class ConnectorRegistry:
         self._latencies: dict[str, deque[float]] = {}
         self._last_error: dict[str, str] = {}
         self._health: dict[str, tuple[float, bool]] = {}
+        # 4A: returns why a model's artifact may not load (None = fine); consulted per request, never cached
+        self.artifact_gate: Callable[[ModelEntry], str | None] | None = None
 
     # ------------------------------------------------------------ kill switch
 
