@@ -375,16 +375,16 @@ async def test_list_filters(env: Env) -> None:
 
 async def test_visible_names_and_usable_models_for_developers(env: Env) -> None:
     names = await env.resolver.visible_names(anna())
-    assert names == ["auto", "local"]  # no cloud alias by default
+    assert names == ["auto", "bielik", "local"]  # no cloud alias by default
     usable = await env.resolver.usable_models(anna())
     # `auto` expands to the routing targets (local, Flash, Pro): the cloud models are reachable only through `auto`
-    assert set(usable) == {"local/qwen3.8-27b", "gemini/flash", "gemini/pro"}
+    assert set(usable) == {"local/qwen3.8-27b", "local/bielik", "gemini/flash", "gemini/pro"}
     assert usable["gemini/pro"] == [DataClass.public, DataClass.internal]  # still capped by LOCK-01
     assert not (await env.resolver.check_model(anna(), "smart")).allowed  # but not selectable by name
     assert not (await env.resolver.check_model(anna(), "smart-pro")).allowed
     # a personal grant (demo story F4) adds the explicit cloud alias
     await grant(env, subject="anna", resource="smart")
-    assert await env.resolver.visible_names(anna()) == ["auto", "local", "smart"]
+    assert await env.resolver.visible_names(anna()) == ["auto", "bielik", "local", "smart"]
     assert (await env.resolver.check_model(anna(), "smart")).allowed
     assert not (await env.resolver.check_model(anna(), "smart-pro")).allowed
 

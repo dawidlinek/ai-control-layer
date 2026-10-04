@@ -2,6 +2,8 @@
 #
 # Org locks (ceilings no grant can exceed) and group-level permissions (concept §7.1, §11).
 # Group names are Keycloak group paths without the leading slash.
+# `bielik` (local Polish specialist) is granted wherever `local` is, except to agents: `auto` only routes to a
+# specialist the principal may use.
 # Per-user and temporary grants are NOT here: they live in the database (admin API /grants).
 
 org_locks:
@@ -19,17 +21,17 @@ groups:
   admins:
     description: Platform administrators
     preset: balanced
-    models: [auto, local, smart, smart-pro]
+    models: [auto, local, bielik, smart, smart-pro]
 
   security-analysts:
     description: Security team (panel analysts)
     preset: balanced
-    models: [auto, local]
+    models: [auto, local, bielik]
 
   credit-analysts:
     description: Bank credit analysts (LibreChat + OpenCode)
     preset: strict
-    models: [auto, local, local/loan-memo]
+    models: [auto, local, bielik, local/loan-memo]
     skills: [skill/loan-memo-summary]
     # Tool ids: OpenCode built-ins as `opencode.<tool>`, MCP tools as `<server>.<tool>` (tools.yaml).
     tools:
@@ -43,12 +45,12 @@ groups:
   operations:
     description: Operations (LibreChat)
     preset: balanced
-    models: [auto, local, smart]
+    models: [auto, local, bielik, smart]
 
   developers:
     description: Developers (OpenCode). No cloud model by default; a personal grant (e.g. `smart`) adds one.
     preset: balanced
-    models: [auto, local]
+    models: [auto, local, bielik]
     tools:
       opencode.read: {path_deny: ["**/.ssh/**", "**/.env", "**/.aws/**"]}
       opencode.write: {}

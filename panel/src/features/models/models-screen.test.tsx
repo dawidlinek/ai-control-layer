@@ -21,10 +21,9 @@ describe("ModelsScreen", () => {
     expect(screen.getByRole("button", { name: "+ Add connector" })).toBeDisabled();
 
     const table = await screen.findByRole("table", { name: "Models" });
-    for (const id of ["gemini/flash", "gemini/pro", "local/qwen3.8-27b", "local/loan-memo"]) {
+    for (const id of ["gemini/flash", "gemini/pro", "local/qwen3.8-27b", "local/loan-memo", "local/bielik"]) {
       expect(within(table).getByText(id)).toBeInTheDocument();
     }
-    expect(within(table).queryByText(/bielik/i)).toBeNull();
     // Embeddings and judge are guard models, listed separately and read-only.
     expect(within(table).queryByText("local/embed")).toBeNull();
     const guard = screen.getByRole("table", { name: "Guard models" });

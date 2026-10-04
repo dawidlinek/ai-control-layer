@@ -4,6 +4,10 @@ Resolution of the requested name:
     model id                         → that model
     alias declared on a model        → that model
     `aliases[x]` strategy `fixed`    → its target
+    `aliases[x]` specialist_then_rules → first a specialist (`acl.routing.specialist`: kNN over the examples of models
+                                       with a `specialist` block, e.g. Polish legal text → local/bielik) that is
+                                       available and usable for this principal and data class, and, when the request
+                                       must stay local, local; otherwise as below
     `aliases[x]` auto/rules          → data class → routing.data_class_sensitivity → routing.sensitivity:
                                        local_only → targets.local; otherwise by complexity band
                                        (`acl.routing.complexity`): below `local_max` → targets.local, above
@@ -36,6 +40,7 @@ from acl.contracts.decision import RouteInfo
 from acl.policy.models import DataClassTierLock, ModelEntry, Policy
 from acl.routing.connectors.base import Connector
 from acl.routing.registry import RoutingTable
+from acl.routing.specialist import SpecialistIndex
 
 
 class RouteError(Exception):
@@ -59,6 +64,8 @@ class RouteRequest:
     sensitive_external_action: Action = Action.route_local
     complexity: float | None = None
     """Deterministic request complexity 0..1 (`acl.routing.complexity`); only chooses between permitted models."""
+    prompt: str = ""
+    """Latest user message (after redaction); only used for specialist matching under `auto`."""
     budget_exhausted: str | None = None
     """Why the cloud budget is spent (SEC-BUDGET-01 `route_local`). When unset the router falls back to the
     request-scoped signal of `acl.budgets.signal`; the chat flow may fill this field directly."""
@@ -86,6 +93,25 @@ class Router:
         self.table = table
         self._models = policy.model_by_id()
         self._alias_owner = {a: m.id for m in policy.models for a in m.aliases}
+        self._specialists = SpecialistIndex(policy) if policy.routing.specialist.enabled else None
+
+    def _specialist(self, req: RouteRequest) -> tuple[str, str] | None:
+        """(model id, step text) of the specialist `auto` should use for this request, if any."""
+        if self._specialists is None or not req.prompt or self.policy.routing.specialist.method != "knn":
+            return None
+        must_stay_local = self._requires_local(req)
+        for match in self._specialists.candidates(req.prompt):
+            mid = match.model_id
+            entry = self._models[mid]
+            if (
+                self.table.model_problem(mid) is not None
+                or req.capability not in entry.capabilities
+                or req.data_class not in req.usable.get(mid, ())
+                or (must_stay_local and self._tier(mid) != ConnectorTier.local)
+            ):
+                continue
+            return mid, f"task={match.task} ({match.confidence:.2f} >= {match.threshold:g})"
+        return None
 
     # ------------------------------------------------------------ name resolution
 
@@ -165,7 +191,12 @@ class Router:
             sens = policy.routing.data_class_sensitivity.get(req.data_class, "low")
             rule = policy.routing.sensitivity.get(sens, "by_complexity")
             factors.update(sensitivity=sens, sensitivity_rule=rule)
-            if rule == "local_only":
+            specialist = self._specialist(req) if policy.aliases[name].strategy == "specialist_then_rules" else None
+            if specialist is not None:
+                model_id = specialist[0]
+                factors["specialist"] = model_id
+                steps.append(f"{name} → {model_id}: {specialist[1]}, data={req.data_class.value}")
+            elif rule == "local_only":
                 model_id = local
                 steps.append(f"{name} → {model_id}: data={req.data_class.value} → sensitivity {sens} → local_only")
             else:

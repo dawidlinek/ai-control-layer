@@ -82,6 +82,7 @@ from acl.routing.dev_access import PermissiveAccess
 from acl.routing.metering import compute_usage, estimate_tokens
 from acl.routing.registry import ConnectorRegistry, RoutingTable
 from acl.routing.router import Route, RouteError, Router, RouteRequest, max_data_class
+from acl.routing.specialist import last_user_text
 
 log = logging.getLogger(__name__)
 
@@ -539,6 +540,7 @@ class ChatFlow(BaseFlow):
             force_local=obliges_local(self.engine, decision),
             force_reason=local_obligation(self.engine, decision),
             complexity=estimate_complexity(payload_out),
+            prompt=last_user_text(payload_out),
             budget_exhausted=budget_exhausted(decision),
             capability="chat",
             sensitive_external_action=preset_cfg.sensitive_external_action if preset_cfg else Action.route_local,
