@@ -710,7 +710,7 @@ def test_models_carry_role_and_usage(app) -> None:
     models = {m["id"]: m for m in get(app, "/models", VIEWER).json()}
     local = models["local/qwen3.8-27b"]
     assert local["requests_day"] >= 2 and local["tokens_in_day"] > 0 and local["tokens_out_day"] > 0
-    assert local["gpu_seconds_day"] > 0 and local["usd_day"] >= 0 and local["role"] is None
+    assert local["gpu_seconds_day"] > 0 and local["usd_day"] >= 0 and local["role"] == "local, all confidential work"
     assert models["local/embed"]["requests_day"] == 0 and models["local/embed"]["tokens_in_day"] == 0
     # a `role` tag shows up as the model's role
     app.state.engine.policy.models[0].tags["role"] = "local, all confidential work"

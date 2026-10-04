@@ -11,7 +11,7 @@ type S = components["schemas"];
  * Screen agents add their keys in `features/<screen>/api.ts` following the same shape.
  */
 export const queryKeys = {
-  policy: { status: ["policy", "status"] as const },
+  policy: { all: ["policy"] as const, status: ["policy", "status"] as const },
   events: {
     all: ["events"] as const,
     list: (params: object = {}) => ["events", "list", params] as const,
@@ -32,6 +32,17 @@ export const queryKeys = {
     list: (params: object = {}) => ["users", "list", params] as const,
     detail: (id: string) => ["users", "detail", id] as const,
   },
+  groups: { all: ["groups"] as const },
+  grants: { all: ["grants"] as const },
+  models: { all: ["models"] as const },
+  connectors: { all: ["connectors"] as const },
+  tools: { all: ["tools"] as const },
+  feed: { all: ["feed"] as const },
+  artifacts: { all: ["artifacts"] as const },
+  budgets: { all: ["budgets"] as const },
+  overview: { all: ["overview"] as const },
+  insights: { all: ["insights"] as const },
+  sessions: { transcript: (id: string) => ["sessions", "transcript", id] as const },
 };
 
 export function usePolicyStatus() {

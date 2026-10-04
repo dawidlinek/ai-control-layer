@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { PlaceholderScreen } from "@/components/shell/placeholder-screen";
+import { Suspense } from "react";
+import { ToolsScreen } from "@/features/tools/tools-screen";
 
 export const metadata: Metadata = { title: "Tools & MCP" };
 
-// Thin route file: the screen lives in src/features/tools/ (see panel/ARCHITECTURE.md).
 export default function Page() {
-  return <PlaceholderScreen title="Tools & MCP" />;
+  return (
+    <Suspense>
+      <ToolsScreen />
+    </Suspense>
+  );
 }

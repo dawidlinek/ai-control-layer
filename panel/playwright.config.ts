@@ -19,7 +19,16 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // Optional: use a pre-installed Chromium instead of the Playwright download (e.g. cloud containers).
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {},
+      },
+    },
+  ],
   webServer: {
     command: "pnpm dev",
     url: `http://localhost:${PORT}`,

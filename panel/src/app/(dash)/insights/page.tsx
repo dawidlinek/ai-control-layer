@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { PlaceholderScreen } from "@/components/shell/placeholder-screen";
+import { Suspense } from "react";
+import { InsightsScreen } from "@/features/insights";
 
 export const metadata: Metadata = { title: "Automation Insights" };
 
-// Thin route file: the screen lives in src/features/insights/ (see panel/ARCHITECTURE.md).
 export default function Page() {
-  return <PlaceholderScreen title="Automation Insights" />;
+  return (
+    <Suspense>
+      <InsightsScreen />
+    </Suspense>
+  );
 }
