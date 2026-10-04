@@ -113,6 +113,11 @@ models:
     tags: {role: fast cloud}
     capabilities: [chat, tools]
     data_classes: [public, internal]   # confidential/restricted never go to the cloud (LOCK-01)
+    # Gemini's thinking tokens count against max_tokens (a 400-token answer came back cut after one sentence).
+    # Low reasoning effort plus headroom on the upstream cap keeps short answers complete (the gateway's request
+    # hygiene drops client-supplied reasoning parameters, so this default is what is sent).
+    request_defaults: {reasoning_effort: low}
+    reasoning_headroom_tokens: 1024
     pricing: {in_per_1k: 0.0003, out_per_1k: 0.0025}   # illustrative
 
   - id: gemini/pro
@@ -122,6 +127,8 @@ models:
     tags: {role: strong cloud}
     capabilities: [chat, tools]
     data_classes: [public, internal]
+    request_defaults: {reasoning_effort: low}   # Pro cannot switch thinking off; `low` keeps it small
+    reasoning_headroom_tokens: 2048
     pricing: {in_per_1k: 0.00125, out_per_1k: 0.01}    # illustrative
 
 aliases:

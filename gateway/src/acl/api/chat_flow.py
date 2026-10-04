@@ -79,6 +79,7 @@ from acl.insights.skills import SkillInputError, skill_payload, skill_preset
 from acl.policy.models import Policy
 from acl.routing.complexity import estimate_complexity
 from acl.routing.connectors.base import ConnectorError, UpstreamResponse, UpstreamUsage
+from acl.routing.connectors.request_options import with_model_options
 from acl.routing.dev_access import PermissiveAccess
 from acl.routing.metering import compute_usage, estimate_tokens
 from acl.routing.registry import ConnectorRegistry, RoutingTable
@@ -631,7 +632,7 @@ class ChatFlow(BaseFlow):
         for attempt in range(2):
             t = time.perf_counter()
             try:
-                resp = await route.connector.chat(route.upstream_model, request)
+                resp = await route.connector.chat(route.upstream_model, with_model_options(request, route.model))
             except ConnectorError as exc:
                 route = await self._on_upstream_failure(route, rr, exc, allow_fallback=attempt == 0)
                 continue
@@ -753,7 +754,7 @@ class ChatFlow(BaseFlow):
         self, route: Route, request: dict[str, Any], rr: RouteRequest
     ) -> tuple[Route, AsyncIterator[Any], Any]:
         for attempt in range(2):
-            agen = route.connector.chat_stream(route.upstream_model, request)
+            agen = route.connector.chat_stream(route.upstream_model, with_model_options(request, route.model))
             try:
                 first = await agen.__anext__()
                 return route, agen, first

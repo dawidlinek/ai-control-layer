@@ -15,6 +15,7 @@ from acl.routing.connectors.base import ConnectorError
 from acl.routing.connectors.mock import MockConnector
 from acl.routing.connectors.ollama import OllamaConnector
 from acl.routing.connectors.openai_compatible import OpenAICompatibleConnector, parse_usage
+from acl.routing.connectors.request_options import with_model_options
 from acl.routing.metering import compute_usage
 from acl.routing.registry import ConnectorRegistry
 
@@ -306,3 +307,64 @@ def test_registry_disabled_connector_and_model() -> None:
     table = reg.table_for(policy, "x")
     assert table.connector_problem("gemini") == "connector disabled"
     assert table.model_problem("gemini/flash") == "model disabled"
+
+
+# ------------------------------------------------------------------ per-model request options (thinking tokens)
+
+
+def _gemini_entry(**kw):  # type: ignore[no-untyped-def]
+    from acl.policy.models import ModelEntry
+
+    return ModelEntry(id="gemini/x", connector="gemini", upstream_model="g", data_classes=["public"], **kw)  # type: ignore[arg-type]
+
+
+def test_with_model_options_defaults_headroom_and_client_wins() -> None:
+    m = _gemini_entry(request_defaults={"reasoning_effort": "low"}, reasoning_headroom_tokens=1000)
+    req = {"messages": [], "max_tokens": 400}
+    out = with_model_options(req, m)
+    assert out["reasoning_effort"] == "low" and out["max_tokens"] == 1400
+    assert req == {"messages": [], "max_tokens": 400}  # input untouched
+    assert with_model_options({"max_completion_tokens": 50, "reasoning_effort": "high"}, m) == {
+        "max_completion_tokens": 1050,
+        "reasoning_effort": "high",
+    }
+    assert "max_tokens" not in with_model_options({"messages": []}, m)  # no cap requested: nothing to raise
+    plain = _gemini_entry()
+    assert with_model_options(req, plain) is req
+
+
+@respx.mock
+async def test_short_answer_is_complete_when_thinking_eats_the_cap() -> None:
+    """Fake Gemini: thinking tokens count against max_tokens; the visible answer is cut when the cap is too small."""
+
+    def upstream(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        thinking, answer = 600, 80
+        budget = body["max_tokens"]
+        assert body.get("reasoning_effort") == "low"
+        if budget < thinking + answer:
+            text, finish, used = "One sentence", "length", budget
+        else:
+            text, finish, used = "A complete answer.", "stop", thinking + answer
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": finish}],
+                "usage": {
+                    "prompt_tokens": 5,
+                    "completion_tokens": used - thinking if used > thinking else 0,
+                    "total_tokens": 5 + used,
+                },
+            },
+        )
+
+    respx.post("https://up.example/v1/chat/completions").mock(side_effect=upstream)
+    c = OpenAICompatibleConnector("gemini", "https://up.example/v1")
+    base = {"messages": [{"role": "user", "content": "hi"}], "max_tokens": 400, "reasoning_effort": "low"}
+    cut = await c.chat("g", base)
+    assert cut.body["choices"][0]["finish_reason"] == "length"  # the bug: 400 < 600 thinking + 80 answer
+    m = _gemini_entry(request_defaults={"reasoning_effort": "low"}, reasoning_headroom_tokens=1024)
+    ok = await c.chat("g", with_model_options({"messages": base["messages"], "max_tokens": 400}, m))
+    assert ok.body["choices"][0]["finish_reason"] == "stop"
+    assert ok.usage.reasoning_tokens >= 600  # thinking is still metered and billed
+    await c.aclose()
