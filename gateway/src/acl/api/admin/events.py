@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -11,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sse_starlette.sse import EventSourceResponse
 
-from acl.api.deps import ERROR_RESPONSES, Analyst, Viewer, not_implemented
+from acl.api.deps import ERROR_RESPONSES, Analyst, Viewer
 from acl.audit import queries
 from acl.audit.chain import verify_chain as verify_chain_file
 from acl.audit.db_models import IncidentRow
@@ -231,9 +233,34 @@ async def overview(request: Request, p: Viewer, window: str = "24h") -> Overview
     return await queries.overview(_sessions(request), window, external_price_per_1k=ext_price)
 
 
+def _guard_summary_path() -> Path:
+    """`ACL_GUARD_SUMMARY_PATH`, else `<repo root>/reports/summary.json` (root: dir with policy/ + pyproject)."""
+    configured = os.environ.get("ACL_GUARD_SUMMARY_PATH")
+    if configured:
+        return Path(configured)
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "policy").is_dir() and (parent / "pyproject.toml").is_file():
+            return parent / "reports" / "summary.json"
+    return Path("reports") / "summary.json"
+
+
 @router.get("/metrics/guard-quality", response_model=GuardQualitySummary, operation_id="getGuardQuality")
 async def guard_quality(p: Viewer) -> GuardQualitySummary:
-    not_implemented("guard quality")  # computed from the self-test suite results (Phase 4C)
+    # Latest self-test suite summary (written by `make test` to reports/summary.json); read off the event loop.
+    # (Comments, not docstrings: a docstring would change the generated OpenAPI contract.)
+    path = _guard_summary_path()
+    try:
+        text = await asyncio.to_thread(path.read_text, encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(
+            404, detail=f"no guard-quality report at {path.name}: run `make test` (or set ACL_GUARD_SUMMARY_PATH)"
+        ) from None
+    except OSError:
+        raise HTTPException(503, detail="guard-quality report is not readable") from None
+    try:
+        return GuardQualitySummary.model_validate_json(text)
+    except ValueError:  # pydantic.ValidationError subclasses ValueError; the message never echoes file content
+        raise HTTPException(503, detail="guard-quality report is invalid; re-run the test suite") from None
 
 
 @router.get("/metrics/performance", response_model=PerformanceSummary, operation_id="getPerformance")

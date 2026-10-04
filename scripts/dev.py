@@ -2,7 +2,8 @@
 
     uv run python scripts/dev.py <task> [args...]
 
-Tasks: env, up, down, logs, ps, demo, seed, test, test-live, e2e, bench, lint, fmt, contracts
+Tasks: env, up, down, logs, ps, demo, seed, test, test-live, e2e, bench, replay, mutation, adaptive, lint, fmt,
+contracts
 """
 
 from __future__ import annotations
@@ -114,12 +115,23 @@ def task_e2e(args: list[str]) -> int:
 
 
 def task_bench(args: list[str]) -> int:
-    """Performance report (tests/perf); the benchmarks themselves arrive with Phase 4C."""
-    perf = ROOT / "tests" / "perf"
-    if not any(perf.glob("test_*.py")):
-        print("bench: no benchmarks in tests/perf yet (Phase 4C)")
-        return 0
-    return run(["uv", "run", "pytest", "tests/perf", "-m", "not e2e", *args])
+    """Latency benchmark (reports/bench.json, bench_detail.json, bench.md); see tests/perf/bench.py --help."""
+    return run(["uv", "run", "python", "tests/perf/bench.py", *args], env={"ACL_DETERMINISTIC": "1"})
+
+
+def task_replay(args: list[str]) -> int:
+    """Offline trace replay through the engine (default: the AgentDojo-style sample); see tests/replay/README.md."""
+    return run(["uv", "run", "python", "tests/replay/replay.py", *args], env={"ACL_DETERMINISTIC": "1"})
+
+
+def task_mutation(args: list[str]) -> int:
+    """Mutation testing: switch every enabled control off in turn; the case suite must notice (reports/mutation.*)."""
+    return run(["uv", "run", "python", "tests/mutation/run.py", *args], env={"ACL_DETERMINISTIC": "1"})
+
+
+def task_adaptive(args: list[str]) -> int:
+    """Adaptive red-team tier: deterministic attack variants (encodings, Polish, split...) of the negative cases."""
+    return run(["uv", "run", "python", "tests/redteam/adaptive/run.py", *args], env={"ACL_DETERMINISTIC": "1"})
 
 
 def task_lint(_: list[str]) -> int:

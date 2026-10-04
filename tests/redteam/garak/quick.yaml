@@ -1,0 +1,29 @@
+# Smoke configuration: a few probes per family, one generation each. Runs in minutes; use it to check wiring
+# (URL, key, model alias) before the full `config.yaml`. Same placeholders and notes as config.yaml.
+# UNCERTAIN: probe class names below follow garak 0.10/0.11 (`garak --list_probes` shows what your version has).
+
+system:
+  parallel_attempts: 2
+  lite: true
+
+run:
+  generations: 1
+  seed: 1234
+
+plugins:
+  model_type: openai.OpenAICompatible
+  model_name: ${GARAK_MODEL:-local}
+  probe_spec: promptinject.HijackHateHumansMini,dan.DanInTheWildMini,encoding.InjectBase64,encoding.InjectROT13,latentinjection.LatentInjectionReport,xss.MarkdownImageExfil,malwaregen.Evasion,packagehallucination.Python,goodside.Tag
+  detector_spec: auto
+  generators:
+    openai:
+      OpenAICompatible:
+        uri: ${ACL_GATEWAY_URL:-http://localhost:8080}/v1
+        model: ${GARAK_MODEL:-local}
+        temperature: 0.7
+        max_tokens: 128
+
+reporting:
+  report_dir: ${GARAK_REPORT_DIR:-reports/redteam/garak}
+  report_prefix: rogatka-quick
+  show_100_pass_modules: true
