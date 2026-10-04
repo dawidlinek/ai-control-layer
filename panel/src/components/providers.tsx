@@ -41,14 +41,22 @@ function MswGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Retry policy for queries: transient failures (network, 5xx) retry twice; client errors (403/404 are answers, not
+ * glitches) and 501 ("not implemented in this gateway") never retry.
+ */
+export function shouldRetry(count: number, error: unknown): boolean {
+  if (error instanceof ApiError && ((error.status >= 400 && error.status < 500) || error.status === 501)) return false;
+  return count < 2;
+}
+
 export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 15_000,
         refetchOnWindowFocus: false,
-        // Do not retry client errors (403/404 are answers, not glitches).
-        retry: (count, error) => !(error instanceof ApiError && error.status >= 400 && error.status < 500) && count < 2,
+        retry: shouldRetry,
       },
     },
   });

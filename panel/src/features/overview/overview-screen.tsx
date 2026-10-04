@@ -11,29 +11,11 @@ import { formatClock, formatNumber, formatTime, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { RANGES, useDisplayNames, useOverview, useRecentDecisions, type Range } from "./api";
 import { DecisionsChart } from "./decisions-chart";
+import { topRisks } from "./risks";
 
 const RANGE_TEXT: Record<Range, string> = { "15m": "last 15 min", "1h": "last hour", "24h": "last 24 h", "7d": "last 7 days" };
 const BUCKET_TEXT: Record<Range, string> = { "15m": "minute", "1h": "5 minutes", "24h": "hour", "7d": "day" };
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/** OWASP LLM top 10 (2025) / agentic (ASI) / MCP names for the "Top risks" list. Unknown ids show the id. */
-export const RISK_NAMES: Record<string, string> = {
-  LLM01: "Prompt injection",
-  LLM02: "Sensitive information disclosure",
-  LLM03: "Supply chain",
-  LLM04: "Data and model poisoning",
-  LLM05: "Improper output handling",
-  LLM06: "Excessive agency",
-  LLM07: "System prompt leakage",
-  LLM08: "Vector and embedding weaknesses",
-  LLM09: "Misinformation",
-  LLM10: "Unbounded consumption",
-  ASI01: "Agent goal hijack",
-  ASI02: "Tool misuse",
-  ASI03: "Identity and privilege abuse",
-  ASI04: "Agentic supply chain",
-  MCP: "Tool poisoning (rug pull)",
-};
 
 /** Notes next to model ids in the cost table (HANDOFF 7.1 lineup). */
 const MODEL_NOTE: Record<string, string> = {
@@ -224,21 +206,21 @@ function SafeCard({ day, ...state }: CardProps & { day?: OverviewSummary }) {
         </div>
         <CardBody {...state}>
           {() => {
-            const risks = Object.entries(day!.top_taxonomy)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 5);
-            const max = Math.max(1, ...risks.map(([, n]) => n));
+            const risks = topRisks(day!.top_taxonomy, 5);
+            const max = Math.max(1, ...risks.map((r) => r.count));
             return (
               <ul aria-label="Top risks" className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {risks.map(([id, n]) => (
+                {risks.map(({ id, name, count: n }) => (
                   <li key={id}>
                     <Link
                       href={`/traffic?q=${encodeURIComponent(id)}`}
                       className="grid grid-cols-[46px_minmax(0,1fr)_36px] items-center gap-2 text-[12px] text-text no-underline hover:bg-raised"
                     >
-                      <span className="font-mono text-muted">{id}</span>
+                      <span className="truncate font-mono text-muted" title={id}>
+                        {id}
+                      </span>
                       <span className="flex min-w-0 flex-col gap-[3px]">
-                        <span className="truncate">{RISK_NAMES[id] ?? id}</span>
+                        {name !== id && <span className="truncate">{name}</span>}
                         <span className="h-[3px] rounded-[2px] bg-inset">
                           <span className="block h-[3px] rounded-[2px] bg-accent-line" style={{ width: `${Math.max(1, (n / max) * 100)}%` }} />
                         </span>

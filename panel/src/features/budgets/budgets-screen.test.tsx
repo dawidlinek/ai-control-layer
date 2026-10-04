@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/server";
 import { adminPath, problem } from "@/mocks/handlers/helpers";
 import { budgetNodes } from "@/mocks/db/budgets";
 import { DEV_USER } from "@/lib/auth/user";
 import { renderApp } from "@/test/render";
 import { BudgetsScreen } from "./budgets-screen";
-import { flattenTree } from "./model";
+import { flattenTree, isIdleSession, shortSessionId } from "./model";
 
 const VIEWER = { ...DEV_USER, role: "viewer" as const, roles: ["acl-viewer"] };
 
@@ -155,5 +155,73 @@ describe("BudgetsScreen", () => {
       ["group:x", 0],
       ["user:y", 1],
     ]);
+  });
+
+  it("hides idle real-gateway sessions behind a toggle and shows short session ids", async () => {
+    const real = (n: number) => ({
+      id: `session:91dfc8100f170058:e2e-${n.toString(16).padStart(12, "0")}`,
+      level: "session" as const,
+      parent: "agent:research-bot",
+      limits: {},
+      usage: { usd_day: 0, usd_month: 0 },
+      breaker: null,
+    });
+    const idle = [real(1), real(2), real(3)];
+    const busy = { ...real(4), usage: { usd_day: 0.5, usd_month: 0.5 } };
+    server.use(
+      http.get(adminPath("/budgets"), () =>
+        HttpResponse.json({
+          nodes: [
+            ...budgetNodes.items.filter((n) => n.id !== "session:s_77c1"),
+            ...idle,
+            busy,
+          ],
+        }),
+      ),
+    );
+    const { user } = renderBudgets("?sel=agent:research-bot");
+    await rowOf("research-bot");
+    const table = screen.getByRole("table", { name: "Budget tree" });
+    expect(within(table).getByText("session e2e-000000000004")).toBeInTheDocument();
+    expect(within(table).queryByText(/e2e-000000000001/)).not.toBeInTheDocument();
+    expect(within(table).queryByText(/91dfc8100f170058/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show 3 idle sessions" }));
+    expect(within(table).getByText("session e2e-000000000001")).toBeInTheDocument();
+    expect(within(table).getByText("session e2e-000000000001").closest("span[title]")).toHaveAttribute(
+      "title",
+      "91dfc8100f170058:e2e-000000000001",
+    );
+    await user.click(screen.getByRole("button", { name: "Hide idle sessions" }));
+    expect(within(table).queryByText("session e2e-000000000001")).not.toBeInTheDocument();
+  });
+
+  it("shows the full session id in the sidebar and keeps a selected idle session visible", async () => {
+    const node = {
+      id: "session:91dfc8100f170058:e2e-1d9f1dfdffbd",
+      level: "session" as const,
+      parent: "agent:research-bot",
+      limits: {},
+      usage: {},
+      breaker: null,
+    };
+    server.use(http.get(adminPath("/budgets"), () => HttpResponse.json({ generated_at: new Date().toISOString(), nodes: [...budgetNodes.items, node] })));
+    renderBudgets(`?sel=${encodeURIComponent(node.id)}`);
+    const sidebar = await screen.findByRole("complementary", { name: "Budget" });
+    expect(within(sidebar).getByText("session e2e-1d9f1dfdffbd")).toBeInTheDocument();
+    expect(within(sidebar).getByText("91dfc8100f170058:e2e-1d9f1dfdffbd")).toBeInTheDocument();
+  });
+
+  it("classifies idle sessions", () => {
+    const base = { level: "session" as const, parent: null, limits: {}, usage: {}, breaker: null };
+    expect(isIdleSession({ ...base, id: "session:a:b" })).toBe(true);
+    expect(isIdleSession({ ...base, id: "session:a:b", usage: { gpu_seconds_day: 3 } })).toBe(false);
+    expect(isIdleSession({ ...base, id: "session:a:b", limits: { usd_day: 1 } })).toBe(false);
+    expect(
+      isIdleSession({ ...base, id: "session:a:b", breaker: { id: "x", state: "open", reason: null, cooldown_until: null } as never }),
+    ).toBe(false);
+    expect(isIdleSession({ ...base, id: "user:a", level: "user" })).toBe(false);
+    expect(shortSessionId({ ...base, id: "session:91dfc8100f170058:e2e-1" })).toBe("e2e-1");
+    expect(shortSessionId({ ...base, id: "session:s_77c1" })).toBe("s_77c1");
   });
 });

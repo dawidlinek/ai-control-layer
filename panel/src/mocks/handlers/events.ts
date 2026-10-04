@@ -10,7 +10,7 @@ const encoder = new TextEncoder();
 /** Add an event to the mock db and push it to every open `/events/stream` connection (tests, demos). */
 export function pushMockEvent(event: EventSummary): void {
   events.items.unshift(event);
-  const chunk = encoder.encode(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`);
+  const chunk = encoder.encode(`event: event\nid: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`);
   for (const c of streams) {
     try {
       c.enqueue(chunk);

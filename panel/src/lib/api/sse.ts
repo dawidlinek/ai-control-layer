@@ -44,7 +44,8 @@ export function useEventStream({ params, enabled = true, prependTo, invalidate, 
     const source = new EventSource(url);
     source.onopen = () => setConnected(true);
     source.onerror = () => setConnected(false);
-    source.onmessage = (msg) => {
+    const onMessage = (ev: Event) => {
+      const msg = ev as MessageEvent<string>;
       let event: EventSummary;
       try {
         event = JSON.parse(msg.data) as EventSummary;
@@ -62,6 +63,10 @@ export function useEventStream({ params, enabled = true, prependTo, invalidate, 
       for (const key of h.invalidate ?? []) void qc.invalidateQueries({ queryKey: key });
       h.onEvent?.(event);
     };
+    // The gateway names its frames (`event: event`), which EventSource delivers to listeners of that name only,
+    // never to `onmessage`; unnamed frames (older servers, the mock) still arrive on `message`.
+    source.addEventListener("message", onMessage);
+    source.addEventListener("event", onMessage);
     return () => {
       source.close();
       setConnected(false);

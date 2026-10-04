@@ -31,7 +31,7 @@ import type { InsightCluster } from "@/lib/api/types";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useInsightClusters, usePublishSkill, type PublishInput } from "./api";
-import { draftOf, fillTemplate, howOften, specialistOf, timeItTakes, type SpecialistInfo } from "./model";
+import { draftOf, fillTemplate, howOften, isNotSwitchedOn, specialistOf, timeItTakes, type SpecialistInfo } from "./model";
 
 const TABS = ["tasks", "skills", "specialist"] as const;
 const SUBTITLE =
@@ -46,6 +46,19 @@ export function InsightsScreen() {
   const tasks = all.filter((c) => c.status !== "dismissed");
   const skills = all.filter((c) => c.status === "published");
   const specialist = specialistOf(all);
+
+  if (isNotSwitchedOn(clusters.error)) {
+    return (
+      <div className="flex flex-col gap-3.5">
+        <PageHeader title="Automation Insights" subtitle={SUBTITLE} />
+        <div className="rounded-[8px] border border-border bg-surface">
+          <EmptyState title="Automation Insights is not switched on in this gateway yet">
+            Once it is, repeated tasks found in masked prompts show up here.
+          </EmptyState>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3.5">
