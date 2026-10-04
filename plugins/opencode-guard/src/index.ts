@@ -13,7 +13,7 @@ import type { Hooks, Plugin, PluginModule } from "@opencode-ai/plugin";
 import { loadConfig, type GuardConfig } from "./config.js";
 import { GuardError } from "./errors.js";
 import { GatewayClient } from "./gateway.js";
-import { Guard } from "./guard.js";
+import { Guard, type NotifyOptions, type NotifyVariant } from "./guard.js";
 import { buildChatHeaders, makeGuardedFetch } from "./hooks.js";
 import { pollDeviceToken, startDeviceFlow } from "./oidc.js";
 import { fileAuthLoader, TokenManager } from "./tokens.js";
@@ -33,6 +33,7 @@ export function governMcp(
   tokens: TokenManager,
   mcp: Record<string, McpEntry> | undefined,
   extra: Iterable<string> = [],
+  sessionId: () => string | undefined = () => undefined,
 ): Set<string> {
   const governed = new Set<string>(extra);
   if (!mcp) return governed;
@@ -52,6 +53,12 @@ export function governMcp(
     const headers = (entry.headers ??= {});
     headers["X-Device-Id"] = cfg.deviceId;
     headers["X-Client-App"] = cfg.clientApp;
+    // Same session as chat and /v1/decide (one taint session); omitted when ambiguous (see Guard.mcpSessionId).
+    Object.defineProperty(headers, "X-Session-Id", {
+      enumerable: true,
+      configurable: true,
+      get: () => sessionId() ?? "", // empty = no session; the proxy then uses the principal-wide one
+    });
     // A getter, so a long-lived MCP transport that re-reads its headers per request sees refreshed tokens.
     Object.defineProperty(headers, "Authorization", {
       enumerable: true,
@@ -86,8 +93,14 @@ export const server: Plugin = async (input, options) => {
   ];
   let governed = new Set<string>(configuredServers);
 
-  const toast = (message: string, variant: "info" | "warning" | "error") => {
-    void Promise.resolve(input.client.tui.showToast({ body: { message, variant } })).catch(() => undefined);
+  const toast = (message: string, variant: NotifyVariant, opts: NotifyOptions = {}) => {
+    const body = {
+      message,
+      variant,
+      ...(opts.title ? { title: opts.title } : {}),
+      ...(opts.durationMs ? { duration: opts.durationMs } : {}),
+    };
+    void Promise.resolve(input.client.tui.showToast({ body })).catch(() => undefined);
   };
 
   const guard = new Guard({
@@ -101,7 +114,9 @@ export const server: Plugin = async (input, options) => {
 
   const hooks: Hooks = {
     config: async (config) => {
-      governed = governMcp(cfg, tokens, (config as { mcp?: Record<string, McpEntry> }).mcp, configuredServers);
+      governed = governMcp(cfg, tokens, (config as { mcp?: Record<string, McpEntry> }).mcp, configuredServers, () =>
+        guard.mcpSessionId(),
+      );
       // MCP clients connect right after this hook: have the stored (or refreshed) token ready for their first request.
       await tokens.accessToken().catch(() => undefined);
     },
@@ -151,6 +166,12 @@ export const server: Plugin = async (input, options) => {
       await guard.beforeTool(hookInput, output);
     },
 
+    "tool.execute.after": async (hookInput) => {
+      guard.afterTool(hookInput);
+    },
+
+    // Declared by the plugin API, but OpenCode 1.18 never triggers it (its prompts are `permission.asked` bus
+    // events); kept as defence in depth for versions that do.
     "permission.ask": async (permission, output) => {
       const callID = (permission as { callID?: string }).callID;
       if (callID && guard.wasBlocked(callID)) output.status = "deny";

@@ -160,7 +160,38 @@ describe("approvals", () => {
     const { input, output } = call("bash", { command: "ls" });
     await expect(guard.beforeTool(input, output)).resolves.toBeUndefined();
     expect(gateway.getApproval).toHaveBeenCalledTimes(3);
-    expect(notify).toHaveBeenCalledWith(expect.stringContaining("apr_1"), "warning");
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining("apr_1"),
+      "warning",
+      expect.objectContaining({ title: "Approval pending" }),
+    );
+    expect(notify).toHaveBeenLastCalledWith(expect.stringContaining("approved"), "success", { title: "Approved" });
+  });
+
+  it("keeps the pending notice on screen while waiting and links the panel", async () => {
+    let clock = 0;
+    let polls = 0;
+    const notify = vi.fn();
+    const guard = new Guard({
+      cfg: testConfig({ approvalPollMs: 5_000, approvalTimeoutMs: 600_000, panelUrl: "http://panel.test" }),
+      gateway: {
+        decide: async () => approvalDecision(),
+        getApproval: async () => status(++polls >= 8 ? "approved" : "pending"),
+      },
+      directory: "/w",
+      worktree: "/w",
+      mcpServers: () => [],
+      notify,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      now: () => clock,
+    });
+    await guard.beforeTool({ tool: "bash", sessionID: "s", callID: "c" }, { args: { command: "ls" } });
+    const pending = notify.mock.calls.filter((c) => c[1] === "warning");
+    expect(pending.length).toBeGreaterThanOrEqual(3); // first notice + reminders every 15 s over 40 s
+    expect(pending[0]?.[0]).toContain("http://panel.test/approvals/apr_1");
+    expect(pending[0]?.[2]?.durationMs).toBeGreaterThan(15_000);
   });
 
   it("denied blocks with the rule id", async () => {
@@ -233,5 +264,45 @@ describe("fail closed", () => {
     await expect(guard.beforeTool({ tool: "write", sessionID: "s", callID: "c" }, { args: undefined })).rejects.toMatchObject({
       code: "malformed_response",
     });
+  });
+});
+
+describe("MCP session id for the proxy", () => {
+  const allow = async () => decision({ action: "allow" });
+
+  it("is the session of the MCP call in flight, and stays the last one afterwards", async () => {
+    const { guard } = makeGuard(allow);
+    expect(guard.mcpSessionId()).toBeUndefined();
+    await guard.beforeTool({ tool: "files_read_file", sessionID: "ses_A", callID: "c1" }, { args: {} });
+    expect(guard.mcpSessionId()).toBe("ses_A");
+    guard.afterTool({ callID: "c1" });
+    expect(guard.mcpSessionId()).toBe("ses_A");
+  });
+
+  it("built-in tools do not change it", async () => {
+    const { guard } = makeGuard(allow);
+    await guard.beforeTool({ tool: "files_read_file", sessionID: "ses_A", callID: "c1" }, { args: {} });
+    await guard.beforeTool({ tool: "read", sessionID: "ses_B", callID: "c2" }, { args: {} });
+    expect(guard.mcpSessionId()).toBe("ses_A");
+  });
+
+  it("is withheld while calls from two sessions are in flight", async () => {
+    const { guard } = makeGuard(allow);
+    await guard.beforeTool({ tool: "files_read_file", sessionID: "ses_A", callID: "c1" }, { args: {} });
+    await guard.beforeTool({ tool: "files_read_file", sessionID: "ses_B", callID: "c2" }, { args: {} });
+    expect(guard.mcpSessionId()).toBeUndefined();
+    guard.afterTool({ callID: "c1" });
+    expect(guard.mcpSessionId()).toBe("ses_B");
+  });
+
+  it("a blocked MCP call is not left in flight", async () => {
+    const { guard } = makeGuard(async (r) =>
+      r.session_id === "ses_A" ? decision({ action: "block", rule_ids: ["SEC-TOOL-01"] }) : decision({ action: "allow" }),
+    );
+    await expect(
+      guard.beforeTool({ tool: "files_read_file", sessionID: "ses_A", callID: "c1" }, { args: {} }),
+    ).rejects.toBeInstanceOf(GuardError);
+    await guard.beforeTool({ tool: "files_read_file", sessionID: "ses_B", callID: "c2" }, { args: {} });
+    expect(guard.mcpSessionId()).toBe("ses_B");
   });
 });

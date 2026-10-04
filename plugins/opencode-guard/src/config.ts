@@ -27,6 +27,8 @@ export interface GuardConfig {
   /** How long a `require_approval` call may wait in total. */
   approvalTimeoutMs: number;
   approvalPollMs: number;
+  /** Admin panel origin for "decide here" links in approval notices (optional, display only). */
+  panelUrl?: string;
   /** Problems found while loading; the guard blocks every tool call while this is non-empty (fail closed). */
   problems: string[];
 }
@@ -86,6 +88,16 @@ export function resolveDeviceId(env: Env, home: string = homedir()): string {
   }
 }
 
+/** Display-only URL: an invalid value just drops the link. */
+function optionalUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    return stripSlash(new URL(value).toString());
+  } catch {
+    return undefined;
+  }
+}
+
 export function loadConfig(options: Options, env: Env = process.env): GuardConfig {
   const problems: string[] = [];
   const gatewayUrl = validUrl(str(options, "gatewayUrl", env, "ACL_GATEWAY_URL"), "gatewayUrl (ACL_GATEWAY_URL)", problems);
@@ -105,6 +117,7 @@ export function loadConfig(options: Options, env: Env = process.env): GuardConfi
     requestTimeoutMs: num(options, "requestTimeoutMs", env, "ACL_REQUEST_TIMEOUT_MS", 15_000),
     approvalTimeoutMs: num(options, "approvalTimeoutMs", env, "ACL_APPROVAL_TIMEOUT_MS", 300_000),
     approvalPollMs: num(options, "approvalPollMs", env, "ACL_APPROVAL_POLL_MS", 2_000),
+    panelUrl: optionalUrl(str(options, "panelUrl", env, "ACL_PANEL_URL")),
     problems,
   };
 }

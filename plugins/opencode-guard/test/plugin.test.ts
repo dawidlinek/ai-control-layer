@@ -78,6 +78,16 @@ describe("MCP governance (config hook)", () => {
     expect(mcp.files.headers.Authorization).toBe("Bearer tok-2"); // follows refreshes
   });
 
+  it("sends the current OpenCode session as X-Session-Id (empty when unknown)", () => {
+    const cfg = testConfig();
+    let current: string | undefined;
+    const mcp: Record<string, any> = { files: { type: "remote", url: "http://gateway.test:8000/mcp/files" } };
+    governMcp(cfg, loggedIn(cfg), mcp, [], () => current);
+    expect({ ...mcp.files.headers }["X-Session-Id"]).toBe("");
+    current = "ses_123";
+    expect({ ...mcp.files.headers }["X-Session-Id"]).toBe("ses_123");
+  });
+
   it("removes every MCP server when the guard is misconfigured", () => {
     const cfg = testConfig({ gatewayUrl: "" });
     const mcp: Record<string, any> = { files: { type: "remote", url: "/mcp/files" } };
