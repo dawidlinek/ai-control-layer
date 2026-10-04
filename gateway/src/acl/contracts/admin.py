@@ -594,6 +594,10 @@ class ArtifactFinding(StrictModel):
     rule_id: str
     severity: Severity
     message: str
+    detail: str | None = Field(
+        default=None, description="Technical detail: opcode listing excerpt, header dump (never raw file content)."
+    )
+    cve: list[str] = Field(default_factory=list, description="Related advisories (verified ids only).")
 
 
 class ArtifactScanResult(StrictModel):
@@ -605,9 +609,50 @@ class ArtifactScanResult(StrictModel):
     verdict: Literal["safe", "malicious", "blocked_format", "suspicious"]
     findings: list[ArtifactFinding] = Field(default_factory=list)
     scanned_at: datetime
+    source: str | None = Field(default=None, examples=["upload", "hf:org/repo@<40-hex revision sha>"])
+    exception: str | None = Field(default=None, description="Policy exception that admitted a blocked format.")
+    model_ids: list[str] = Field(default_factory=list, description="Registered models whose artifact ref is this file.")
+    decision_id: str | None = Field(default=None, description="Decision of the `artifact_load` inspection.")
+    scanned_by: str | None = None
 
 
 # ---------------------------------------------------------------- insights
+
+INSIGHT_SKILL_ID = r"^skill/[a-z0-9][a-z0-9-]*$"
+
+
+class InsightCost(StrictModel):
+    """Observed cost of a repeated task over the mining window, and the counterfactual if it ran as a skill."""
+
+    runs: int = Field(default=0, description="Task runs (one person's requests for this task in one session).")
+    requests: int = 0
+    retries: int = Field(default=0, description="Requests that repeated the previous prompt of the same run.")
+    tokens_in: int = 0
+    tokens_out: int = 0
+    usd: float = 0.0
+    gpu_seconds: float = 0.0
+    wall_clock_minutes: float = Field(default=0.0, description="Time people spent on the runs (first request → read).")
+    usd_per_run: float = 0.0
+    gpu_seconds_per_run: float = 0.0
+    skill_model: str | None = Field(default=None, description="Model of the draft skill the counterfactual uses.")
+    skill_usd_per_run: float = 0.0
+    skill_gpu_seconds_per_run: float = 0.0
+    saving_usd_month: float = 0.0
+    saving_gpu_seconds_month: float = 0.0
+
+
+class InsightSkillDraft(StrictModel):
+    """A skill proposed for a cluster (by the local LLM or the deterministic fallback), validated by code."""
+
+    skill_id: str = Field(pattern=INSIGHT_SKILL_ID, max_length=64)
+    description: str = Field(default="", max_length=500)
+    template: str = Field(min_length=1, max_length=4000, description="Prompt with `{placeholder}` per input.")
+    input_schema: dict[str, Any] = Field(description="JSON Schema (object) of the template inputs.")
+    model: str
+    preset: Preset = Preset.strict
+    tools: list[str] = Field(default_factory=list)
+    data_classes: list[DataClass] = Field(default_factory=lambda: [DataClass.public, DataClass.internal])
+    source: Literal["llm", "heuristic", "admin"] = "heuristic"
 
 
 class InsightCluster(StrictModel):
@@ -621,16 +666,108 @@ class InsightCluster(StrictModel):
     est_usd_month: float = 0.0
     examples_redacted: list[str] = Field(default_factory=list)
     task_card: str = ""
-    draft_skill: dict[str, Any] = Field(default_factory=dict)
+    draft_skill: dict[str, Any] = Field(default_factory=dict)  # an InsightSkillDraft
     status: Literal["new", "published", "dismissed"] = "new"
+    scope: Literal["group", "personal"] = Field(
+        default="group", description="`personal` suggestions are only ever shown to their owner."
+    )
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
+    active_days: int = 0
+    runs_per_active_day: float = 0.0
+    periodicity: float = Field(default=0.0, ge=0.0, le=1.0, description="Share of workdays (or weeks) with a run.")
+    structural_similarity: float = Field(default=0.0, description="Mean cosine similarity of prompts to the centroid.")
+    data_class: DataClass = DataClass.internal
+    models_used: dict[str, int] = Field(default_factory=dict)
+    cost: InsightCost | None = None
+    draft_validation: list[str] = Field(
+        default_factory=list, description="Why the LLM draft was rejected (the deterministic draft is shown instead)."
+    )
+    published_skill: str | None = None
+    published_groups: list[str] = Field(default_factory=list)
+    published_at: datetime | None = None
+    published_by: str | None = None
+    published_policy_version: str | None = None
+    published_version_id: int | None = Field(default=None, description="Policy version number (`v9`).")
+    dismissed_reason: str | None = None
+    updated_at: datetime | None = None
 
 
 class PublishSkillRequest(StrictModel):
-    skill_id: str = Field(pattern=r"^skill/[a-z0-9][a-z0-9-]*$")
+    skill_id: str = Field(pattern=INSIGHT_SKILL_ID)
     model: str
     preset: Preset = Preset.strict
     groups: list[str] = Field(min_length=1)
     reason: str = Field(min_length=3)
+    description: str | None = Field(default=None, max_length=500, description="Overrides the draft when set.")
+    template: str | None = Field(default=None, max_length=4000)
+    input_schema: dict[str, Any] | None = None
+    tools: list[str] | None = None
+    data_classes: list[DataClass] | None = None
+
+
+class DismissInsightRequest(StrictModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class SkillPreviewRequest(StrictModel):
+    inputs: dict[str, Any] = Field(default_factory=dict)
+
+
+class SkillPreview(StrictModel):
+    prompt: str | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+class InsightSkill(StrictModel):
+    skill_id: str
+    description: str = ""
+    model: str
+    preset: Preset
+    groups: list[str] = Field(default_factory=list, description="Groups the skill is available to.")
+    runs_30d: int = 0
+    cost_per_run_before_usd: float | None = Field(default=None, description="Observed before publishing.")
+    cost_per_run_now_usd: float | None = None
+    gpu_seconds_per_run_before: float | None = None
+    gpu_seconds_per_run_now: float | None = None
+    now_source: Literal["measured", "projected"] | None = Field(
+        default=None, description="`projected` until the skill has runs in the window."
+    )
+    source_cluster: str | None = None
+    published_at: datetime | None = None
+    published_by: str | None = None
+
+
+class InsightGroupSettings(StrictModel):
+    group: str
+    enabled: bool = Field(default=False, description="Group opted in to mining (management view, k-anonymous).")
+    personal: bool = Field(default=False, description="Members may opt in to their own suggestions.")
+
+
+class InsightsSettings(StrictModel):
+    k: int = Field(default=5, ge=2, le=100, description="Minimum distinct users before management sees a cluster.")
+    window_days: int = Field(default=30, ge=1, le=365)
+    groups: list[InsightGroupSettings] = Field(default_factory=list)
+
+
+class InsightsStatus(StrictModel):
+    running: bool = False
+    last_run_at: datetime | None = None
+    last_duration_ms: float | None = None
+    last_trigger: Literal["startup", "interval", "admin"] | None = None
+    prompts_scanned: int = 0
+    seed_prompts: int = 0
+    clusters_visible: int = 0
+    clusters_hidden_below_k: int = 0
+    personal_suggestions: int = 0
+    embeddings_model: str | None = None
+    embeddings_mode: Literal["connector", "deterministic"] | None = None
+    drafter_model: str | None = None
+    last_error: str | None = None
+
+
+class InsightOptIn(StrictModel):
+    enabled: bool
 
 
 # ---------------------------------------------------------------- metrics & audit
@@ -641,6 +778,38 @@ class RateWithCI(StrictModel):
     ci_low: float
     ci_high: float
     n: int
+
+
+class MutantResult(StrictModel):
+    control_id: str
+    enabled: bool = Field(description="Enabled in policy; disabled controls cannot be mutated (reported, not scored).")
+    killed: bool = Field(description="At least one test failed with this control switched off.")
+    failing_cells: int = 0
+    failing_examples: list[str] = Field(default_factory=list)
+
+
+class MutationCoverage(StrictModel):
+    """Mutation testing: every enabled control is switched off in turn; the suite must notice."""
+
+    generated_at: datetime
+    suite: str
+    controls_mutated: int
+    controls_killed: int
+    score: float = Field(ge=0, le=1)
+    survivors: list[str] = Field(default_factory=list)
+    results: list[MutantResult] = Field(default_factory=list)
+
+
+class AdaptiveTierSummary(StrictModel):
+    """Detection of deterministic variants (paraphrase, encodings, Polish, split) of the attack cases."""
+
+    generated_at: datetime
+    variants: int
+    detection: RateWithCI | None = None
+    by_technique: dict[str, RateWithCI] = Field(default_factory=dict)
+    by_control: dict[str, RateWithCI] = Field(default_factory=dict)
+    by_preset: dict[str, RateWithCI] = Field(default_factory=dict)
+    layer_attribution: dict[str, int] = Field(default_factory=dict)
 
 
 class ControlQuality(StrictModel):
@@ -666,6 +835,8 @@ class GuardQualitySummary(StrictModel):
     leak_rate_by_channel: dict[str, float] = Field(default_factory=dict)
     judge_kappa: dict[str, float] = Field(default_factory=dict)
     shadow_miss_rate: float | None = None
+    mutation: MutationCoverage | None = None
+    adaptive: AdaptiveTierSummary | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
 
 
