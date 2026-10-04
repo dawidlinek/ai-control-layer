@@ -34,6 +34,41 @@ app fails to start, and says so loudly. Extra `expect` keys: `applied: [actions]
 is checked only when a redact/pseudonymise transform is expected or applied (optionally `presets: [...]`).
 Also optional: `model_requested`, `user_request`, `policy_mode: monitor`.
 
+### `expect.labels_after` (label-raising controls, e.g. SEC-TAINT-01)
+
+```yaml
+  expect:
+    action: allow                       # a label-only control never intervenes
+    rule_id: SEC-TAINT-01               # an `allow` verdict that raised labels counts as "fired" for rule_id
+    labels_after:
+      integrity: untrusted              # exact match on decision.labels_after (trusted | untrusted)
+      confidentiality: confidential     # exact match (public | internal | confidential | restricted)
+      taint: [untrusted, sensitive]     # all of these flags must be present
+      taint_absent: [egress_used]       # none of these may be present
+```
+
+`labels_after` is the session's input labels joined with every verdict's label update (a blocked / held call keeps
+the input labels), so a case with a `session:` preset sees what the session already carries. For these cases the
+metrics treat the control by what it is for: a `negative` is a TP when the expected labels were raised by the control,
+a `positive` is a FP when it raised labels it should not have. They never count towards ASR / FPR per call / layer
+attribution (those measure intervention). See `taint_labels.yaml`.
+
+### Artifact fixtures
+
+For `kind: artifact` payload inputs (`point: artifact_load`), `local_path: "fixture:<name>"` resolves to the generated
+fixture file (`acl.artifacts.testing.fixture_path`); a missing / `auto` `filename`, `sha256` and `size` are derived from
+the fixture (`fixture_filename`, SHA-256 and size of the file). Explicit values are kept, so a case can lie about a hash
+on purpose.
+
+### Evidence beyond the cases
+
+`scripts/dev.py mutation` (`tests/mutation/run.py`) switches every enabled control off in turn and re-runs all cells: a control
+is killed when at least one cell fails (`reports/mutation.{json,md}`; exit 1 on a survivor, which is fixed by adding
+paired cases for that control, never by weakening anything). `scripts/dev.py adaptive` (`tests/redteam/adaptive/run.py`)
+generates deterministic variants (paraphrase, base64, hex, url, zero-width, homoglyph, Polish, split, case, leetspeak)
+of the negative cases and reports detection with Wilson intervals (`reports/adaptive.{json,md}`). Both are merged into
+`reports/summary.json` (`mutation`, `adaptive`) and mentioned in the pytest terminal summary.
+
 `ACL_TEST_MODE=live` (`make test-live`) runs the cases that list `live` in `modes` three times and passes on 2 of 3.
 
 Reports (gitignored `reports/`): `junit.xml`, `summary.json` (shape of `GuardQualitySummary`: per-control

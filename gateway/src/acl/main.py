@@ -47,6 +47,7 @@ INSTALLERS: list[str] = [
     "acl.budgets.wiring:install",  # 2D: budget ledger, breakers, loop tracker, flow hooks (service "budgets")
     "acl.mcp_proxy.wiring:install",  # 2A: MCP proxy `/mcp/{server_id}` + pinned tool manifests
     "acl.approvals.wiring:install",  # 2B: approvals queue + elevations (control service "approvals"), bypass detection
+    "acl.artifacts.wiring:install",  # 4A: model-artifact scan store + registry load gate (app.state.artifacts)
     "acl.insights.wiring:install",  # 4B: automation insights service + recompute worker (app.state.insights)
     "acl.policy.wiring:install",  # 1B: policy service builds/swaps the engine; keep last
 ]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,40 @@ def build_session(spec: Any, session_id: str) -> SessionState:
     return SessionState.model_validate(data)
 
 
+FIXTURE_PREFIX = "fixture:"
+
+
+def resolve_artifact_fixture(data: Any) -> Any:
+    """Expand the artifact fixture shorthand of a case input (payload dicts with `kind: artifact` only).
+
+        {kind: artifact, local_path: "fixture:<name>"}                # filename / sha256 / size derived
+        {kind: artifact, local_path: "fixture:<name>", filename: auto, sha256: auto, size: auto}
+
+    `local_path: fixture:<name>` becomes the path of the generated fixture (`acl.artifacts.testing.fixture_path`);
+    a missing / `auto` `filename` becomes `fixture_filename(name)`, a missing / `auto` `sha256` the file's SHA-256
+    and a missing / `auto` `size` the file size. Explicit values are kept (so a case can lie about a hash on purpose).
+    The testing module is imported lazily: cases without fixtures never need it. Returns a copy.
+    """
+    if not isinstance(data, dict) or data.get("kind") != "artifact":
+        return data
+    local = data.get("local_path")
+    if not isinstance(local, str) or not local.startswith(FIXTURE_PREFIX):
+        return data
+    from acl.artifacts import testing as artifact_testing
+
+    name = local[len(FIXTURE_PREFIX) :]
+    path = Path(artifact_testing.fixture_path(name))
+    out = dict(data)
+    out["local_path"] = str(path)
+    if out.get("filename") in (None, "auto"):
+        out["filename"] = artifact_testing.fixture_filename(name)
+    if out.get("sha256") in (None, "auto"):
+        out["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if out.get("size") in (None, "auto"):
+        out["size"] = path.stat().st_size
+    return out
+
+
 def build_context(case: dict[str, Any], preset: str, *, policy_version: str = "test") -> InspectionContext:
     point = InspectionPoint(case.get("point", "ingress"))
     p = dict(case.get("principal") or {})
@@ -109,7 +144,7 @@ def build_context(case: dict[str, Any], preset: str, *, policy_version: str = "t
     }
     if case.get("user_request"):
         kwargs["user_request"] = case["user_request"]
-    data = case["input"]
+    data = resolve_artifact_fixture(case["input"])
     try:
         return make_context(data, **kwargs)
     except ValueError:
