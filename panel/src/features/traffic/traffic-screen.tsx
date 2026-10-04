@@ -101,7 +101,14 @@ function columns(nameOf: NameOf): ColumnDef<EventSummary>[] {
     {
       id: "model",
       header: "Model / tool",
-      cell: ({ row }) => <Truncate className="font-mono text-[12px]">{modelOrTool(row.original)}</Truncate>,
+      cell: ({ row }) => {
+        const label = modelOrTool(row.original);
+        return (
+          <span title={label} className="block max-w-full truncate font-mono text-[12px]">
+            {label}
+          </span>
+        );
+      },
       meta: { className: "max-w-[260px]" },
     },
     {

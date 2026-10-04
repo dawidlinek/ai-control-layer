@@ -20,3 +20,8 @@ export function intParam(q: URLSearchParams, name: string, fallback: number, max
   const n = Number(q.get(name));
   return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), max) : fallback;
 }
+
+/** JSON list response with `X-Total-Count` (rows matching the filters, ignoring `limit`), like the gateway's list routes. */
+export function listResponse<T>(items: T[], total: number = items.length) {
+  return HttpResponse.json(items, { headers: { "X-Total-Count": String(total) } });
+}

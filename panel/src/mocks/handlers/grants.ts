@@ -8,7 +8,7 @@ import type { components } from "@/lib/api/schema";
 import { grantChanges, grants, nextGrantId, recordGrantChange } from "../db/grants";
 import type { Grant } from "../db/types";
 import { findGroup, findUser } from "../db/users";
-import { adminPath, intParam, MOCK_USER, problem, queryOf } from "./helpers";
+import { adminPath, intParam, listResponse, MOCK_USER, problem, queryOf } from "./helpers";
 
 type GrantCreate = components["schemas"]["GrantCreate"];
 
@@ -46,7 +46,7 @@ export const grantsHandlers: HttpHandler[] = [
       .filter((g) => (resource ? g.resource === resource : true))
       .filter((g) => (active === null ? true : g.active === active))
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
-    return HttpResponse.json(list);
+    return listResponse(q.has("limit") ? list.slice(0, intParam(q, "limit", 100)) : list, list.length);
   }),
 
   http.post(adminPath("/grants"), async ({ request }) => {

@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { makeEvent } from "@/mocks/db/events";
-import { clientLine, matchesFilters, riskLabel, serverParams, sessionLabelText, splitPlaceholders, type TrafficFilters } from "./model";
+import { clientLine, matchesFilters, modelOrTool, riskLabel, serverParams, sessionLabelText, splitPlaceholders, type TrafficFilters } from "./model";
 
 const base: TrafficFilters = { range: "24h", decision: [], who: null, point: [], group: null, dataClass: [], q: "", hideAllowed: false };
 const ev = (over: Parameters<typeof makeEvent>[0] extends infer P ? Partial<P> : never = {}) =>
   makeEvent({ event_id: "evt_1", seq: 1, timestamp: new Date().toISOString(), ...over });
 
 describe("traffic model", () => {
+  it("shows the model, else the tool_preview, else the bare tool", () => {
+    expect(modelOrTool(ev({ model: "gemini/flash", tool_preview: "x" }))).toBe("gemini/flash");
+    expect(modelOrTool(ev({ tool: "bash", tool_preview: "bash: git push origin main" }))).toBe("bash: git push origin main");
+    expect(modelOrTool(ev({ tool: "bash" }))).toBe("bash");
+    expect(modelOrTool(ev())).toBe("—");
+  });
+
   it("splits placeholders, secrets and removed sentences into chips", () => {
     expect(splitPlaceholders("client <PERSON_1>, key ‹SECRET:api_key› … [removed: instruction] end")).toEqual([
       { text: "client ", placeholder: false },

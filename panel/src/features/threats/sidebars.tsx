@@ -16,33 +16,38 @@ import {
 } from "@/components/rogatka";
 import { formatNumber, formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ArtifactScanResult, EventSummary } from "@/lib/api/types";
+import type { ArtifactScanResult, EventSummary, FeedSignature } from "@/lib/api/types";
 import { fileAbout, fileResult, shortHash, technicalDetail, type FileResult } from "./artifact-copy";
-import type { Signature } from "./signatures";
+import { useRuleHits } from "./api";
+import { expiresLabel, looksAt, tagsOf } from "./signatures";
 
 function hitText(e: EventSummary): string {
   const who = e.username ?? e.agent_id ?? e.subject ?? "someone";
-  const what = e.tool ? `${e.tool}` : e.model ? e.model : (e.point ?? e.event_type);
+  const what = e.tool_preview ?? e.tool ?? e.model ?? e.point ?? e.event_type;
   return `${who} · ${what}`;
 }
 
-export function SignatureSidebar({ sig, hits }: { sig: Signature; hits: readonly EventSummary[] | undefined }) {
+export function SignatureSidebar({ sig }: { sig: FeedSignature }) {
+  const recent = useRuleHits(sig.hits_24h === 0 ? null : sig.id);
+  const hits = sig.hits_24h === 0 ? [] : recent.data;
   return (
     <>
       <SidebarHeader label="Signature" title={sig.id} copyText={sig.id} />
       <SidebarBlock>
-        <PlainSentence>{sig.about}</PlainSentence>
+        <PlainSentence>{sig.description || sig.title}</PlainSentence>
         <pre aria-label="Pattern" className="m-0 overflow-x-auto rounded-[6px] border border-border bg-inset px-2.5 py-2 font-mono text-[12px]">
           {sig.pattern}
         </pre>
         <FactsGrid
           facts={[
-            { label: "Looks at", value: sig.looksAt },
+            { label: "Looks at", value: looksAt(sig.target) },
             { label: "Action", value: <DecisionBadge decision={sig.action} /> },
             { label: "Severity", value: <SeverityChip severity={sig.severity} /> },
-            { label: "Tags", value: sig.tags, mono: true },
-            { label: "Source", value: sig.source },
-            { label: "Expires", value: sig.expires },
+            { label: "Hits 24 h", value: sig.last_hit_at ? `${formatNumber(sig.hits_24h ?? 0)} · last ${formatWhen(sig.last_hit_at)}` : formatNumber(sig.hits_24h ?? 0), mono: true },
+            { label: "Tags", value: tagsOf(sig), mono: true },
+            { label: "Source", value: sig.reference ? `${sig.source || "—"} · ${sig.reference}` : sig.source || "—" },
+            { label: "From", value: sig.origin === "feed" ? "signature feed" : "offline baseline (policy)" },
+            { label: "Expires", value: expiresLabel(sig) },
           ]}
         />
       </SidebarBlock>

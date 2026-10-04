@@ -24,6 +24,12 @@ async function person(name: string) {
 const accessRow = (access: HTMLElement, text: string | RegExp) => within(access).getByText(text).closest("li")!;
 
 describe("Users & groups: People", () => {
+  it("says when the principals list was cut off (X-Total-Count)", async () => {
+    server.use(http.get(adminPath("/users"), () => HttpResponse.json([], { headers: { "X-Total-Count": "1500" } })));
+    renderApp(<UsersScreen />);
+    expect(await screen.findByText(/Showing 0 of 1\D?500 people and agents/)).toBeInTheDocument();
+  });
+
   it("shows the tabs with derived counts and the people table", async () => {
     renderApp(<UsersScreen />);
     expect(screen.getByRole("heading", { level: 1, name: "Users & groups" })).toBeInTheDocument();

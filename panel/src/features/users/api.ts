@@ -1,16 +1,18 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, unwrap } from "@/lib/api/client";
-import { queryKeys } from "@/lib/api/hooks";
+import { api, unwrap, unwrapWithTotal } from "@/lib/api/client";
+import { asList, queryKeys } from "@/lib/api/hooks";
 import type { GroupSettings } from "@/lib/api/types";
 
-/** All principals (people + agents). The API has no totals: one high-limit list, filtered and paged client-side. */
+/** All principals (people + agents): one high-limit list, filtered and paged client-side; `total` is `X-Total-Count`. */
 export function useUsers() {
-  return useQuery({
-    queryKey: queryKeys.users.list({ limit: 1000 }),
-    queryFn: async ({ signal }) => unwrap(await api.GET("/admin/v1/users", { params: { query: { limit: 1000 } }, signal })),
-  });
+  return asList(
+    useQuery({
+      queryKey: queryKeys.users.list({ limit: 1000 }),
+      queryFn: async ({ signal }) => unwrapWithTotal(await api.GET("/admin/v1/users", { params: { query: { limit: 1000 } }, signal })),
+    }),
+  );
 }
 
 export function useGroups() {

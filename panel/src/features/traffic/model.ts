@@ -3,7 +3,7 @@
  * Everything here tolerates missing data (the real gateway may not send the free-form `detail` keys).
  */
 import type { components } from "@/lib/api/schema";
-import type { EventSummary, EventTrace, SessionLabelInfo } from "@/lib/api/types";
+import type { EventSummary, SessionLabelInfo } from "@/lib/api/types";
 import { DECISIONS, type Decision } from "@/lib/decisions";
 import { formatClock } from "@/lib/format";
 
@@ -78,22 +78,12 @@ export function isAllowedOnly(e: Pick<EventSummary, "applied" | "action">): bool
   return d.length > 0 && d.every((x) => x === "allow");
 }
 
-/** Model or tool for the table cell. */
-export function modelOrTool(e: Pick<EventSummary, "model" | "tool">): string {
-  return e.model ?? e.tool ?? "—";
-}
-
-/** Demo-only reader: the command / target of a tool call from the audit record's free-form `detail`. */
-export function commandOf(trace: Pick<EventTrace, "record"> | null | undefined): string | null {
-  const v = trace?.record.detail?.command;
-  return typeof v === "string" && v.trim() ? v : null;
-}
-
-/** "bash: git push origin feature/loan-calc" when the command is known, else the model / tool. */
-export function modelOrToolFull(e: Pick<EventSummary, "model" | "tool">, trace?: Pick<EventTrace, "record"> | null): string {
-  const cmd = commandOf(trace);
-  if (e.tool && cmd) return `${e.tool}: ${cmd.startsWith(`${e.tool} `) ? cmd.slice(e.tool.length + 1) : cmd}`;
-  return modelOrTool(e);
+/**
+ * Model or tool for the table cell and the trace sidebar: the model, else the gateway's `tool_preview`
+ * ("bash: git push origin main"), else the bare tool name.
+ */
+export function modelOrTool(e: Pick<EventSummary, "model" | "tool" | "tool_preview">): string {
+  return e.model ?? e.tool_preview ?? e.tool ?? "—";
 }
 
 export function riskLabel(score: number | null | undefined): string {
@@ -163,6 +153,7 @@ export function matchesFilters(e: EventSummary, f: TrafficFilters, nameOf: NameO
       e.agent_id,
       e.model,
       e.tool,
+      e.tool_preview,
       e.summary,
       ...e.rule_ids,
     ];

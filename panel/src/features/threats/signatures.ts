@@ -1,110 +1,70 @@
 /**
- * Known-threat signatures shown on the Signatures tab.
- *
- * The admin API has no endpoint that lists the signatures of the active bundle (`FeedStatus` only carries version,
- * entry count, verification and sync times, and has no free-form map), so this is a typed, curated demo list of the
- * seed bundle's headline rules (FeedArtifacts prototype + HANDOFF section 6). Hits are counted from real traffic events.
+ * Plain-language copy for the signatures of the active feed bundle (`GET /feed/signatures`): what each rule
+ * "looks at", its tags and expiry, plus the choices of the Add rule form.
  */
-import type { Decision, Severity } from "@/lib/decisions";
+import type { FeedSignature, FeedTarget } from "@/lib/api/types";
+import { formatWhen } from "@/lib/format";
 
-export type LooksAt = "package" | "answer text" | "tool description" | "URL in a tool call" | "shell command";
+/** What a rule looks at (`FeedSignature.target`) in words an analyst uses. */
+export const LOOKS_AT: Record<FeedTarget, string> = {
+  package: "package",
+  domain: "domain",
+  url: "URL in a tool call",
+  command: "shell command",
+  tool_description: "tool description",
+  prompt_text: "user input",
+  answer_text: "answer text",
+  any_text: "any text",
+  tool_hash: "tool pin",
+  manifest_hash: "manifest pin",
+  yara: "model file (YARA)",
+  opcode: "model file (opcode)",
+};
 
-export interface Signature {
-  id: string;
-  what: string;
-  source: string;
-  looksAt: LooksAt;
-  action: Decision;
-  about: string;
-  pattern: string;
-  severity: Severity;
-  tags: string;
-  expires: string;
+export function looksAt(target: FeedTarget): string {
+  return LOOKS_AT[target] ?? target;
 }
 
-export const SIGNATURES: readonly Signature[] = [
-  {
-    id: "FEED-PKG-0007",
-    what: "litellm 1.82.7 and 1.82.8 — backdoored PyPI releases",
-    source: "OSV · March 2026",
-    looksAt: "package",
-    action: "block",
-    about: "Blocks installing the two litellm releases that were published with a backdoor.",
-    pattern: "pypi: litellm == 1.82.7 | 1.82.8",
-    severity: "critical",
-    tags: "AML.T0010 · LLM03",
-    expires: "never",
-  },
-  {
-    id: "FEED-PKG-0012",
-    what: "look-alike names of popular AI packages",
-    source: "internal list",
-    looksAt: "package",
-    action: "block",
-    about: "Blocks typosquatted packages such as “openal” or “langchian”.",
-    pattern: "pypi|npm: openal, langchian, transformerss, …",
-    severity: "medium",
-    tags: "AML.T0010 · LLM03",
-    expires: "never",
-  },
-  {
-    id: "FEED-PKG-0142",
-    what: "torchtriton — dependency-confusion package",
-    source: "OSV · PyTorch advisory",
-    looksAt: "package",
-    action: "block",
-    about: "Blocks installing the fake torchtriton package used in a dependency-confusion attack.",
-    pattern: "pypi: torchtriton (any version)",
-    severity: "critical",
-    tags: "AML.T0010 · LLM03",
-    expires: "never",
-  },
-  {
-    id: "FEED-EXF-0044",
-    what: "images and links that carry data in the URL",
-    source: "EchoLeak · CVE-2025-32711",
-    looksAt: "answer text",
-    action: "block",
-    about: "Removes markdown images and links whose address carries encoded data to an outside site.",
-    pattern: "!\\[.*\\]\\(https?://(?!.*corp\\.example)[^)]*\\?[^)]{40,}\\)",
-    severity: "high",
-    tags: "AML.T0057 · LLM02",
-    expires: "never",
-  },
-  {
-    id: "FEED-MCP-0009",
-    what: "hidden instructions in MCP tool descriptions",
-    source: "MCPTox · MCP-SafetyBench",
-    looksAt: "tool description",
-    action: "block",
-    about: "Flags tool descriptions with hidden orders such as <IMPORTANT> blocks, “do not tell the user” or paths like ~/.ssh.",
-    pattern: "(?i)<important>|do not (tell|mention).*user|~/\\.ssh",
-    severity: "high",
-    tags: "AML.T0051 · MCP03",
-    expires: "never",
-  },
-  {
-    id: "FEED-URL-0031",
-    what: "Langflow code-validation endpoint",
-    source: "CISA KEV · CVE-2025-3248",
-    looksAt: "URL in a tool call",
-    action: "block",
-    about: "Stops agents calling the Langflow endpoint that allowed unauthenticated code execution.",
-    pattern: "POST */api/v1/validate/code",
-    severity: "critical",
-    tags: "AML.T0011 · LLM05",
-    expires: "never",
-  },
-  {
-    id: "FEED-CMD-0102",
-    what: "destructive shell commands",
-    source: "Amazon Q wiper prompt",
-    looksAt: "shell command",
-    action: "block",
-    about: "Blocks commands that wipe files or infrastructure, like rm -rf / or terraform destroy.",
-    pattern: "rm -rf / | terraform destroy | aws .* delete",
-    severity: "critical",
-    tags: "AML.T0048 · ASI02",
-    expires: "never",
-  },
-];
+/** ATLAS techniques, OWASP ids and CVEs of a rule, " · "-joined; "—" when it has none. */
+export function tagsOf(s: Pick<FeedSignature, "atlas_technique" | "owasp" | "cve">): string {
+  const tags = [...s.atlas_technique, ...s.owasp, ...s.cve];
+  return tags.length ? tags.join(" · ") : "—";
+}
+
+export function expiresLabel(s: Pick<FeedSignature, "expires" | "expired">): string {
+  if (!s.expires) return "never";
+  return s.expired ? `expired ${formatWhen(s.expires)}` : formatWhen(s.expires);
+}
+
+/** The next free `FEED-LOCAL-000N` for the Add rule form. */
+export function nextLocalId(existing: readonly string[]): string {
+  let max = 0;
+  for (const id of existing) {
+    const m = /^FEED-LOCAL-(\d+)$/.exec(id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `FEED-LOCAL-${String(max + 1).padStart(4, "0")}`;
+}
+
+/** Targets the Add rule form offers (the contract's `FeedRuleCreate.target`), with the form's wording. */
+export const RULE_TARGETS = [
+  { value: "package", label: "Package (pip / npm install)" },
+  { value: "command", label: "Shell command" },
+  { value: "url", label: "URL in a tool call" },
+  { value: "domain", label: "Domain" },
+  { value: "tool_description", label: "Tool description (MCP)" },
+  { value: "prompt_text", label: "User input" },
+  { value: "answer_text", label: "Answer text" },
+  { value: "any_text", label: "Any text" },
+] as const satisfies readonly { value: Exclude<FeedTarget, "tool_hash" | "manifest_hash" | "yara" | "opcode">; label: string }[];
+
+export type RuleTarget = (typeof RULE_TARGETS)[number]["value"];
+
+export const RULE_SEVERITIES = ["critical", "high", "medium", "low"] as const;
+export const RULE_ACTIONS = [
+  { value: "block", label: "Block" },
+  { value: "require_approval", label: "Ask for approval" },
+  { value: "sanitize", label: "Sanitize" },
+  { value: "redact", label: "Redact" },
+  { value: "monitor", label: "Monitor only" },
+] as const;

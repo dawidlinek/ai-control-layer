@@ -9,7 +9,7 @@ test.describe("known threats", () => {
 
     const bar = page.getByRole("region", { name: "Signature feed" });
     await expect(bar.getByText("feed.corp:8080 · every 30 s")).toBeVisible();
-    await expect(page.getByRole("button", { name: "+ Add rule" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "+ Add rule" })).toBeEnabled();
 
     await page.getByRole("table", { name: "Signatures" }).getByText("FEED-PKG-0007").click();
     const side = page.getByRole("complementary", { name: "Signature" });
@@ -18,6 +18,18 @@ test.describe("known threats", () => {
 
     await bar.getByRole("button", { name: "Sync now" }).click();
     await expect(page.getByText("Feed synced")).toBeVisible();
+
+    // F11: add a rule on the demo feed server; the gateway syncs and the feed bar shows the new bundle.
+    await page.getByRole("button", { name: "+ Add rule" }).click();
+    const form = page.getByRole("form", { name: "Add rule" });
+    await expect(form.getByLabel("Rule ID")).toHaveValue("FEED-LOCAL-0001");
+    await form.getByLabel("What it catches").fill("Blocks the fake torchtriton package.");
+    await form.getByLabel("Package").fill("torchtriton-fake");
+    await form.getByRole("button", { name: "Publish rule" }).click();
+    await expect(page.getByText("Added FEED-LOCAL-0001")).toBeVisible();
+    await expect(page.getByText("feed bundle v413 · synced")).toBeVisible();
+    await expect(bar.getByText("bundle 413 · 215 rules")).toBeVisible();
+    await expect(page.getByRole("table", { name: "Signatures" }).getByText("FEED-LOCAL-0001")).toBeVisible();
 
     await page.getByRole("tab", { name: /Model files/ }).click();
     const files = page.getByRole("table", { name: "Model files" });

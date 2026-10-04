@@ -11,8 +11,32 @@
 import { seeded } from "./registry";
 import type { InsightCluster } from "./types";
 
+// Fields the real gateway (4B) added; the demo rows only set what the screen shows.
+const DEFAULTS = {
+  scope: "group",
+  first_seen: null,
+  last_seen: null,
+  active_days: 0,
+  runs_per_active_day: 0,
+  periodicity: 0,
+  structural_similarity: 0,
+  data_class: "internal",
+  models_used: {},
+  cost: null,
+  draft_validation: [],
+  published_skill: null,
+  published_groups: [],
+  published_at: null,
+  published_by: null,
+  published_policy_version: null,
+  published_version_id: null,
+  dismissed_reason: null,
+  updated_at: null,
+} satisfies Partial<InsightCluster>;
+type SeedCluster = Omit<InsightCluster, keyof typeof DEFAULTS> & Partial<InsightCluster>;
+
 function seed(): InsightCluster[] {
-  return [
+  const rows: SeedCluster[] = [
     {
       id: "ic-0101",
       group: "developers",
@@ -155,6 +179,7 @@ function seed(): InsightCluster[] {
       status: "published",
     },
   ];
+  return rows.map((r) => ({ ...DEFAULTS, ...r }) as InsightCluster);
 }
 
 export const insightClusters = seeded(seed);

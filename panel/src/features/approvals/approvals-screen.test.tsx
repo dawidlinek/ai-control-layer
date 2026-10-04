@@ -174,6 +174,16 @@ describe("ApprovalsScreen", () => {
     expect(within(s).getByText(/needs the analyst or admin role/)).toBeInTheDocument();
   });
 
+  it("uses X-Total-Count for the All tab and says when the list was cut off", async () => {
+    server.use(
+      http.get(adminPath("/approvals"), () => HttpResponse.json(approvals.items.slice(0, 2), { headers: { "X-Total-Count": "250" } })),
+    );
+    renderApp(<ApprovalsScreen />);
+    await table();
+    expect(await screen.findByRole("tab", { name: /All\s*250/ })).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 250 requests/)).toBeInTheDocument();
+  });
+
   it("shows an error state with retry when the list fails", async () => {
     server.use(http.get(adminPath("/approvals"), () => HttpResponse.json({ detail: "boom" }, { status: 500 })));
     renderApp(<ApprovalsScreen />);

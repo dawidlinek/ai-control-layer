@@ -11,6 +11,7 @@ import {
   SegmentedTabs,
   useSelectedId,
 } from "@/components/rogatka";
+import { LoadedOfTotal } from "@/lib/api/loaded-of-total";
 import { useGroups, useUsers } from "./api";
 import { GroupsTab } from "./groups";
 import { KeycloakLink } from "./keycloak";
@@ -81,7 +82,10 @@ export function UsersScreen() {
         />
       </FilterRow>
       {tab === "people" ? (
-        <PeopleTab users={users} groups={groups.data ?? []} q={q} group={group} risk={risk} />
+        <>
+          <PeopleTab users={users} groups={groups.data ?? []} q={q} group={group} risk={risk} />
+          <LoadedOfTotal loaded={users.data?.length ?? 0} total={users.total} noun="people and agents" />
+        </>
       ) : (
         <GroupsTab groups={groups} q={q} />
       )}

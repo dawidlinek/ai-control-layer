@@ -19,6 +19,7 @@ import {
 } from "@/components/rogatka";
 import { DECISION_VAR } from "@/lib/decisions";
 import { formatCountdown } from "@/lib/format";
+import { LoadedOfTotal } from "@/lib/api/loaded-of-total";
 import { cn } from "@/lib/utils";
 import { useAllApprovals, usePeople } from "./api";
 import { ApprovalSidebar } from "./approval-sidebar";
@@ -122,7 +123,8 @@ export function ApprovalsScreen() {
   const counts = {
     pending: all.filter((r) => r.a.status === "pending").length,
     decided: all.filter((r) => decidedRecently(r.a, now)).length,
-    all: all.length,
+    // X-Total-Count: more than the loaded page when the list was cut off at the request limit.
+    all: Math.max(all.length, approvals.total ?? 0),
   };
 
   const inTab = (r: ApprovalRow) =>
@@ -207,6 +209,7 @@ export function ApprovalsScreen() {
               emptyMessage={tab === "pending" ? "Held actions show up here for a person to decide." : undefined}
             />
             <Pagination page={current} pageCount={pageCount} pageSize={PAGE_SIZE} onPageChange={(p) => void setPage(p)} />
+            <LoadedOfTotal loaded={all.length} total={approvals.total} noun="requests" />
           </>
         }
         sidebar={
