@@ -8,6 +8,7 @@ import type { ArtifactScanResult, ModelInfo } from "@/lib/api/types";
 import { fileResult, shortHash } from "@/features/threats/artifact-copy";
 import {
   aboutText,
+  autoHow,
   autoReasons,
   autoShare,
   connectorName,
@@ -44,6 +45,7 @@ export function ModelSidebar({
   const who = whoCanUse(m);
   const share = autoShare(m);
   const reasons = autoReasons(m);
+  const how = autoHow(m);
   return (
     <>
       <SidebarHeader label="Model" title={m.id} copyText={m.id} />
@@ -92,6 +94,7 @@ export function ModelSidebar({
         )}
       </SidebarSection>
       <SidebarSection title="How auto picks it">
+        {how && <p className="m-0 text-[12.5px]">{how}</p>}
         {share ? (
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[22px] font-semibold">{share}</span>

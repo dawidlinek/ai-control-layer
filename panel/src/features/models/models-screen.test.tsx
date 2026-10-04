@@ -49,6 +49,16 @@ describe("ModelsScreen", () => {
     expect(within(side).getByRole("button", { name: "Turn off model" })).toBeDisabled();
   });
 
+  it("explains how auto picks Bielik: Polish legal text, a fixed detector, normal rules as the fallback", async () => {
+    renderApp(<ModelsScreen />, { searchParams: "?sel=local/bielik" });
+    const side = await screen.findByRole("complementary", { name: "Model" });
+    expect(within(side).getByText(/A fixed detector decides, with no model call/)).toBeInTheDocument();
+    expect(within(side).getByText(/Polish wording combined with legal vocabulary/)).toBeInTheDocument();
+    expect(within(side).getByText(/auto uses the normal rules instead \(confidential data stays on local Qwen\)/)).toBeInTheDocument();
+    expect(within(side).getByText("Polish legal text, fixed detector (≥ 0.50)")).toBeInTheDocument();
+    expect(within(side).getByText("bielik")).toBeInTheDocument();
+  });
+
   it("shows the scanned model file of a local model", async () => {
     renderApp(<ModelsScreen />, { searchParams: "?sel=local/qwen3.8-27b" });
     const side = await screen.findByRole("complementary", { name: "Model" });
