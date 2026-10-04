@@ -9,7 +9,7 @@
 | All 12 screens + session view render with demo data (mock API) | **Done**: every route in HANDOFF §2 plus `/sessions/[id]` |
 | Key flows work against the mock API (F1–F8, F10, F11) | **Done**, with the gaps listed below (F11 "Add rule" has no admin route) |
 | `pnpm -C panel typecheck / lint / test / build` | **Green**: 341 Vitest tests in 37 files; build in normal and mock mode; no MSW code in the normal build (`grep -rl "\[MSW\]" .next/static` is empty) |
-| `pnpm -C panel e2e` (Playwright, mock mode) | **Green**: 44/44 (shell 18 + one spec file per screen) |
+| `pnpm -C panel e2e` (Playwright, mock mode) | **Green**: 44/44 (21 shell + 23 in the screen specs) |
 | `uv run python scripts/dev.py test` + `lint` | **Green**: 1 269 gateway unit + 29 policy-service + 526 system (369/369 case cells); lint clean, no contract drift. The policy-watcher timing tests in `test_1b_policy_service.py` pass here: the local failures came from CPU load. |
 | Browser walk-through, dark + light, 1440 px and 600 px | **Done**: 17 views (screens, tabs and key sidebars) screenshotted against the mock production build. No page errors. One layout bug was found and fixed: table header labels pushed the page sideways at 600 px. |
 
