@@ -771,6 +771,8 @@ class McpProxy:
                 "pinned_hash": ev.old_hash,
                 "current_hash": ev.new_hash,
                 "description_diff": ev.diff,
+                "pinned_at": ev.pinned_at.isoformat() if ev.pinned_at else None,
+                "changed_at": ev.changed_at.isoformat() if ev.changed_at else None,
                 "rule_ids": ["SEC-MCP-01"],
             }
             drift_event = await audit.record_event(

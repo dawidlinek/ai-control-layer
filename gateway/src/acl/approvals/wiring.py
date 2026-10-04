@@ -33,6 +33,10 @@ def install(app: FastAPI, settings: Settings) -> None:
         engine = getattr(app.state, "engine", None)
         return None if engine is None else engine.policy
 
+    def shadow() -> list[str]:
+        engine = getattr(app.state, "engine", None)
+        return [] if engine is None else [c.id for c in engine.pipeline.controls if c.shadow]
+
     def salt() -> str:
         """The audit sink's salt (settings), so `args_hash` here equals `args_hash` in the decision record."""
         raw = getattr(settings, "value_hash_salt", None)
@@ -43,6 +47,7 @@ def install(app: FastAPI, settings: Settings) -> None:
         lambda: getattr(app.state, "audit", None),
         salt=salt,
         policy_view=policy,
+        shadow_view=shadow,
     )
 
     async def after_approve(row: ApprovalRow) -> None:

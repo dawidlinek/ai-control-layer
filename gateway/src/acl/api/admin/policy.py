@@ -18,6 +18,7 @@ from acl.contracts.admin import (
     PolicyFileContent,
     PolicyFileInfo,
     PolicyFileWrite,
+    PolicyRollbackRequest,
     PolicyStatus,
     PolicyVersion,
     PolicyVersionDetail,
@@ -111,5 +112,9 @@ async def get_version(version_id: int, p: Viewer, service: Service) -> PolicyVer
 
 
 @router.post("/versions/{version_id}/rollback", response_model=PolicyStatus, operation_id="rollbackPolicy")
-async def rollback(version_id: int, p: Admin, writer: Writer) -> PolicyStatus:
-    return await writer.rollback(version_id, p)
+async def rollback(
+    version_id: int, p: Admin, writer: Writer, body: PolicyRollbackRequest | None = None
+) -> PolicyStatus:
+    """Restore a stored version as a new one. The JSON body is optional; when given, `reason` is stored with the new
+    version (history `reason`, the `policy_change` audit event)."""
+    return await writer.rollback(version_id, p, reason=body.reason if body is not None else None)

@@ -326,6 +326,8 @@ paths:
       tags:
       - policy
       summary: Rollback
+      description: "Restore a stored version as a new one. The JSON body is optional; when given, `reason` is stored with
+        the new\nversion (history `reason`, the `policy_change` audit event)."
       operationId: rollbackPolicy
       security:
       - HTTPBearer: []
@@ -336,6 +338,14 @@ paths:
         schema:
           type: integer
           title: Version Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/PolicyRollbackRequest'
+              - type: 'null'
+              title: Body
       responses:
         '200':
           description: Successful Response
@@ -2418,6 +2428,44 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Elevation'
           - type: 'null'
+        approver_label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Approver Label
+          examples:
+          - Security team
+          - Team lead
+        data_class:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Data Class
+          description: 'Session confidentiality when held: public | internal | confidential | restricted.'
+        client:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Client
+          description: Client app that issued the call.
+          examples:
+          - opencode
+        flags:
+          items:
+            type: string
+          type: array
+          title: Flags
+          description: Red flags, e.g. `untrusted input`, `sensitive data`, `external egress`.
+        preview:
+          anyOf:
+          - $ref: '#/components/schemas/ApprovalPreview'
+          - type: 'null'
+        reasons:
+          items:
+            type: string
+          type: array
+          title: Reasons
+          description: 'Why it was held: one line per holding control.'
       additionalProperties: false
       type: object
       required:
@@ -2456,6 +2504,26 @@ components:
       required:
       - decision
       title: ApprovalDecisionRequest
+    ApprovalPreview:
+      properties:
+        type:
+          type: string
+          enum:
+          - diff
+          - email
+          - plan
+          - text
+          title: Type
+        body:
+          type: string
+          title: Body
+      additionalProperties: false
+      type: object
+      required:
+      - type
+      - body
+      title: ApprovalPreview
+      description: Redacted preview of what the held call would do (never raw secrets or personal data).
     ApprovalRef:
       properties:
         approval_id:
@@ -2910,6 +2978,37 @@ components:
       - client_credentials
       - none
       title: AuthMethod
+    BlockedEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          enum:
+          - blocked_request
+          - blocked_response
+          title: Kind
+        point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Point
+        decided_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decided By
+          description: Control id that decided the block.
+      additionalProperties: false
+      type: object
+      required:
+      - kind
+      title: BlockedEvidence
+      description: Enforced block that opened a grouped incident (`blocked_request` / `blocked_response`).
     Body_scanArtifact:
       properties:
         file:
@@ -2996,6 +3095,99 @@ components:
       - id
       - state
       title: BreakerState
+    BudgetBreachEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: budget_breach
+          title: Kind
+          default: budget_breach
+        level:
+          anyOf:
+          - type: string
+            enum:
+            - soft
+            - hard
+            - loop
+          - type: 'null'
+          title: Level
+        node:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Node
+          examples:
+          - user:jan
+          - session:s-1
+        scope:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Scope
+        session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session Id
+          description: Set when the node is a session.
+        meter:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Meter
+          examples:
+          - usd_day
+          - gpu_seconds_session
+        limit:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Limit
+        used:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Used
+        projected:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Projected
+        action:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+          description: alert | block | degrade_to_local | require_approval ...
+        breaker:
+          anyOf:
+          - type: string
+            enum:
+            - closed
+            - open
+            - half_open
+          - type: 'null'
+          title: Breaker
+        cooldown_s:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cooldown S
+        loop_rule:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Loop Rule
+          description: Runaway-signal rule id when `level` is `loop`.
+      additionalProperties: false
+      type: object
+      title: BudgetBreachEvidence
     BudgetNode:
       properties:
         id:
@@ -3059,6 +3251,38 @@ components:
       - generated_at
       - nodes
       title: BudgetTree
+    CanaryEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: canary_triggered
+          title: Kind
+          default: canary_triggered
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        server:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+        occurrences:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Occurrences
+          description: Canary values found (and redacted) in the result.
+      additionalProperties: false
+      type: object
+      title: CanaryEvidence
     ChainVerifyResult:
       properties:
         ok:
@@ -3731,6 +3955,58 @@ components:
       additionalProperties: false
       type: object
       title: FeedStatus
+    ForbiddenModelEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: forbidden_model
+          title: Kind
+          default: forbidden_model
+        model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model
+      additionalProperties: false
+      type: object
+      title: ForbiddenModelEvidence
+    GenericEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: generic
+          title: Kind
+          default: generic
+        category:
+          type: string
+          title: Category
+        facts:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: integer
+            - type: number
+            - type: boolean
+          type: object
+          title: Facts
+      additionalProperties: false
+      type: object
+      required:
+      - category
+      title: GenericEvidence
+      description: 'Fallback for categories without a dedicated shape: scalar facts copied from `detail`.'
     Grant:
       properties:
         subject_type:
@@ -4250,7 +4526,36 @@ components:
           additionalProperties: true
           type: object
           title: Detail
-          description: e.g. rug-pull description diff.
+          description: Raw producer detail (free-form; see `evidence`).
+        evidence:
+          anyOf:
+          - oneOf:
+            - $ref: '#/components/schemas/McpRugPullEvidence'
+            - $ref: '#/components/schemas/McpToolFlaggedEvidence'
+            - $ref: '#/components/schemas/McpProtocolViolationEvidence'
+            - $ref: '#/components/schemas/CanaryEvidence'
+            - $ref: '#/components/schemas/BudgetBreachEvidence'
+            - $ref: '#/components/schemas/ForbiddenModelEvidence'
+            - $ref: '#/components/schemas/BlockedEvidence'
+            - $ref: '#/components/schemas/PluginBypassEvidence'
+            - $ref: '#/components/schemas/GenericEvidence'
+            discriminator:
+              propertyName: kind
+              mapping:
+                blocked_request: '#/components/schemas/BlockedEvidence'
+                blocked_response: '#/components/schemas/BlockedEvidence'
+                budget_breach: '#/components/schemas/BudgetBreachEvidence'
+                canary_triggered: '#/components/schemas/CanaryEvidence'
+                forbidden_model: '#/components/schemas/ForbiddenModelEvidence'
+                generic: '#/components/schemas/GenericEvidence'
+                mcp_name_collision: '#/components/schemas/McpToolFlaggedEvidence'
+                mcp_protocol_violation: '#/components/schemas/McpProtocolViolationEvidence'
+                mcp_rug_pull: '#/components/schemas/McpRugPullEvidence'
+                mcp_tool_poisoning: '#/components/schemas/McpToolFlaggedEvidence'
+                plugin_bypass: '#/components/schemas/PluginBypassEvidence'
+          - type: 'null'
+          title: Evidence
+          description: Typed view of `detail`, discriminated on `kind` (the incident category).
       additionalProperties: false
       type: object
       required:
@@ -4423,6 +4728,104 @@ components:
       additionalProperties: false
       type: object
       title: LatencyBreakdown
+    McpProtocolViolationEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: mcp_protocol_violation
+          title: Kind
+          default: mcp_protocol_violation
+        server:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Server
+        violations:
+          items:
+            type: string
+          type: array
+          title: Violations
+          description: Violation codes, e.g. `MCP_ORIGIN_MISMATCH`.
+      additionalProperties: false
+      type: object
+      title: McpProtocolViolationEvidence
+    McpRugPullEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: mcp_rug_pull
+          title: Kind
+          default: mcp_rug_pull
+        server:
+          type: string
+          title: Server
+        tool:
+          type: string
+          title: Tool
+        tool_id:
+          type: string
+          title: Tool Id
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+          description: 'Pin status after the change: quarantined | drifted.'
+        approved_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Approved Hash
+          description: Pinned (approved) hash.
+        approved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Approved At
+        new_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: New Hash
+        changed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Changed At
+        description_diff:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description Diff
+          description: Unified-style diff, lines start with + - or space.
+        findings:
+          items:
+            type: string
+          type: array
+          title: Findings
+          description: Value-free flag labels.
+      additionalProperties: false
+      type: object
+      required:
+      - server
+      - tool
+      - tool_id
+      title: McpRugPullEvidence
+      description: A pinned MCP tool changed after approval.
     McpServerInfo:
       properties:
         id:
@@ -4485,6 +4888,53 @@ components:
       required:
       - reason
       title: McpToolApprovalRequest
+    McpToolFlaggedEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          enum:
+          - mcp_tool_poisoning
+          - mcp_name_collision
+          title: Kind
+        server:
+          type: string
+          title: Server
+        tool:
+          type: string
+          title: Tool
+        tool_id:
+          type: string
+          title: Tool Id
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+        new_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: New Hash
+        findings:
+          items:
+            type: string
+          type: array
+          title: Findings
+      additionalProperties: false
+      type: object
+      required:
+      - kind
+      - server
+      - tool
+      - tool_id
+      title: McpToolFlaggedEvidence
+      description: A new MCP tool was quarantined as poisoned, or collides with an existing tool name.
     McpToolInfo:
       properties:
         id:
@@ -4810,6 +5260,37 @@ components:
       - egress_hygiene
       title: Phase
       description: Pipeline phases, executed in this order (concept §6.2).
+    PluginBypassEvidence:
+      properties:
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: One plain sentence written from a template, no raw values.
+        kind:
+          type: string
+          const: plugin_bypass
+          title: Kind
+          default: plugin_bypass
+        tool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool
+        tool_call_id_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tool Call Id Hash
+        explanation:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Explanation
+      additionalProperties: false
+      type: object
+      title: PluginBypassEvidence
     PolicyError:
       properties:
         file:
@@ -4917,6 +5398,20 @@ components:
       - content
       - base_version
       title: PolicyFileWrite
+    PolicyRollbackRequest:
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+          description: Why the policy is rolled back (audit trail).
+      additionalProperties: false
+      type: object
+      required:
+      - reason
+      title: PolicyRollbackRequest
+      description: Optional body of `POST /policy/versions/{id}/rollback` (the route still works with no body).
     PolicyStatus:
       properties:
         version:
@@ -4987,6 +5482,12 @@ components:
           type: string
           title: Message
           default: ''
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: Rollback reason given by the admin (source `rollback`).
         files_changed:
           items:
             type: string
@@ -5029,6 +5530,12 @@ components:
           type: string
           title: Message
           default: ''
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: Rollback reason given by the admin (source `rollback`).
         files_changed:
           items:
             type: string

@@ -26,6 +26,7 @@ class PolicyVersionRow(Base):
     author: Mapped[str | None] = mapped_column(String(255), nullable=True)
     source: Mapped[str] = mapped_column(String(16), nullable=False)  # file | panel | rollback | startup
     message: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    reason: Mapped[str | None] = mapped_column(String(500), nullable=True)  # rollback reason
     files_changed: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     files: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     diff: Mapped[str] = mapped_column(Text, nullable=False, default="")

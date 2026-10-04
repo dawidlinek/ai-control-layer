@@ -443,7 +443,7 @@ async def test_invalid_content_is_422_and_nothing_is_written(stack: Stack) -> No
     g = await stack.file("groups.yaml")
     r = await stack.put(
         "groups.yaml",
-        g["content"].replace("models: [auto, local, smart]", "models: [auto, nope/model]", 1),
+        g["content"].replace("models: [auto, local, bielik, smart]", "models: [auto, nope/model]", 1),
         g["version"],
     )
     assert r.status_code == 422
@@ -571,6 +571,46 @@ async def test_rollback_restores_content(stack: Stack) -> None:
     assert set(versions[0]["files_changed"]) == {"controls.yaml", "routing.yaml"}
     assert (await stack.client.post(f"{P}/versions/9999/rollback")).status_code == 404
     assert [v for v in stack.events(EventType.policy_change)][-1]["source"] == "rollback"
+
+
+async def _two_versions(stack: Stack) -> dict:
+    f = await stack.file("controls.yaml")
+    assert (await stack.put("controls.yaml", f["content"] + "# edited" + chr(10), f["version"])).status_code == 200
+    versions = (await stack.client.get(f"{P}/versions")).json()
+    return versions[-1]  # the startup version
+
+
+async def test_rollback_without_a_body_still_works_and_has_no_reason(stack: Stack) -> None:
+    first = await _two_versions(stack)
+    r = await stack.client.post(f"{P}/versions/{first['id']}/rollback")
+    assert r.status_code == 200, r.text
+    top = (await stack.client.get(f"{P}/versions")).json()[0]
+    assert top["source"] == "rollback" and top["reason"] is None
+    assert stack.events(EventType.policy_change)[-1]["reason"] is None
+
+
+async def test_rollback_reason_is_stored_in_history_and_audit(stack: Stack) -> None:
+    first = await _two_versions(stack)
+    r = await stack.client.post(f"{P}/versions/{first['id']}/rollback", json={"reason": "  bad edit, see INC-7  "})
+    assert r.status_code == 200, r.text
+    top = (await stack.client.get(f"{P}/versions")).json()[0]
+    assert top["source"] == "rollback" and top["reason"] == "bad edit, see INC-7"
+    assert "bad edit, see INC-7" in top["message"]  # also readable in the existing message field
+    detail = (await stack.client.get(f"{P}/versions/{top['id']}")).json()
+    assert detail["reason"] == "bad edit, see INC-7"
+    event = stack.events(EventType.policy_change)[-1]
+    assert event["source"] == "rollback" and event["reason"] == "bad edit, see INC-7"
+    # versions that are not rollbacks carry no reason
+    assert all(v["reason"] is None for v in (await stack.client.get(f"{P}/versions")).json()[1:])
+
+
+@pytest.mark.parametrize("body", [{"reason": "ab"}, {"reason": "   "}, {}, {"reason": "x" * 501}, {"why": "because"}])
+async def test_rollback_rejects_an_invalid_body(stack: Stack, body: dict) -> None:
+    first = await _two_versions(stack)
+    before = await stack.status()
+    r = await stack.client.post(f"{P}/versions/{first['id']}/rollback", json=body)
+    assert r.status_code == 422, r.text
+    assert (await stack.status())["version"] == before["version"]  # nothing was rolled back
 
 
 # ---------------------------------------------------------------- validate & dry-run

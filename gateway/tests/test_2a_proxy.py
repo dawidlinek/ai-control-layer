@@ -95,6 +95,10 @@ def test_rug_pull_quarantines_blocks_and_raises_incident(env: Env) -> None:
     assert any(e["event_type"] == "incident" for e in env.audit())
     incidents = env.admin("GET", "/incidents").json()
     assert any(i["category"] == "mcp_rug_pull" for i in incidents), incidents
+    rug = next(i for i in incidents if i["category"] == "mcp_rug_pull")["evidence"]  # typed view of `detail`
+    assert rug["kind"] == "mcp_rug_pull" and rug["server"] == "rugpull-demo" and rug["tool"] == "get_weather"
+    assert rug["approved_hash"] == tool_row["pinned_hash"] and rug["new_hash"] == tool_row["current_hash"]
+    assert rug["approved_at"] and rug["changed_at"] and "IMPORTANT" in rug["description_diff"]
 
     n_calls = len(env.fakes["rugpull"].calls)
     err = env.call("rugpull-demo", sid, "get_weather", {"city": "Gdańsk"})["error"]
