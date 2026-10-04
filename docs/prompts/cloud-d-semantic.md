@@ -58,9 +58,12 @@ Branch `feat/semantic`.
    asynchronously (never on the request path); disagreements are audited; an estimated miss rate feeds the metrics.
 8. **Judge calibration**: `scripts/calibrate_judges.py` over a small hand-labelled set you write (benign + attack, EN +
    PL), reporting Cohen's κ, FPR, FNR per judge into `reports/` (run live by the integrator; deterministic dry run in CI).
-9. **Routing by complexity** (§7, HANDOFF §7.1): a complexity score (classifier head, or a documented heuristic over
-   the prompt) → bands `complexity_bands` → local / Gemini Flash / Gemini Pro; budget-aware escalation; sensitivity and
-   SEC-SESSION-01 still force local; the trace explains "why this model". Router stays deterministic given the scores.
+9. **Routing by complexity and task** (§7, HANDOFF §7.1 as amended 2026-10-04: **Bielik 11B v3 is back** as the local
+   Polish-legal specialist next to Qwen3.8-27B): a complexity score (classifier head, or a documented heuristic over the
+   prompt) → bands `complexity_bands` → local / Gemini Flash / Gemini Pro; the Polish-legal task signal (a deterministic
+   detector exists or is built by the integrator — add embedding-based task matching on top, never replacing it) →
+   `local/bielik`; budget-aware escalation; sensitivity and SEC-SESSION-01 still force local; the trace explains "why
+   this model". Router stays deterministic given the scores.
 10. **Task-scoped policy** SEC-PLAN-01 (strict/paranoid; stretch if time is short): a planner call that sees only the
     trusted user request proposes a narrow tool policy (tools, argument ranges, sinks); the gateway intersects it with
     the static policy (can only narrow) and enforces it deterministically; calls outside the plan → block/approval.
