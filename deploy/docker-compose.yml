@@ -100,6 +100,8 @@ services:
       LOCAL_CODER_MODEL: ${LOCAL_CODER_MODEL:-}
       LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-}
       LOCAL_JUDGE_MODEL: ${LOCAL_JUDGE_MODEL:-}
+      ACL_INSIGHTS_SEED_DIR: /seed/insights   # 4B demo history (read by the miner, never written to the audit log)
+      ACL_INSIGHTS_ENABLED_GROUPS: '["credit-analysts", "developers"]'   # opt-in until changed in the panel
     extra_hosts:
       - "host.docker.internal:host-gateway"   # reach an SSH tunnel on the host (scripts/wcss.py tunnel)
     networks:
@@ -108,6 +110,7 @@ services:
     volumes:
       - ../policy:/policy            # single writer = the gateway's policy service
       - audit:/data/audit
+      - ./seed/insights:/seed/insights:ro
     ports:
       - "${GATEWAY_PORT:-8000}:8000"
     restart: unless-stopped

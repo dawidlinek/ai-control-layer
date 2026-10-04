@@ -13,7 +13,7 @@ edits through ruamel.yaml round-trip (see `yamledit`).
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from acl.contracts.admin import PolicyError, PolicyStatus
 from acl.contracts.inspection import Principal
@@ -86,6 +86,26 @@ class PolicyWriter:
                 raise ValidationFailed([PolicyError(file=name, message=f"cannot apply edit: {exc}")]) from exc
             candidate = {n: f.content for n, f in disk.items()}
             candidate[name] = patched
+            await self._commit(candidate, (), "panel", principal, message)
+        return await self.service.status()
+
+    async def patch_files(
+        self, edits: Mapping[str, Sequence[PathOp]], principal: Principal | None, message: str = ""
+    ) -> PolicyStatus:
+        """Structured edits to several files committed as ONE new policy version (e.g. a skill and the group
+        that may use it). Applied to whatever is on disk, like `patch_file` without `base_version`."""
+        for name in edits:
+            self._check_name(name)
+        async with self.service.lock:
+            disk = self.service.current_files()
+            candidate = {n: f.content for n, f in disk.items()}
+            for name, ops in edits.items():
+                if name not in disk:
+                    raise FileNotFound("policy file")
+                try:
+                    candidate[name] = patch_text(disk[name].content, ops)
+                except PatchError as exc:
+                    raise ValidationFailed([PolicyError(file=name, message=f"cannot apply edit: {exc}")]) from exc
             await self._commit(candidate, (), "panel", principal, message)
         return await self.service.status()
 

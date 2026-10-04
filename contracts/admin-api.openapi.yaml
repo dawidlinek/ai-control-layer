@@ -2004,6 +2004,18 @@ paths:
           - type: string
           - type: 'null'
           title: Group
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - new
+            - published
+            - dismissed
+            type: string
+          - type: 'null'
+          title: Status
       responses:
         '200':
           description: Successful Response
@@ -2014,6 +2026,40 @@ paths:
                 items:
                   $ref: '#/components/schemas/InsightCluster'
                 title: Response Listinsights
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/insights/clusters/{cluster_id}:
+    get:
+      tags:
+      - insights
+      summary: Get Insight
+      operationId: getInsight
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Cluster Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightCluster'
         '401':
           description: Missing or invalid credentials
         '403':
@@ -2066,6 +2112,262 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/insights/clusters/{cluster_id}/dismiss:
+    post:
+      tags:
+      - insights
+      summary: Dismiss
+      operationId: dismissInsight
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Cluster Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DismissInsightRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightCluster'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/insights/clusters/{cluster_id}/preview:
+    post:
+      tags:
+      - insights
+      summary: Preview
+      operationId: previewInsightSkill
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Cluster Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillPreviewRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillPreview'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/v1/insights/recompute:
+    post:
+      tags:
+      - insights
+      summary: Recompute
+      operationId: recomputeInsights
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightsStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/insights/status:
+    get:
+      tags:
+      - insights
+      summary: Status
+      operationId: getInsightsStatus
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightsStatus'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/insights/skills:
+    get:
+      tags:
+      - insights
+      summary: Skills
+      operationId: listInsightSkills
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/InsightSkill'
+                type: array
+                title: Response Listinsightskills
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/insights/settings:
+    get:
+      tags:
+      - insights
+      summary: Get Settings
+      operationId: getInsightsSettings
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightsSettings'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - insights
+      summary: Put Settings
+      operationId: updateInsightsSettings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsightsSettings'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightsSettings'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /admin/v1/insights/mine:
+    get:
+      tags:
+      - insights
+      summary: Mine
+      operationId: listMyInsights
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/InsightCluster'
+                type: array
+                title: Response Listmyinsights
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+      security:
+      - HTTPBearer: []
+  /admin/v1/insights/opt-in:
+    put:
+      tags:
+      - insights
+      summary: Opt In
+      operationId: setInsightsOptIn
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsightOptIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsightOptIn'
+        '401':
+          description: Missing or invalid credentials
+        '403':
+          description: Insufficient role / forbidden resource
+        '501':
+          description: Not implemented yet
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
   /admin/v1/mcp/servers:
     get:
       tags:
@@ -3262,6 +3564,18 @@ components:
       required:
       - start
       title: DecisionBucket
+    DismissInsightRequest:
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - reason
+      title: DismissInsightRequest
     DryRunChange:
       properties:
         event_id:
@@ -4360,6 +4674,107 @@ components:
           - dismissed
           title: Status
           default: new
+        scope:
+          type: string
+          enum:
+          - group
+          - personal
+          title: Scope
+          description: '`personal` suggestions are only ever shown to their owner.'
+          default: group
+        first_seen:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: First Seen
+        last_seen:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Seen
+        active_days:
+          type: integer
+          title: Active Days
+          default: 0
+        runs_per_active_day:
+          type: number
+          title: Runs Per Active Day
+          default: 0.0
+        periodicity:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Periodicity
+          description: Share of workdays (or weeks) with a run.
+          default: 0.0
+        structural_similarity:
+          type: number
+          title: Structural Similarity
+          description: Mean cosine similarity of prompts to the centroid.
+          default: 0.0
+        data_class:
+          $ref: '#/components/schemas/DataClass'
+          default: internal
+        models_used:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Models Used
+        cost:
+          anyOf:
+          - $ref: '#/components/schemas/InsightCost'
+          - type: 'null'
+        draft_validation:
+          items:
+            type: string
+          type: array
+          title: Draft Validation
+          description: Why the LLM draft was rejected (the deterministic draft is shown instead).
+        published_skill:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published Skill
+        published_groups:
+          items:
+            type: string
+          type: array
+          title: Published Groups
+        published_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Published At
+        published_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published By
+        published_policy_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published Policy Version
+        published_version_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Published Version Id
+          description: Policy version number (`v9`).
+        dismissed_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dismissed Reason
+        updated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At
       additionalProperties: false
       type: object
       required:
@@ -4370,6 +4785,279 @@ components:
       - distinct_users
       - recurrence
       title: InsightCluster
+    InsightCost:
+      properties:
+        runs:
+          type: integer
+          title: Runs
+          description: Task runs (one person's requests for this task in one session).
+          default: 0
+        requests:
+          type: integer
+          title: Requests
+          default: 0
+        retries:
+          type: integer
+          title: Retries
+          description: Requests that repeated the previous prompt of the same run.
+          default: 0
+        tokens_in:
+          type: integer
+          title: Tokens In
+          default: 0
+        tokens_out:
+          type: integer
+          title: Tokens Out
+          default: 0
+        usd:
+          type: number
+          title: Usd
+          default: 0.0
+        gpu_seconds:
+          type: number
+          title: Gpu Seconds
+          default: 0.0
+        wall_clock_minutes:
+          type: number
+          title: Wall Clock Minutes
+          description: Time people spent on the runs (first request → read).
+          default: 0.0
+        usd_per_run:
+          type: number
+          title: Usd Per Run
+          default: 0.0
+        gpu_seconds_per_run:
+          type: number
+          title: Gpu Seconds Per Run
+          default: 0.0
+        skill_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Skill Model
+          description: Model of the draft skill the counterfactual uses.
+        skill_usd_per_run:
+          type: number
+          title: Skill Usd Per Run
+          default: 0.0
+        skill_gpu_seconds_per_run:
+          type: number
+          title: Skill Gpu Seconds Per Run
+          default: 0.0
+        saving_usd_month:
+          type: number
+          title: Saving Usd Month
+          default: 0.0
+        saving_gpu_seconds_month:
+          type: number
+          title: Saving Gpu Seconds Month
+          default: 0.0
+      additionalProperties: false
+      type: object
+      title: InsightCost
+      description: Observed cost of a repeated task over the mining window, and the counterfactual if it ran as a skill.
+    InsightGroupSettings:
+      properties:
+        group:
+          type: string
+          title: Group
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Group opted in to mining (management view, k-anonymous).
+          default: false
+        personal:
+          type: boolean
+          title: Personal
+          description: Members may opt in to their own suggestions.
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - group
+      title: InsightGroupSettings
+    InsightOptIn:
+      properties:
+        enabled:
+          type: boolean
+          title: Enabled
+      additionalProperties: false
+      type: object
+      required:
+      - enabled
+      title: InsightOptIn
+    InsightSkill:
+      properties:
+        skill_id:
+          type: string
+          title: Skill Id
+        description:
+          type: string
+          title: Description
+          default: ''
+        model:
+          type: string
+          title: Model
+        preset:
+          $ref: '#/components/schemas/Preset'
+        groups:
+          items:
+            type: string
+          type: array
+          title: Groups
+          description: Groups the skill is available to.
+        runs_30d:
+          type: integer
+          title: Runs 30D
+          default: 0
+        cost_per_run_before_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Per Run Before Usd
+          description: Observed before publishing.
+        cost_per_run_now_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Per Run Now Usd
+        gpu_seconds_per_run_before:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gpu Seconds Per Run Before
+        gpu_seconds_per_run_now:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gpu Seconds Per Run Now
+        now_source:
+          anyOf:
+          - type: string
+            enum:
+            - measured
+            - projected
+          - type: 'null'
+          title: Now Source
+          description: '`projected` until the skill has runs in the window.'
+        source_cluster:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Cluster
+        published_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Published At
+        published_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published By
+      additionalProperties: false
+      type: object
+      required:
+      - skill_id
+      - model
+      - preset
+      title: InsightSkill
+    InsightsSettings:
+      properties:
+        k:
+          type: integer
+          maximum: 100.0
+          minimum: 2.0
+          title: K
+          description: Minimum distinct users before management sees a cluster.
+          default: 5
+        window_days:
+          type: integer
+          maximum: 365.0
+          minimum: 1.0
+          title: Window Days
+          default: 30
+        groups:
+          items:
+            $ref: '#/components/schemas/InsightGroupSettings'
+          type: array
+          title: Groups
+      additionalProperties: false
+      type: object
+      title: InsightsSettings
+    InsightsStatus:
+      properties:
+        running:
+          type: boolean
+          title: Running
+          default: false
+        last_run_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Run At
+        last_duration_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Duration Ms
+        last_trigger:
+          anyOf:
+          - type: string
+            enum:
+            - startup
+            - interval
+            - admin
+          - type: 'null'
+          title: Last Trigger
+        prompts_scanned:
+          type: integer
+          title: Prompts Scanned
+          default: 0
+        seed_prompts:
+          type: integer
+          title: Seed Prompts
+          default: 0
+        clusters_visible:
+          type: integer
+          title: Clusters Visible
+          default: 0
+        clusters_hidden_below_k:
+          type: integer
+          title: Clusters Hidden Below K
+          default: 0
+        personal_suggestions:
+          type: integer
+          title: Personal Suggestions
+          default: 0
+        embeddings_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Embeddings Model
+        embeddings_mode:
+          anyOf:
+          - type: string
+            enum:
+            - connector
+            - deterministic
+          - type: 'null'
+          title: Embeddings Mode
+        drafter_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Drafter Model
+        last_error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Error
+      additionalProperties: false
+      type: object
+      title: InsightsStatus
     InspectionPoint:
       type: string
       enum:
@@ -5090,6 +5778,39 @@ components:
           type: string
           minLength: 3
           title: Reason
+        description:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Description
+          description: Overrides the draft when set.
+        template:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Template
+        input_schema:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Input Schema
+        tools:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tools
+        data_classes:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DataClass'
+            type: array
+          - type: 'null'
+          title: Data Classes
       additionalProperties: false
       type: object
       required:
@@ -5322,6 +6043,30 @@ components:
       - high
       - critical
       title: Severity
+    SkillPreview:
+      properties:
+        prompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prompt
+        errors:
+          items:
+            type: string
+          type: array
+          title: Errors
+      additionalProperties: false
+      type: object
+      title: SkillPreview
+    SkillPreviewRequest:
+      properties:
+        inputs:
+          additionalProperties: true
+          type: object
+          title: Inputs
+      additionalProperties: false
+      type: object
+      title: SkillPreviewRequest
     StageLatency:
       properties:
         phase:

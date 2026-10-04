@@ -1,0 +1,99 @@
+# Skills published by Automation Insights (concept §14, §7.3) are models like any other: SEC-MODEL-01 lets only
+# the groups that list a skill use it. `skill/loan-memo-summary` is granted to credit-analysts only
+# (policy/groups.yaml). Template rendering, preset and tool narrowing are covered by
+# gateway/tests/test_insights_api.py (they happen in the request path, before the engine).
+
+- id: insights-skill-credit-analyst-may-use-loan-skill
+  control: SEC-MODEL-01
+  kind: positive
+  pair: insights-skill-developer
+  principal: {username: marta, groups: [credit-analysts]}
+  model_requested: skill/loan-memo-summary
+  input: "Przygotuj notatkę kredytową dla poniższego wniosku:\n\nWnioskodawca <PERSON_1>, kwota 300 000 PLN."
+  expect: {action: allow, rule_id: null}
+
+- id: insights-skill-developer-may-not-use-loan-skill
+  control: SEC-MODEL-01
+  kind: negative
+  pair: insights-skill-developer
+  principal: {username: piotr, groups: [developers]}
+  model_requested: skill/loan-memo-summary
+  input: "Przygotuj notatkę kredytową dla poniższego wniosku:\n\nWnioskodawca <PERSON_1>, kwota 300 000 PLN."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: insights-skill-second-analyst-may-use-loan-skill
+  control: SEC-MODEL-01
+  kind: positive
+  pair: insights-skill-admin
+  principal: {username: tomasz, groups: [credit-analysts]}
+  model_requested: skill/loan-memo-summary
+  input: "Summarise this loan application for the credit committee: car loan, 80 000 PLN over 5 years."
+  expect: {action: allow, rule_id: null}
+
+- id: insights-skill-admin-group-has-no-loan-skill
+  control: SEC-MODEL-01
+  kind: negative
+  pair: insights-skill-admin
+  principal: {username: adam, groups: [admins]}
+  model_requested: skill/loan-memo-summary
+  input: "Summarise this loan application for the credit committee: car loan, 80 000 PLN over 5 years."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: insights-skill-analyst-in-two-groups-may-use-loan-skill
+  control: SEC-MODEL-01
+  kind: positive
+  pair: insights-skill-security
+  principal: {username: julia, groups: [credit-analysts, security-analysts]}
+  model_requested: skill/loan-memo-summary
+  input: "Summarise this loan application: refinancing of two consumer loans, 120 000 PLN."
+  expect: {action: allow, rule_id: null}
+
+- id: insights-skill-security-analyst-may-not-use-loan-skill
+  control: SEC-MODEL-01
+  kind: negative
+  pair: insights-skill-security
+  principal: {username: ola, groups: [security-analysts]}
+  model_requested: skill/loan-memo-summary
+  input: "Summarise this loan application: refinancing of two consumer loans, 120 000 PLN."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: insights-skill-analyst-subgroup-path-may-use-loan-skill
+  control: SEC-MODEL-01
+  kind: positive
+  pair: insights-skill-agent
+  principal: {username: michal, groups: [credit-analysts]}
+  model_requested: skill/loan-memo-summary
+  input: "Przygotuj notatkę kredytową: kredyt hipoteczny 540 000 PLN, 30 lat, dochód 14 200 PLN."
+  expect: {action: allow, rule_id: null}
+
+- id: insights-skill-research-agent-may-not-use-loan-skill
+  control: SEC-MODEL-01
+  kind: negative
+  pair: insights-skill-agent
+  principal: {username: service-account-agent-research-bot, groups: [agents/research-bot]}
+  model_requested: skill/loan-memo-summary
+  input: "Przygotuj notatkę kredytową: kredyt hipoteczny 540 000 PLN, 30 lat, dochód 14 200 PLN."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}
+
+- id: insights-skill-analyst-may-use-loan-skill-in-english
+  control: SEC-MODEL-01
+  kind: positive
+  pair: insights-skill-unknown
+  principal: {username: ola.k, groups: [credit-analysts]}
+  model_requested: skill/loan-memo-summary
+  input: "Turn this application into a credit memo: cash loan, 25 000 PLN, home renovation."
+  expect: {action: allow, rule_id: null}
+
+- id: insights-skill-unknown-skill-is-blocked
+  control: SEC-MODEL-01
+  kind: negative
+  pair: insights-skill-unknown
+  principal: {username: ola.k, groups: [credit-analysts]}
+  model_requested: skill/loan-memo-summary-v2
+  input: "Turn this application into a credit memo: cash loan, 25 000 PLN, home renovation."
+  matrix: {balanced: block, strict: block, paranoid: block}
+  expect: {action: block, rule_id: SEC-MODEL-01}

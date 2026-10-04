@@ -1,5 +1,5 @@
 """Admin: approvals (2B), budgets (2D), models/connectors (1A/3B), MCP (2A), feed (1D),
-artifacts (4A), insights (4B).
+artifacts (4A). Insights (4B) live in `acl.api.admin.insights`.
 
 Each section is owned by the phase noted; the route signatures are the contract.
 """
@@ -17,10 +17,8 @@ from acl.contracts.admin import (
     ArtifactScanResult,
     ConnectorStatus,
     FeedStatus,
-    InsightCluster,
     KillSwitchRequest,
     ModelInfo,
-    PublishSkillRequest,
 )
 from acl.contracts.audit import EventType
 from acl.contracts.common import Severity
@@ -178,21 +176,3 @@ async def scan_artifact(file: UploadFile, p: Admin) -> ArtifactScanResult:
 @router.get("/artifacts", response_model=list[ArtifactScanResult], tags=["artifacts"], operation_id="listArtifacts")
 async def list_artifacts(p: Viewer) -> list[ArtifactScanResult]:
     not_implemented("artifacts")
-
-
-# ---------------------------------------------------------------- insights (4B)
-
-
-@router.get("/insights/clusters", response_model=list[InsightCluster], tags=["insights"], operation_id="listInsights")
-async def insights(p: Viewer, group: str | None = None) -> list[InsightCluster]:
-    not_implemented("insights")
-
-
-@router.post(
-    "/insights/clusters/{cluster_id}/publish",
-    response_model=InsightCluster,
-    tags=["insights"],
-    operation_id="publishSkill",
-)
-async def publish(cluster_id: str, body: PublishSkillRequest, p: Admin) -> InsightCluster:
-    not_implemented("insights publish")

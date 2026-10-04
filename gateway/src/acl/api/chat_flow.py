@@ -75,6 +75,7 @@ from acl.engine.transforms import (
     unaddressable_fields,
     vault_placeholders,
 )
+from acl.insights.skills import SkillInputError, skill_payload, skill_preset
 from acl.policy.models import Policy
 from acl.routing.connectors.base import ConnectorError, UpstreamResponse, UpstreamUsage
 from acl.routing.dev_access import PermissiveAccess
@@ -494,6 +495,14 @@ class ChatFlow(BaseFlow):
             raise await self._deny_forbidden(
                 ctx, check.rule_id or "SEC-MODEL-01", check.reason or "model not permitted"
             )
+        skill = self.policy.skills.get(parsed.name)
+        if skill is not None:  # template rendered server-side; tools narrowed; preset only stricter (4B)
+            try:
+                parsed = Parsed(parsed.name, skill_payload(skill, parsed.payload), parsed.stream, parsed.include_usage)
+            except SkillInputError as exc:
+                raise self._error(400, "invalid_request_error", str(exc), "skill_input_invalid") from exc
+            ctx.payload, ctx.preset = parsed.payload, skill_preset(ctx.preset, skill)
+            ctx.user_request = _text_of_content(parsed.payload.messages[-1].content)
 
         # -- 2. ingress inspection
         decision = await self.engine.evaluate(ctx)
