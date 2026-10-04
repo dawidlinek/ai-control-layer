@@ -16,6 +16,7 @@ import {
   SidebarSection,
   StatusBox,
   useNow,
+  linkClass,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { useHasRole } from "@/lib/auth/user-context";
@@ -62,7 +63,7 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
         copyText={a.id}
         actions={
           <>
-            <span className="text-[12.5px] text-muted">held {formatTime(a.created_at)}</span>
+            <span className="text-[13px] text-muted">held {formatTime(a.created_at)}</span>
             {pending && <AutoDenyPill until={a.expires_at} />}
           </>
         }
@@ -81,7 +82,7 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
               label: "Trace",
               mono: true,
               value: (
-                <Link href={`/traffic?sel=${encodeURIComponent(a.trace_id)}`} className="text-accent">
+                <Link href={`/traffic?sel=${encodeURIComponent(a.trace_id)}`} className={linkClass}>
                   {a.trace_id}
                 </Link>
               ),
@@ -97,21 +98,21 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
         {a.flags.length > 0 && (
           <ul aria-label="Red flags" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
             {a.flags.map((f) => (
-              <li key={f} className="tint rounded-[10px] px-[7px] text-[11.5px]" style={tintStyle(DECISION_VAR.require_approval)}>
+              <li key={f} className="tint rounded-[10px] px-[7px] text-[12px]" style={tintStyle(DECISION_VAR.require_approval)}>
                 {f}
               </li>
             ))}
           </ul>
         )}
         {parsed.details.length > 0 && (
-          <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-[5px] text-[12.5px]">
+          <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-[5px] text-[13px]">
             {parsed.details.map((d) => (
               <React.Fragment key={d.key}>
                 <dt className="text-muted">{d.key}</dt>
                 <dd className="m-0 flex min-w-0 flex-wrap items-center gap-1.5">
                   <span className="font-mono text-[12px]">{d.value}</span>
                   {d.flag && (
-                    <span className="tint rounded-[10px] px-[7px] text-[11.5px]" style={tintStyle(DECISION_VAR.require_approval)}>
+                    <span className="tint rounded-[10px] px-[7px] text-[12px]" style={tintStyle(DECISION_VAR.require_approval)}>
                       {d.flag}
                     </span>
                   )}
@@ -125,7 +126,7 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
 
       <SidebarSection title="Why it was held">
         {rule && (
-          <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+          <div className="flex flex-wrap items-center gap-2 text-[13px]">
             <RuleChip ruleId={rule} />
             {ruleTitle(rule) && <span>{ruleTitle(rule)}</span>}
           </div>
@@ -134,7 +135,7 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
           {reasons.map((text, i) => (
             <li
               key={text}
-              className="tint grid grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-[6px] px-2.5 py-[7px] text-[12.5px]"
+              className="tint grid grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-[6px] px-2.5 py-[7px] text-[13px]"
               style={tintStyle(DECISION_VAR.require_approval)}
             >
               <span
@@ -148,7 +149,7 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
             </li>
           ))}
         </ol>
-        <Link href={`/sessions/${encodeURIComponent(a.session_id)}`} className="self-start text-[12.5px] text-accent">
+        <Link href={`/sessions/${encodeURIComponent(a.session_id)}`} className={cn(linkClass, "self-start text-[13px]")}>
           Open full session {a.session_id} →
         </Link>
       </SidebarSection>
@@ -237,7 +238,7 @@ function DecisionPanel({ row, onDecided }: { row: ApprovalRow; onDecided: (id: s
       {!result && a.status !== "pending" && <StatusBox variant="info">Decided: {decidedText(row)}</StatusBox>}
 
       {!result && a.status === "pending" && !canDecide && (
-        <p className="m-0 text-[12.5px] text-muted">You can see this request. Approving or denying it needs the analyst or admin role.</p>
+        <p className="m-0 text-[13px] text-muted">You can see this request. Approving or denying it needs the analyst or admin role.</p>
       )}
 
       {!result && a.status === "pending" && canDecide && (

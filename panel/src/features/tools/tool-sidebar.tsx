@@ -15,6 +15,7 @@ import {
   SidebarSection,
   StatusBox,
   ToolStatusChip,
+  linkClass,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/input";
@@ -52,7 +53,7 @@ function ApprovedVersions({ row, justApproved }: { row: ToolRow; justApproved: b
       {items.length ? (
         <ul aria-label="Approved versions" className="m-0 flex list-none flex-col gap-1 p-0">
           {items.map((p) => (
-            <li key={p.hash + p.what} className="grid grid-cols-[110px_110px_minmax(0,1fr)] gap-2 py-0.5 text-[12.5px]">
+            <li key={p.hash + p.what} className="grid grid-cols-[110px_110px_minmax(0,1fr)] gap-2 py-0.5 text-[13px]">
               <span className="font-mono text-[12px]">{p.hash}</span>
               <span className="text-muted">{p.when}</span>
               <span>{p.what}</span>
@@ -60,7 +61,7 @@ function ApprovedVersions({ row, justApproved }: { row: ToolRow; justApproved: b
           ))}
         </ul>
       ) : (
-        <span className="text-[12.5px] text-muted">No version approved yet.</span>
+        <span className="text-[13px] text-muted">No version approved yet.</span>
       )}
     </SidebarSection>
   );
@@ -75,7 +76,7 @@ function ChangedSinceApproval({ row }: { row: ToolRow }) {
       title="Changed since approval"
       aside={
         inc ? (
-          <Link href={`/incidents?sel=${inc}`} className="text-[12.5px] text-accent">
+          <Link href={`/incidents?sel=${inc}`} className={`${linkClass} text-[13px]`}>
             {inc} →
           </Link>
         ) : undefined
@@ -145,7 +146,7 @@ export function ToolSidebar({ row, calls }: { row: ToolRow; calls: number | unde
         {row.labels.length > 0 && (
           <ul aria-label="Labels" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
             {row.labels.map((l) => (
-              <li key={l} className="rounded-full border border-border px-2 py-px text-[11.5px] text-muted">
+              <li key={l} className="rounded-full border border-border px-2 py-px text-[12px] text-muted">
                 {l}
               </li>
             ))}

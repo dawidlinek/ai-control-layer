@@ -88,10 +88,10 @@ export function SessionScreen({ id }: { id: string }) {
       {t && (
         <>
           {isSensitiveLabel(t.session_label) && <SessionLabelLine label={t.session_label} className="self-start" />}
-          <p className="m-0 text-[12.5px] text-muted">
+          <p className="m-0 text-[13px] text-muted">
             Read-only. Shown as Rogatka recorded it: personal data and secrets appear as placeholders.
           </p>
-          {t.truncated && <p className="m-0 text-[12.5px] text-muted">Only the most recent turns are shown.</p>}
+          {t.truncated && <p className="m-0 text-[13px] text-muted">Only the most recent turns are shown.</p>}
           {t.turns.length === 0 ? (
             <div className="rounded-[8px] border border-border bg-surface">
               <EmptyState title="No turns recorded" />
@@ -121,7 +121,7 @@ function Turn({ turn, who, last }: { turn: TranscriptTurn; who: string | null; l
         <span className={last ? "w-0.5 flex-1 bg-transparent" : "w-0.5 flex-1 bg-accent"} />
       </span>
       <div className="mb-2.5 flex flex-col gap-2 rounded-[8px] border border-border bg-surface px-3.5 py-3">
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px]">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[14px]">
           <b className="font-semibold">{role}</b>
           <time dateTime={turn.timestamp} className="font-mono text-[12px] text-muted">
             {formatTime(turn.timestamp)}
@@ -141,9 +141,9 @@ function Turn({ turn, who, last }: { turn: TranscriptTurn; who: string | null; l
             <RedactedText text={turn.text} />
           </div>
         ) : (
-          <span className="text-[13.5px] italic text-muted">Content not retained.</span>
+          <span className="text-[14px] italic text-muted">Content not retained.</span>
         )}
-        {!isAllowedOnly(turn) && turn.summary && <p className="m-0 text-[13.5px] text-muted">{turn.summary}</p>}
+        {!isAllowedOnly(turn) && turn.summary && <p className="m-0 text-[14px] text-muted">{turn.summary}</p>}
       </div>
     </li>
   );

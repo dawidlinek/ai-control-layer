@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ErrorState, ListWithSidebar, LoadingRows, Segmented, StatusBox } from "@/components/rogatka";
+import { ErrorState, ListWithSidebar, LoadingRows, Segmented, StatusBox, linkClass } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useHasRole } from "@/lib/auth/user-context";
@@ -25,7 +25,7 @@ function ErrorList({ errors, onJump }: { errors: readonly PolicyError[]; onJump:
       {errors.map((e, i) => (
         <li key={i} className="flex flex-wrap items-baseline gap-1.5">
           {e.line ? (
-            <button type="button" onClick={() => onJump(e)} className="border-0 bg-transparent p-0 font-mono text-[12px] text-accent underline">
+            <button type="button" onClick={() => onJump(e)} className={`${linkClass} border-0 bg-transparent p-0 font-mono text-[12px]`}>
               {e.file ? `${e.file} ` : ""}L{e.line}
             </button>
           ) : (
@@ -186,7 +186,7 @@ export function YamlTab({
       )}
       <div className="flex flex-col gap-2 border-t border-border bg-surface px-3 py-2.5">
         {typing.length > 0 && !validate.data && !save.isError && (
-          <div className="flex flex-col gap-1 text-[12.5px]" aria-label="Problems as you type" role="region">
+          <div className="flex flex-col gap-1 text-[13px]" aria-label="Problems as you type" role="region">
             <b className="font-semibold text-dec-block">
               {typing.length} {typing.length === 1 ? "problem" : "problems"} as you type
             </b>

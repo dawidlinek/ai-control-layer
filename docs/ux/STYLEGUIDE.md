@@ -4,7 +4,7 @@
 https://claude.ai/artifact/67ntw5fn6dG5UbvWEgo4Ch). The deck uses last year's HackNation look: white, black type, one
 red accent. This guide describes that look and how to carry it into Rogatka Dashboard.*
 
-**Status:** proposal. `HANDOFF.md` §3–4 still describes the dashboard as dark-first with a blue accent (`#4C8DFF`) and
+**Status:** agreed (2026-10-04), applied to the dashboard. `HANDOFF.md` §3–4 still describes the dashboard as dark-first with a blue accent (`#4C8DFF`) and
 IBM Plex Sans. Where the two disagree and the change has been agreed, this guide wins and `HANDOFF.md` should be updated.
 Layout, screens and interaction rules in `HANDOFF.md` stay as they are; this guide changes the look, not the scope.
 

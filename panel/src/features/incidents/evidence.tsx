@@ -12,7 +12,7 @@ const tint = (v: string) => ({ "--c": v }) as React.CSSProperties;
 export function RugPullSection({ ev }: { ev: RugPullEvidence }) {
   return (
     <SidebarSection title="What changed in the tool">
-      <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12.5px]">
+      <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
         <dt className="text-muted">Server · tool</dt>
         <dd className="m-0 font-mono">
           {ev.server} › {ev.tool}
@@ -40,7 +40,7 @@ export function RugPullSection({ ev }: { ev: RugPullEvidence }) {
       {ev.findings.length > 0 && (
         <ul aria-label="Findings" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {ev.findings.map((f) => (
-            <li key={f} className="tint rounded-[10px] px-2 py-px text-[11.5px]" style={tint(DECISION_VAR.block)}>
+            <li key={f} className="tint rounded-[10px] px-2 py-px text-[12px]" style={tint(DECISION_VAR.block)}>
               {f}
             </li>
           ))}
@@ -129,7 +129,7 @@ export function BreakerSection({ ev, ruleId }: { ev: BreakerEvidence; ruleId?: s
         </div>
       )}
       {(ev.cause || ruleId) && (
-        <div className="text-[12.5px]">
+        <div className="text-[13px]">
           Cause: {ruleId && <RuleChip ruleId={ruleId} />} {ev.cause}
         </div>
       )}
@@ -143,7 +143,7 @@ export function FactsSection({ ev }: { ev: FactsEvidence }) {
   return (
     <SidebarSection title={ev.title}>
       {ev.rows.length > 0 && (
-        <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12.5px]">
+        <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
           {ev.rows.map((r) => (
             <React.Fragment key={r.label}>
               <dt className="text-muted">{r.label}</dt>
@@ -155,7 +155,7 @@ export function FactsSection({ ev }: { ev: FactsEvidence }) {
       {ev.tags.length > 0 && (
         <ul aria-label={ev.tagsLabel ?? "Tags"} className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {ev.tags.map((t) => (
-            <li key={t} className="tint rounded-[10px] px-2 py-px text-[11.5px]" style={tint(DECISION_VAR.block)}>
+            <li key={t} className="tint rounded-[10px] px-2 py-px text-[12px]" style={tint(DECISION_VAR.block)}>
               {t}
             </li>
           ))}

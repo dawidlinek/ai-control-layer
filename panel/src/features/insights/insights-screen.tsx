@@ -179,7 +179,7 @@ function TemplateView({ template, values }: { template: string; values?: Record<
             {p.value}
           </mark>
         ) : (
-          <span key={i} data-placeholder={p.name} className="text-accent">
+          <span key={i} data-placeholder={p.name} className="font-medium text-text underline decoration-dotted underline-offset-2">
             {`{${p.name}}`}
           </span>
         ),
@@ -225,7 +225,7 @@ function TaskSidebar({ cluster }: { cluster: InsightCluster }) {
         <FactsGrid facts={facts} />
       </SidebarBlock>
       <SidebarSection title={published ? "Skill" : "Draft skill"}>
-        <dl className="m-0 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[12.5px]">
+        <dl className="m-0 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
           <dt className="text-muted">Name</dt>
           <dd className="m-0 font-mono text-[12px] [overflow-wrap:anywhere]">{draft.name}</dd>
           {draft.template && (
@@ -265,7 +265,7 @@ function TaskSidebar({ cluster }: { cluster: InsightCluster }) {
           </div>
         )}
         {cluster.examples_redacted.length > 0 && (
-          <details className="text-[12.5px]">
+          <details className="text-[13px]">
             <summary className="cursor-pointer text-muted">Masked prompts it was found in ({cluster.examples_redacted.length})</summary>
             <ul className="m-0 mt-1.5 flex list-none flex-col gap-1 p-0">
               {cluster.examples_redacted.map((e, i) => (
@@ -395,7 +395,7 @@ function SpecialistTab({ info }: { info: SpecialistInfo | null }) {
     <section aria-label="Specialist models" className="flex flex-col gap-3.5 rounded-[8px] border border-border bg-surface p-4">
       <div className="flex flex-wrap items-baseline gap-2">
         <h2 className="m-0 font-mono text-[14px] font-semibold">{info.id}</h2>
-        <span className="text-[12.5px] text-muted">prompt-configured on {base} · not a fine-tuned model</span>
+        <span className="text-[13px] text-muted">prompt-configured on {base} · not a fine-tuned model</span>
       </div>
       <p className="m-0 max-w-[720px] text-[13px] leading-[1.5]">
         {info.id} is {base} with a fixed system prompt, output format and worked examples
@@ -409,7 +409,7 @@ function SpecialistTab({ info }: { info: SpecialistInfo | null }) {
             data-state={s.state}
             title={s.note}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-[14px] border px-2.5 py-[5px] text-[12.5px]",
+              "inline-flex items-center gap-1.5 rounded-[14px] border px-2.5 py-[5px] text-[13px]",
               s.state === "done" ? "border-dec-allow/40 text-text" : "border-dashed border-border-strong text-muted",
             )}
           >
@@ -421,15 +421,15 @@ function SpecialistTab({ info }: { info: SpecialistInfo | null }) {
             />
             {s.label}
             <span className="sr-only">: {s.state}</span>
-            {s.note && <span className="text-[11.5px]">({s.note})</span>}
+            {s.note && <span className="text-[12px]">({s.note})</span>}
           </li>
         ))}
       </ol>
       {info.evaluation.length > 0 && (
         <div className="rg-scroll overflow-x-auto rounded-[6px] border border-border">
-          <table aria-label="Evaluation" className="w-full min-w-[560px] border-collapse text-[12.5px]">
+          <table aria-label="Evaluation" className="w-full min-w-[560px] border-collapse text-[14px]">
             <thead>
-              <tr className="text-left text-[10.5px] font-semibold uppercase tracking-[.05em] text-muted">
+              <tr className="text-left text-[11px] font-semibold uppercase tracking-[.05em] text-muted">
                 <th scope="col" className="border-b border-border px-3 py-2 font-semibold">Model · held-out memos</th>
                 <th scope="col" className="border-b border-border px-3 py-2 font-semibold">Quality</th>
                 <th scope="col" className="border-b border-border px-3 py-2 font-semibold">Format OK</th>
@@ -452,7 +452,7 @@ function SpecialistTab({ info }: { info: SpecialistInfo | null }) {
         </div>
       )}
       {(info.memosToday !== null || info.savedMonth !== null) && (
-        <span className="text-[12.5px] text-muted">
+        <span className="text-[13px] text-muted">
           Since auto started using it:
           {info.memosToday !== null ? ` ${formatNumber(info.memosToday)} memos today` : ""}
           {info.savedPerMemo !== null ? `, ${info.savedPerMemo} GPU-s saved per memo` : ""}

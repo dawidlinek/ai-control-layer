@@ -12,6 +12,7 @@ import {
   SidebarSection,
   SeverityChip,
   TimeCell,
+  linkClass,
 } from "@/components/rogatka";
 import { formatNumber, formatWhen } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -48,23 +49,23 @@ export function SignatureSidebar({ sig, hits }: { sig: Signature; hits: readonly
       <SidebarSection
         title="Recent hits"
         aside={
-          <Link href={`/traffic?rule=${encodeURIComponent(sig.id)}`} className="text-accent">
+          <Link href={`/traffic?rule=${encodeURIComponent(sig.id)}`} className={linkClass}>
             All in Traffic →
           </Link>
         }
         className="border-b-0"
       >
         {hits === undefined ? (
-          <span className="text-[12.5px] text-muted">Loading…</span>
+          <span className="text-[13px] text-muted">Loading…</span>
         ) : hits.length === 0 ? (
-          <span className="text-[12.5px] text-muted">No hits in the last 24 hours.</span>
+          <span className="text-[13px] text-muted">No hits in the last 24 hours.</span>
         ) : (
           <ul aria-label="Recent hits" className="m-0 flex list-none flex-col gap-1.5 p-0">
             {hits.slice(0, 5).map((e) => (
               <li key={e.event_id}>
                 <Link
                   href={`/traffic?sel=${encodeURIComponent(e.trace_id ?? e.event_id)}`}
-                  className="grid grid-cols-[66px_minmax(0,1fr)_14px] gap-2 rounded-[6px] border border-border px-2 py-1.5 text-[12.5px] text-text no-underline hover:border-border-strong"
+                  className="grid grid-cols-[66px_minmax(0,1fr)_14px] gap-2 rounded-[6px] border border-border px-2 py-1.5 text-[13px] text-text no-underline hover:border-border-strong"
                 >
                   <TimeCell iso={e.timestamp} className="text-muted" />
                   <span className="truncate">{hitText(e)}</span>
@@ -112,7 +113,7 @@ export function FileSidebar({ file: a }: { file: ArtifactScanResult }) {
         <pre aria-label="Technical detail" className="m-0 whitespace-pre-wrap rounded-[6px] border border-border bg-inset px-2.5 py-2 font-mono text-[12px]">
           {technicalDetail(a)}
         </pre>
-        <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12.5px]">
+        <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
           <dt className="text-muted">sha256</dt>
           <dd className="m-0 font-mono" title={a.sha256}>
             {shortHash(a.sha256)}
@@ -129,7 +130,7 @@ export function FileSidebar({ file: a }: { file: ArtifactScanResult }) {
         <SidebarSection title="Findings" className="border-b-0">
           <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
             {a.findings.map((f, i) => (
-              <li key={`${f.rule_id}-${i}`} className="flex flex-wrap items-center gap-2 text-[12.5px]">
+              <li key={`${f.rule_id}-${i}`} className="flex flex-wrap items-center gap-2 text-[13px]">
                 <SeverityChip severity={f.severity === "info" ? "low" : f.severity} />
                 <span className="font-mono text-[12px]">{f.rule_id}</span>
               </li>

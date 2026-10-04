@@ -215,7 +215,7 @@ function GroupSidebar({ group, onClose }: { group: Group; onClose: () => void })
                 onChange={(v) => edit({ max_cloud_data_class: v })}
                 options={CLOUD}
               />
-              <span className="text-[11.5px] text-muted">confidential and above: never (LOCK-01)</span>
+              <span className="text-[12px] text-muted">confidential and above: never (LOCK-01)</span>
             </div>
             <div className="flex flex-col gap-1.5">
               <span className="text-[12px] font-semibold">Daily budget</span>
@@ -242,7 +242,7 @@ function GroupSidebar({ group, onClose }: { group: Group; onClose: () => void })
                   +
                 </button>
               </span>
-              <span className="text-[11.5px] text-muted">used today {formatUsd(group.stats_today?.usd ?? 0)} USD</span>
+              <span className="text-[12px] text-muted">used today {formatUsd(group.stats_today?.usd ?? 0)} USD</span>
             </div>
           </div>
 
@@ -252,7 +252,7 @@ function GroupSidebar({ group, onClose }: { group: Group; onClose: () => void })
               aria-label="Unsaved changes"
               className="flex flex-wrap items-center gap-2 rounded-[8px] border border-accent-line bg-inset px-3 py-2.5"
             >
-              <span className="min-w-[200px] flex-1 text-[12.5px]">{summary}</span>
+              <span className="min-w-[200px] flex-1 text-[13px]">{summary}</span>
               <Button variant="ghost" className="border-border" onClick={() => setDraft(base)}>
                 Discard
               </Button>
@@ -292,7 +292,7 @@ function GroupSidebar({ group, onClose }: { group: Group; onClose: () => void })
           )}
         </fieldset>
       ) : (
-        <div className="border-b border-border p-3.5 text-[12.5px] text-muted">This group exists only in Keycloak; it has no settings in groups.yaml yet.</div>
+        <div className="border-b border-border p-3.5 text-[13px] text-muted">This group exists only in Keycloak; it has no settings in groups.yaml yet.</div>
       )}
 
       <Members group={group} />
@@ -326,15 +326,15 @@ function Members({ group }: { group: Group }) {
       </div>
       <ul aria-label="Members" className="m-0 flex list-none flex-col p-0">
         {shown.map((u) => (
-          <li key={u.username} className="flex items-center gap-2 py-1 text-[12.5px]">
+          <li key={u.username} className="flex items-center gap-2 py-1 text-[13px]">
             <Avatar name={u.display_name ?? u.username} size={24} />
             <span className="flex-1">{u.display_name ?? u.username}</span>
-            <span className="text-[11.5px] text-muted">{noteFor(u.username)}</span>
+            <span className="text-[12px] text-muted">{noteFor(u.username)}</span>
           </li>
         ))}
         {rest > 0 && (
-          <li className="flex items-center gap-2 py-1 text-[12.5px] text-muted">
-            <span className="inline-flex size-6 items-center justify-center rounded-full bg-accent-soft text-[10px] font-semibold text-accent">+</span>
+          <li className="flex items-center gap-2 py-1 text-[13px] text-muted">
+            <span className="inline-flex size-6 items-center justify-center rounded-full bg-accent-soft text-[10px] font-semibold text-text">+</span>
             {rest} more
           </li>
         )}

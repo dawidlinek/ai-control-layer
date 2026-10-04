@@ -263,7 +263,7 @@ export function GrantForm({
           {check.message}
         </StatusBox>
       )}
-      {isPerson && cloud && <p className="m-0 text-[11.5px] text-muted">Confidential and restricted data never go to cloud models (LOCK-01).</p>}
+      {isPerson && cloud && <p className="m-0 text-[12px] text-muted">Confidential and restricted data never go to cloud models (LOCK-01).</p>}
 
       {create.isError && (
         <StatusBox variant="error" title="Could not create the grant">

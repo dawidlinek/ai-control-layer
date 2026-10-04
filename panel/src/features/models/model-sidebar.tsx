@@ -77,7 +77,7 @@ export function ModelSidebar({
                 w.grant ? "border-accent-line" : "border-border",
               );
               return w.href ? (
-                <Link key={w.label} href={w.href} className={cn(cls, "hover:border-accent")}>
+                <Link key={w.label} href={w.href} className={cn(cls, "hover:border-accent-line")}>
                   {body}
                 </Link>
               ) : (
@@ -88,24 +88,24 @@ export function ModelSidebar({
             })}
           </div>
         ) : (
-          <span className="text-[12.5px] text-muted">Set by group rules and grants (see Users & groups).</span>
+          <span className="text-[13px] text-muted">Set by group rules and grants (see Users & groups).</span>
         )}
       </SidebarSection>
       <SidebarSection title="How auto picks it">
         {share ? (
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-[22px] font-semibold">{share}</span>
-            <span className="text-[12.5px] text-muted">of auto requests today</span>
+            <span className="text-[13px] text-muted">of auto requests today</span>
           </div>
         ) : (
-          <span className="text-[12.5px] text-muted">
+          <span className="text-[13px] text-muted">
             {m.requests_day ? `${m.requests_day} requests today.` : "No requests today."} No breakdown by reason from the gateway.
           </span>
         )}
         {reasons.length > 0 && (
           <ul aria-label="Reasons" className="m-0 flex list-none flex-col gap-1 p-0">
             {reasons.map((r) => (
-              <li key={r.label} className="grid grid-cols-[minmax(0,1fr)_56px] gap-2 text-[12.5px]">
+              <li key={r.label} className="grid grid-cols-[minmax(0,1fr)_56px] gap-2 text-[13px]">
                 <span>{r.label}</span>
                 <span className="text-right font-mono text-muted">{r.count}</span>
               </li>
@@ -114,7 +114,7 @@ export function ModelSidebar({
         )}
       </SidebarSection>
       <SidebarSection title="Model file" className="border-b-0">
-        <span className="text-[12.5px]">{modelFileLine(m, artifacts)}</span>
+        <span className="text-[13px]">{modelFileLine(m, artifacts)}</span>
       </SidebarSection>
       <SidebarActions>
         <Button asChild>

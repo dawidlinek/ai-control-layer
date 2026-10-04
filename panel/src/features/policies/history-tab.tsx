@@ -20,6 +20,7 @@ import {
   StatusBox,
   Truncate,
   useSelectedId,
+  linkClass,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -31,7 +32,7 @@ import { usePolicyStatus, usePolicyVersion, usePolicyVersions, useRollbackPolicy
 import { authorOf, errorMessage, labelOf, nextVersionLabel, parseDiff, versionLabel, whenOf } from "./helpers";
 
 const SOURCE_CLASS: Record<PolicyVersion["source"], string> = {
-  file: "border-accent-line text-accent",
+  file: "border-border-strong text-text",
   panel: "border-border text-muted",
   rollback: "border-border text-muted",
   startup: "border-border text-muted",
@@ -66,12 +67,12 @@ function changeSentence(v: PolicyVersion): string {
 
 function Diff({ diff }: { diff: string }) {
   const files = parseDiff(diff);
-  if (files.length === 0) return <p className="m-0 text-[12.5px] text-muted">No changes to show.</p>;
+  if (files.length === 0) return <p className="m-0 text-[13px] text-muted">No changes to show.</p>;
   return (
     <div className="flex flex-col gap-2">
       {files.map((f) => (
         <div key={f.name} className="overflow-hidden rounded-[6px] border border-border font-mono text-[12px] leading-[1.6]">
-          <div className="border-b border-border bg-raised px-2.5 py-1 font-sans text-[11.5px] text-muted">{f.name}</div>
+          <div className="border-b border-border bg-raised px-2.5 py-1 font-sans text-[12px] text-muted">{f.name}</div>
           <div className="overflow-x-auto" role="list" aria-label={`Changes in ${f.name}`}>
             {f.lines.map((l, i) => (
               <div
@@ -183,7 +184,7 @@ function VersionSidebar({ version, live, next }: { version: PolicyVersion; live:
         title={
           <>
             <span className="font-semibold">{label}</span>
-            <span className="ml-2 font-sans text-[12.5px] text-muted">
+            <span className="ml-2 font-sans text-[13px] text-muted">
               {whenOf(version)} · {authorOf(version)}
             </span>
           </>
@@ -209,7 +210,7 @@ function VersionSidebar({ version, live, next }: { version: PolicyVersion; live:
         ) : detail.isError ? (
           <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
         ) : version.source === "startup" && !detail.data.diff ? (
-          <p className="m-0 text-[12.5px] text-muted">The first version: every file as it was when the gateway started.</p>
+          <p className="m-0 text-[13px] text-muted">The first version: every file as it was when the gateway started.</p>
         ) : (
           <Diff diff={detail.data.diff} />
         )}
@@ -223,7 +224,7 @@ function VersionSidebar({ version, live, next }: { version: PolicyVersion; live:
       )}
       <SidebarActions className="items-center">
         {live ? (
-          <span className="text-[12.5px] text-muted">This is the live version.</span>
+          <span className="text-[13px] text-muted">This is the live version.</span>
         ) : (
           <RequireRole
             min="admin"
@@ -237,7 +238,7 @@ function VersionSidebar({ version, live, next }: { version: PolicyVersion; live:
             <RollbackDialog version={version} next={next} open={dialog} onOpenChange={setDialog} onDone={setDone} />
           </RequireRole>
         )}
-        <Link href={`/traffic?q=${encodeURIComponent(version.version)}`} className="text-[12.5px] text-accent">
+        <Link href={`/traffic?q=${encodeURIComponent(version.version)}`} className={cn(linkClass, "text-[13px]")}>
           First requests on {label} →
         </Link>
       </SidebarActions>
@@ -273,7 +274,7 @@ export function HistoryTab() {
         cell: ({ row }) => (
           <span className="flex flex-col whitespace-nowrap">
             <span>{whenOf(row.original)}</span>
-            <span className="text-[11.5px] text-muted">{authorOf(row.original)}</span>
+            <span className="text-[12px] text-muted">{authorOf(row.original)}</span>
           </span>
         ),
         meta: { className: "w-[150px]" },

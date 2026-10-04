@@ -39,7 +39,7 @@ const sigColumns: ColumnDef<SigRow>[] = [
     cell: ({ row: { original: s } }) => (
       <div className="flex min-w-0 flex-col">
         <Truncate>{s.what}</Truncate>
-        <Truncate className="text-[11.5px] text-muted">{s.source}</Truncate>
+        <Truncate className="text-[12px] text-muted">{s.source}</Truncate>
       </div>
     ),
   },

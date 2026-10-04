@@ -71,7 +71,7 @@ export function DecisionsChart({
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex justify-between font-mono text-[10.5px] text-muted" aria-hidden>
+      <div className="flex justify-between font-mono text-[11px] text-muted" aria-hidden>
         {ticks.map((t, i) => (
           <span key={i}>{t}</span>
         ))}

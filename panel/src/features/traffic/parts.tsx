@@ -40,7 +40,7 @@ export function SessionLabelLine({ label, className }: { label: SessionLabelInfo
   return (
     <div
       data-session-label={label.data_class}
-      className={cn("tint flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-[12.5px]", className)}
+      className={cn("tint flex items-center gap-2 rounded-[6px] px-2.5 py-1.5 text-[13px]", className)}
       style={labelStyle}
     >
       <PathIcon path={ICON_PATHS.lock} size={13} />

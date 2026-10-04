@@ -24,6 +24,7 @@ import {
   StatusBox,
   Truncate,
   useSelectedId,
+  linkClass,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { RequireRole, useHasRole } from "@/lib/auth/user-context";
@@ -200,8 +201,8 @@ export function GrantsScreen() {
                   resetPage();
                 }}
                 className={cn(
-                  "min-h-8 rounded-full border px-3 text-[12.5px]",
-                  on ? "border-accent bg-accent-soft text-text" : "border-border bg-surface text-muted hover:text-text",
+                  "min-h-8 rounded-full border px-3 text-[13px]",
+                  on ? "border-accent-line bg-accent-soft text-text" : "border-border bg-surface text-muted hover:text-text",
                 )}
               >
                 {VIEW_LABEL[v]} <span className="font-mono text-muted">{counts[v]}</span>
@@ -327,7 +328,7 @@ function groupAllowing(
   return list.includes(r.resource) ? (name ?? null) : null;
 }
 
-const OP_CLASS: Record<string, string> = { created: "text-accent", expired: "text-muted", revoked: "text-dec-block" };
+const OP_CLASS: Record<string, string> = { created: "text-text", expired: "text-muted", revoked: "text-dec-block" };
 
 function GrantSidebar({
   row,
@@ -402,8 +403,8 @@ function GrantSidebar({
         ) : (
           <ol className="m-0 flex list-none flex-col gap-1 p-0">
             {history.map((h, i) => (
-              <li key={i} className="grid grid-cols-[96px_70px_minmax(0,1fr)] gap-2 py-1 text-[12.5px]">
-                <span className="font-mono text-[11.5px] text-muted">{formatWhen(h.at, now)}</span>
+              <li key={i} className="grid grid-cols-[96px_70px_minmax(0,1fr)] gap-2 py-1 text-[13px]">
+                <span className="font-mono text-[12px] text-muted">{formatWhen(h.at, now)}</span>
                 <span className={OP_CLASS[h.op]}>{h.op}</span>
                 <span className="min-w-0">{h.text}</span>
               </li>
@@ -439,7 +440,7 @@ function GrantSidebar({
         {row.source === "elevation" ? (
           <>
             <span className="text-[12px] text-muted">Elevations end on their own.</span>
-            <Link href={`/approvals?sel=${encodeURIComponent(row.id)}`} className="text-[12.5px] text-accent">
+            <Link href={`/approvals?sel=${encodeURIComponent(row.id)}`} className={cn(linkClass, "text-[13px]")}>
               Open approval →
             </Link>
           </>
@@ -467,7 +468,7 @@ function GrantSidebar({
             </Button>
           </>
         )}
-        <Link href={personHref} className="ml-auto self-center text-[12.5px] text-accent">
+        <Link href={personHref} className={cn(linkClass, "ml-auto self-center text-[13px]")}>
           {row.subjectType === "group" ? "Open group →" : "Open person →"}
         </Link>
       </SidebarActions>

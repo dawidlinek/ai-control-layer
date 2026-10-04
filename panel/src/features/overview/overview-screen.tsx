@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Card, DecisionBadge, DecisionChips, ErrorState, LoadingRows, Meter, PageHeader, PathIcon, Segmented } from "@/components/rogatka";
+import { Card, DecisionBadge, DecisionChips, ErrorState, LoadingRows, Meter, PageHeader, PathIcon, Segmented, linkClass } from "@/components/rogatka";
 import { useIncidents } from "@/lib/api/hooks";
 import type { EventSummary, ModelCost, OverviewSummary } from "@/lib/api/types";
 import { DECISIONS, SEVERITIES, SEVERITY_ICON, SEVERITY_VAR, toSeverity, type Decision, type Severity } from "@/lib/decisions";
@@ -30,7 +30,7 @@ const MODEL_NOTE: Record<string, string> = {
 const STAT_BLOCK = "flex flex-col gap-1 self-start border-t-2 border-accent pt-2.5";
 const STAT_NUMBER = "font-mono text-[36px] font-bold leading-none tracking-[-0.03em]";
 const STAT_CAPTION = "text-[14px] text-muted";
-const linkCls = "text-[12.5px] text-accent no-underline hover:underline";
+const linkCls = `text-[13px] ${linkClass}`;
 
 /** `318k`, `1.4M`, `412`. */
 export function formatTokens(n: number): string {
@@ -156,7 +156,7 @@ function NotableRow({ event, who }: { event: EventSummary; who: string }) {
       href={`/traffic?sel=${encodeURIComponent(event.trace_id ?? event.event_id)}`}
       className="-mx-1.5 grid grid-cols-[58px_minmax(0,1fr)] gap-x-2.5 gap-y-1 rounded-[6px] px-1.5 py-1.5 text-text no-underline hover:bg-raised"
     >
-      <span className="pt-px font-mono text-[11.5px] text-muted">{formatTime(event.timestamp)}</span>
+      <span className="pt-px font-mono text-[12px] text-muted">{formatTime(event.timestamp)}</span>
       <span className="flex min-w-0 flex-col gap-1">
         <span className="line-clamp-2">
           <b className="font-semibold">{who}</b> <span className="text-muted">— {event.summary || `${event.point ?? "request"}: ${event.action}`}</span>
@@ -287,9 +287,9 @@ function CostCard({ summary, ...state }: CardProps & { summary?: OverviewSummary
                   <div className="text-[12px] text-muted">{gpuPct !== null ? `${gpuPct}% used` : "no daily limit"}</div>
                 </div>
               </div>
-              <table aria-label="Usage by model today" className="w-full border-collapse border-t border-border text-[12px]">
+              <table aria-label="Usage by model today" className="w-full border-collapse border-t border-border text-[13px]">
                 <thead>
-                  <tr className="text-[10.5px] font-semibold uppercase tracking-[.05em] text-muted">
+                  <tr className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted">
                     <th scope="col" className="border-b border-border py-1 text-left font-semibold">Model · today</th>
                     <th scope="col" className="w-32 border-b border-border py-1 text-right font-semibold">Tokens in / out</th>
                     <th scope="col" className="w-24 border-b border-border py-1 text-right font-semibold">Usage</th>
@@ -305,7 +305,7 @@ function CostCard({ summary, ...state }: CardProps & { summary?: OverviewSummary
                           </span>
                           <span className="h-[3px] rounded-[2px] bg-inset" aria-hidden>
                             <span
-                              className={cn("block h-[3px] rounded-[2px]", m.tier === "cloud" ? "bg-accent" : "bg-border-strong")}
+                              className={cn("block h-[3px] rounded-[2px]", m.tier === "cloud" ? "bg-dec-monitor" : "bg-dec-route-local")}
                               style={{ width: `${Math.max(2, (m.share / maxShare) * 100)}%` }}
                             />
                           </span>

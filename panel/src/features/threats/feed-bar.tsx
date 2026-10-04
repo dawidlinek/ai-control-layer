@@ -38,7 +38,7 @@ export function FeedBar() {
 
   return (
     <div className="flex flex-col gap-2">
-      <section aria-label="Signature feed" className="flex flex-wrap items-center gap-x-[22px] gap-y-2.5 rounded-[8px] border border-border bg-surface px-4 py-3 text-[12.5px]">
+      <section aria-label="Signature feed" className="flex flex-wrap items-center gap-x-[22px] gap-y-2.5 rounded-[8px] border border-border bg-surface px-4 py-3 text-[13px]">
         <dl className="m-0 flex flex-wrap items-center gap-x-[22px] gap-y-2.5">
           <Item label="Signature feed">
             <span className="font-mono">

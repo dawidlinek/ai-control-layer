@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DecisionBadge, FactsGrid, ICON_PATHS, PathIcon, PlainSentence, SidebarBlock, SidebarHeader, SidebarSection } from "@/components/rogatka";
+import { DecisionBadge, FactsGrid, ICON_PATHS, PathIcon, PlainSentence, SidebarBlock, SidebarHeader, SidebarSection, linkClass } from "@/components/rogatka";
 import type { PolicyFileContent } from "@/lib/api/types";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ export function RuleSidebar({
         title={
           <>
             <span className="font-semibold">{rule.id}</span>
-            <span className="ml-2 font-sans text-[12.5px] text-muted">{rule.typeLabel}</span>
+            <span className="ml-2 font-sans text-[13px] text-muted">{rule.typeLabel}</span>
           </>
         }
         copyText={rule.id}
@@ -91,15 +91,15 @@ export function RuleSidebar({
             ))}
           </pre>
         ) : (
-          <p className="m-0 text-[12.5px] text-muted">Not found in {rule.file}.</p>
+          <p className="m-0 text-[13px] text-muted">Not found in {rule.file}.</p>
         )}
-        <div className="flex flex-wrap gap-3.5 text-[12.5px]">
+        <div className="flex flex-wrap gap-3.5 text-[13px]">
           {onOpenYaml && (
-            <button type="button" onClick={onOpenYaml} className="border-0 bg-transparent p-0 text-accent underline">
+            <button type="button" onClick={onOpenYaml} className={cn(linkClass, "border-0 bg-transparent p-0")}>
               Open in YAML
             </button>
           )}
-          <Link href={`/traffic?rule=${encodeURIComponent(rule.id)}`} className="text-accent">
+          <Link href={`/traffic?rule=${encodeURIComponent(rule.id)}`} className={linkClass}>
             See its hits in Traffic
           </Link>
         </div>

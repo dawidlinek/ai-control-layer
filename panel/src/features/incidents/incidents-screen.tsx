@@ -48,7 +48,7 @@ function useColumns(me: string): ColumnDef<Incident>[] {
         cell: ({ row: { original: i } }) => (
           <div className="flex min-w-0 flex-col gap-px">
             <Truncate className="font-medium">{i.title}</Truncate>
-            <Truncate className="text-[11.5px] text-muted">
+            <Truncate className="text-[12px] text-muted">
               <span className="font-mono">{i.id}</span> · {typeLabel(i)}
               {i.subject ? ` · ${i.subject}` : ""}
             </Truncate>
