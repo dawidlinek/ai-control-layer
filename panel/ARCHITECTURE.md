@@ -37,7 +37,7 @@ panel/
       sign-in, signed-out                standalone pages
     features/<screen>/                   YOUR code: components, hooks (api.ts), helpers, *.test.tsx next to the code
     components/
-      ui/                                shadcn-style primitives (button, input, dialog, dropdown-menu, popover, switch, tooltip, checkbox, separator)
+      ui/                                shadcn-style primitives (button, input, dialog, dropdown-menu, popover, select, switch, tooltip, checkbox, separator)
       rogatka/                           shared product primitives (list below); import from "@/components/rogatka"
       shell/                             top bar, sidebar nav, profile menu, shortcuts (owned by the foundation)
     lib/
@@ -127,7 +127,7 @@ const [sel, setSel] = useSelectedId();            // ?sel=<id>, from @/component
 
 Names to keep consistent across screens: `sel`, `tab`, `q`, `page`, `size`, `range` (`15m|1h|24h|7d`), `decision`, `point`, `group`, `rule`, `severity`.
 Cross-screen links carry filters, e.g. RuleChip links to `/policies?rule=SEC-PII-01`, "All activity in Traffic" to `/traffic?q=...`.
-Reset `page` to 1 when a filter changes. In tests use `renderApp(ui, { searchParams: "?sel=tr_8f3a2c" })`.
+Reset `page` to 1 when a filter changes. In tests use `renderApp(ui, { searchParams: "?sel=tr_8f3a2c" })`; add `urlMemory: true` when the test clicks filters / tabs / rows and the screen must read its own URL updates back (the in-memory URL then remembers them; `onUrlUpdate` still reports each change).
 
 ## The list + sidebar pattern
 
@@ -259,6 +259,8 @@ Rules for fixtures:
 | `RuleChip` | `ruleId*`, `locked?`, `href?: string \| false` | Mono chip, links to `/policies?rule=<ID>`; lock icon for org locks |
 | `PlaceholderChip` | `children*` | `<PESEL_1>` style placeholder (pseudonymise tint) |
 | `MaskedValue` | `value*` (already masked), `label?` | `PESEL ***-**-**123` |
+| `EffectChip` | `effect*: "allow"\|"deny"\|"budget"` | Grant effect: allow / deny in the decision tints, budget neutral |
+| `ToolStatusChip` | `status*: ToolStatus` (`approved`, `quarantined`, `not approved`, `built-in`, `denied`) | Tool status pill: tinted for the first three, outlined for built-in / denied |
 | `ToggleChip` | `label*`, `on*`, `onChange?`, `disabled?` | `✓ allowed` / `+ not` (role switch) |
 | `StatusBox` | `variant?: "success"\|"info"\|"warning"\|"error"`, `title?`, `children?` | Inline result of an action; error is an alert |
 | `FactsGrid` | `facts*: {label, value, mono?}[]` | 2-column key facts; values ellipsise |
@@ -272,12 +274,14 @@ Rules for fixtures:
 | `useSelectedId()` | returns `[sel, setSel]` | `?sel=` via nuqs |
 | `FilterRow`, `FilterSpacer` | children | Row under the title; spacer pushes the rest right |
 | `SegmentedTabs` | `tabs*: {value,label,count?}[]`, `value*`, `onChange*`, `ariaLabel?` | Tabs with counts (role tab) |
-| `Segmented` | `options*`, `value*`, `onChange*`, `ariaLabel*`, `size?` | Option switch (Dark/Light, 15m/1h/24h/7d, strictness); `aria-pressed` buttons |
+| `Segmented` | `options*: {value,label,disabled?}[]`, `value*`, `onChange*`, `ariaLabel*`, `size?`, `disabled?` | Option switch (Dark/Light, 15m/1h/24h/7d, strictness); `aria-pressed` buttons. `disabled` (whole control) or `option.disabled` (one button) sets `disabled` + `aria-disabled` and never calls `onChange` |
 | `FilterMenuButton` | `label*`, `options*: {value,label}[]`, `selected*: string[]`, `onChange*`, `multiple?` (default true), `icon?` | Button with a caret opening a checkable menu; highlighted when active |
 | `SearchInput` | `value*`, `onChange*`, `placeholder?`, `ariaLabel?` | Inset field with magnifier (`/` focuses it) |
 | `LabeledSwitch` | `label*`, `checked*`, `onCheckedChange*` | "Hide allowed", "Assigned to me" |
 | `DataTable<T>` | `data*`, `columns*`, `getRowId*`, `ariaLabel*`, `selectedId?`, `onRowClick?`, `loading?`, `error?`, `onRetry?`, `emptyTitle?`, `emptyMessage?`, `keyboardNav?`, `minWidth?` | TanStack table in the Rogatka look; `Truncate` helper |
 | `Pagination` | `page*`, `onPageChange*`, `pageSize*`, `pageCount?` or `hasNext?`, `onPageSizeChange?`, `pageSizes?` | "Rows per page 25 v", `< 1 2 3 ... N >`. The contract has no totals: use `hasNext` for cursor lists |
+| `DiffBox` | `title?`, `lines*: {sign: "+"\|"-"\|"~"\|" ", text}[]`, `addedTone?: "good"\|"bad"`, `removedTone?: "bad"\|"good"`, `ariaLabel?` | Bordered mono diff (git diff, plan, tool description). `addedTone="bad"` paints added lines red (rug pull); rows carry `data-sign` |
+| `useNow(intervalMs = 1000, active = true)`, `secondsUntil(iso, now)` | returns ms since epoch | Re-rendering clock for countdowns and relative labels; `active = false` stops the timer |
 | `StepTimeline` | `steps*: {id,name,result,meta?,changed?,detail?}[]`, `defaultOpenId?` / `openId?`+`onOpenChange?` | Trace "How the decision was made" |
 | `Meter` | `value*`, `max*`, `label*`, `forecast?`, `danger?` | Usage bar: accent, orange >= 80 %, red at the limit or `danger`; `meterState()` |
 | `Avatar` | `name*`, `size?` | Initials; `initialsOf()` |
@@ -286,8 +290,8 @@ Rules for fixtures:
 | `PathIcon`, `ICON_PATHS`, `RogatkaMark` | `path*`, `size?`, `strokeWidth?` | Stroke icons from the prototype paths; use lucide-react for everything else |
 
 `@/components/ui`: `Button` (`variant`: `primary` accent, `danger` solid red, `secondary` default, `ghost`; `size`: `md` 32 px, `lg` 36 px, `sm`, `icon`; `asChild`),
-`Input`, `Textarea`, `Label`, `Dialog*`, `DropdownMenu*`, `Popover*`, `Switch`, `Tooltip*`, `Checkbox`, `Separator`.
-Need another shadcn component (select, tabs, sheet...)? `pnpm -C panel dlx shadcn@latest add <name>`, then replace its colour classes with ours:
+`Input`, `Textarea`, `Label`, `Dialog*`, `DropdownMenu*`, `Popover*`, `Select` (`SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `SelectGroup`, `SelectLabel`, `SelectSeparator`; Radix Select, trigger styled like the inset form fields; use `onValueChange`, and `Controller` inside react-hook-form), `Switch`, `Tooltip*`, `Checkbox`, `Separator`.
+Need another shadcn component (tabs, sheet...)? `pnpm -C panel dlx shadcn@latest add <name>`, then replace its colour classes with ours:
 
 | shadcn class | Ours |
 |---|---|

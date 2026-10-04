@@ -11,6 +11,7 @@ import {
   ListWithSidebar,
   PageHeader,
   SegmentedTabs,
+  ToolStatusChip,
   Truncate,
   useSelectedId,
 } from "@/components/rogatka";
@@ -18,9 +19,19 @@ import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/format";
 import { useEvents24h } from "@/features/threats/api";
 import { useMcpServers, useMcpTools } from "./api";
-import { BUILTINS, toRow, type ToolRow } from "./catalogue";
-import { RuleText, StatusChip } from "./status-chip";
+import { BUILTINS, toRow, type ToolRow, type ToolRule } from "./catalogue";
 import { ToolSidebar } from "./tool-sidebar";
+
+const RULE_CLASS: Record<ToolRule, string> = {
+  allowed: "text-muted",
+  "needs approval": "text-dec-require-approval",
+  denied: "text-dec-block",
+  "—": "text-muted",
+};
+
+function RuleText({ rule }: { rule: ToolRule }) {
+  return <span className={RULE_CLASS[rule]}>{rule}</span>;
+}
 
 const TABS = ["all", "quarantined", "approval"] as const;
 type Tab = (typeof TABS)[number];
@@ -45,7 +56,7 @@ const columns: ColumnDef<Row>[] = [
       </div>
     ),
   },
-  { id: "status", header: "Status", meta: { className: "w-[120px]" }, cell: ({ row: { original: r } }) => <StatusChip status={r.status} /> },
+  { id: "status", header: "Status", meta: { className: "w-[120px]" }, cell: ({ row: { original: r } }) => <ToolStatusChip status={r.status} /> },
   { id: "rule", header: "Rule", meta: { className: "w-[130px]" }, cell: ({ row: { original: r } }) => <RuleText rule={r.rule} /> },
   {
     id: "who",

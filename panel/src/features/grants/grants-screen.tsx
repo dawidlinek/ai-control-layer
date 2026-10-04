@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { debounce, parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import {
   DataTable,
+  EffectChip,
   FactsGrid,
   FilterRow,
   FilterSpacer,
@@ -40,7 +41,6 @@ import {
   isCloudResource,
   isModelFamily,
   type DataClass,
-  type GrantEffectKind,
   type GrantRowView,
 } from "./model";
 
@@ -68,23 +68,6 @@ const VIEW_TEST: Record<View, (r: GrantRowView, now: number) => boolean> = {
 
 const NO_ADMIN = "Only admins can change grants";
 const NO_API = "Not available in the admin API yet";
-
-/** allow / deny / budget chip (allow and deny in the decision tints; budget neutral). */
-export function EffectChip({ effect }: { effect: GrantEffectKind }) {
-  const tint = effect === "allow" ? "var(--dec-allow)" : effect === "deny" ? "var(--dec-block)" : null;
-  return (
-    <span
-      data-effect={effect}
-      className={cn(
-        "inline-flex shrink-0 rounded-[4px] px-1.5 font-mono text-[11px] leading-[1.6]",
-        tint ? "tint" : "border border-border text-muted",
-      )}
-      style={tint ? ({ "--c": tint } as React.CSSProperties) : undefined}
-    >
-      {effect}
-    </span>
-  );
-}
 
 function ExpiresCell({ row, now }: { row: GrantRowView; now: number }) {
   const soon = expiresSoon(row.expiresAt, row.active, now);

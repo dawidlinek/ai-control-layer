@@ -5,11 +5,14 @@ import { DECISIONS, DECISION_ICON, SEVERITIES } from "@/lib/decisions";
 import {
   DecisionBadge,
   DecisionChips,
+  EffectChip,
   MaskedValue,
   PlaceholderChip,
   RuleChip,
   SeverityChip,
   ToggleChip,
+  ToolStatusChip,
+  type ToolStatus,
 } from "./chips";
 
 describe("DecisionBadge", () => {
@@ -106,5 +109,35 @@ describe("ToggleChip", () => {
     expect(onChange).toHaveBeenCalledWith(true);
     rerender(<ToggleChip label="smart" on onChange={onChange} />);
     expect(screen.getByRole("switch", { name: /smart/ })).toHaveTextContent("✓");
+  });
+});
+
+describe("EffectChip", () => {
+  it("tints allow and deny, leaves budget neutral", () => {
+    const { container } = render(
+      <>
+        <EffectChip effect="allow" />
+        <EffectChip effect="deny" />
+        <EffectChip effect="budget" />
+      </>,
+    );
+    expect(container.querySelector('[data-effect="allow"]')).toHaveClass("tint");
+    expect((container.querySelector('[data-effect="deny"]') as HTMLElement).style.getPropertyValue("--c")).toBe("var(--dec-block)");
+    expect(container.querySelector('[data-effect="budget"]')).not.toHaveClass("tint");
+    expect(container.querySelector('[data-effect="budget"]')).toHaveTextContent("budget");
+  });
+});
+
+describe("ToolStatusChip", () => {
+  it.each(["approved", "quarantined", "not approved"] as ToolStatus[])("tints %s", (status) => {
+    const { container } = render(<ToolStatusChip status={status} />);
+    expect(container.querySelector(`[data-status="${status}"]`)).toHaveClass("tint");
+  });
+
+  it.each(["built-in", "denied"] as ToolStatus[])("outlines %s", (status) => {
+    const { container } = render(<ToolStatusChip status={status} />);
+    const chip = container.querySelector(`[data-status="${status}"]`);
+    expect(chip).not.toHaveClass("tint");
+    expect(chip).toHaveTextContent(status);
   });
 });

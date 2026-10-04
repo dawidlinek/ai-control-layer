@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   DecisionBadge,
+  DiffBox,
   FactsGrid,
   PlainSentence,
   RuleChip,
@@ -14,6 +15,7 @@ import {
   SidebarHeader,
   SidebarSection,
   StatusBox,
+  useNow,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { useHasRole } from "@/lib/auth/user-context";
@@ -21,10 +23,8 @@ import { DECISION_VAR } from "@/lib/decisions";
 import { formatClock, formatCountdown, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDecideApproval } from "./api";
-import { DiffBox } from "./diff-box";
 import type { ApprovalRow } from "./model";
 import { approvalSentence, promptOf, riskLabel, ruleSentence, sourceDecision, targetOf, clientApp } from "./readers";
-import { useNow } from "./use-now";
 
 const ELEVATIONS = [5, 15, 60] as const;
 type Elevation = (typeof ELEVATIONS)[number];

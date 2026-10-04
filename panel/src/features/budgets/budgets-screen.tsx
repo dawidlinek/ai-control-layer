@@ -16,6 +16,7 @@ import {
   SidebarSection,
   StatusBox,
   Truncate,
+  useNow,
   useSelectedId,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
@@ -50,17 +51,6 @@ import {
 export const DEFAULT_SELECTION = "session:s_77c1";
 const PERIODS = ["today", "month"] as const;
 const NO_ENDPOINT = "The admin API has no limit endpoint yet: this opens where the limit is set.";
-
-/** Re-render every second while mounted (breaker countdowns). */
-function useNow(active: boolean): number {
-  const [now, setNow] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    if (!active) return;
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
-  }, [active]);
-  return now;
-}
 
 function countdownOf(node: BudgetNode, now: number): string | null {
   const until = node.breaker?.cooldown_until;
@@ -120,7 +110,7 @@ export function BudgetsScreen() {
   const displayName = useDisplayNames();
   const rows = React.useMemo(() => flattenTree(tree.data?.nodes ?? []), [tree.data]);
   const hasOpen = rows.some((r) => r.node.breaker?.state === "open");
-  const now = useNow(hasOpen);
+  const now = useNow(1000, hasOpen);
 
   const selectedId = sel ?? (closed ? null : DEFAULT_SELECTION);
   const selected = rows.find((r) => r.node.id === selectedId)?.node;

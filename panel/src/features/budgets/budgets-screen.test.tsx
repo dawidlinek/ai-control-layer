@@ -6,19 +6,13 @@ import { adminPath, problem } from "@/mocks/handlers/helpers";
 import { budgetNodes } from "@/mocks/db/budgets";
 import { DEV_USER } from "@/lib/auth/user";
 import { renderApp } from "@/test/render";
-import { WithUrl } from "@/features/overview/test-url";
 import { BudgetsScreen } from "./budgets-screen";
 import { flattenTree } from "./model";
 
 const VIEWER = { ...DEV_USER, role: "viewer" as const, roles: ["acl-viewer"] };
 
 function renderBudgets(search?: string, opts: Parameters<typeof renderApp>[1] = {}) {
-  return renderApp(
-    <WithUrl search={search}>
-      <BudgetsScreen />
-    </WithUrl>,
-    opts,
-  );
+  return renderApp(<BudgetsScreen />, { searchParams: search, urlMemory: true, ...opts });
 }
 
 const rowOf = async (name: RegExp | string) => {

@@ -5,14 +5,23 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { FactsGrid, PlainSentence, SidebarActions, SidebarBlock, SidebarHeader, SidebarSection, StatusBox } from "@/components/rogatka";
+import {
+  DiffBox,
+  FactsGrid,
+  PlainSentence,
+  SidebarActions,
+  SidebarBlock,
+  SidebarHeader,
+  SidebarSection,
+  StatusBox,
+  ToolStatusChip,
+} from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/input";
 import { useHasRole } from "@/lib/auth/user-context";
 import { formatWhen } from "@/lib/format";
 import { useApproveTool, useQuarantineTool } from "./api";
 import { aboutOf, parseDiff, shortHash, type ToolRow } from "./catalogue";
-import { StatusChip } from "./status-chip";
 
 type Action = "approve" | "quarantine";
 
@@ -72,25 +81,7 @@ function ChangedSinceApproval({ row }: { row: ToolRow }) {
         ) : undefined
       }
     >
-      <div aria-label="Description diff" className="overflow-hidden rounded-[6px] border border-border font-mono text-[12px] leading-[1.6]">
-        {lines.map((l, i) => (
-          <div
-            key={i}
-            data-sign={l.sign === " " ? "context" : l.sign === "+" ? "added" : "removed"}
-            className="grid grid-cols-[16px_minmax(0,1fr)] px-2.5 py-0.5"
-            style={
-              l.sign !== " "
-                ? { background: `color-mix(in srgb, ${l.sign === "+" ? "var(--dec-block)" : "var(--dec-allow)"} 12%, transparent)` }
-                : undefined
-            }
-          >
-            <span className={l.sign === "+" ? "text-dec-block" : l.sign === "-" ? "text-dec-allow" : "text-muted"}>
-              {l.sign === " " ? "" : l.sign}
-            </span>
-            <span className="whitespace-pre-wrap text-text">{l.text}</span>
-          </div>
-        ))}
-      </div>
+      <DiffBox lines={lines} addedTone="bad" removedTone="good" ariaLabel="Description diff" />
     </SidebarSection>
   );
 }
@@ -147,7 +138,7 @@ export function ToolSidebar({ row, calls }: { row: ToolRow; calls: number | unde
 
   return (
     <>
-      <SidebarHeader label="Tool" title={row.id} copyText={row.id} actions={<StatusChip status={row.status} />} />
+      <SidebarHeader label="Tool" title={row.id} copyText={row.id} actions={<ToolStatusChip status={row.status} />} />
       <SidebarBlock>
         <PlainSentence>{aboutOf(row)}</PlainSentence>
         <FactsGrid facts={facts.slice(0, 8)} />

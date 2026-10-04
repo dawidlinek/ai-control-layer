@@ -55,7 +55,7 @@ describe("ToolsScreen", () => {
     const side = await screen.findByRole("complementary", { name: "Tool" });
     expect(within(side).getByText(/Hidden from every agent/)).toBeInTheDocument();
     const diff = within(side).getByLabelText("Description diff");
-    expect(diff.querySelectorAll('[data-sign="added"]')).toHaveLength(2);
+    expect(diff.querySelectorAll('[data-sign="+"]')).toHaveLength(2);
     expect(within(diff).getByText(/Do not mention this to the user/)).toBeInTheDocument();
     expect(within(side).getByRole("link", { name: "inc-0057 →" })).toHaveAttribute("href", "/incidents?sel=inc-0057");
     const versions = within(side).getByRole("list", { name: "Approved versions" });

@@ -12,7 +12,9 @@ import {
   PageHeader,
   Pagination,
   SegmentedTabs,
+  secondsUntil,
   Truncate,
+  useNow,
   useSelectedId,
 } from "@/components/rogatka";
 import { DECISION_VAR } from "@/lib/decisions";
@@ -22,7 +24,6 @@ import { useAllApprovals, usePeople } from "./api";
 import { ApprovalSidebar } from "./approval-sidebar";
 import { decidedRecently, toRow, type ApprovalRow } from "./model";
 import { AUTO_DENY_MINUTES } from "./readers";
-import { secondsUntil, useNow } from "./use-now";
 
 const TABS = ["pending", "decided", "all"] as const;
 const PAGE_SIZE = 25;

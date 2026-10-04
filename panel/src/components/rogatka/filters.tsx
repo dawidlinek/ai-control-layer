@@ -76,15 +76,21 @@ export function SegmentedTabs<V extends string = string>({
 export interface SegmentedOption<V extends string = string> {
   value: V;
   label: React.ReactNode;
+  /** Disable just this option. */
+  disabled?: boolean;
 }
 
-/** Small option switch (theme Dark | Light, range 15m | 1h | 24h | 7d, strictness). Buttons with `aria-pressed`. */
+/**
+ * Small option switch (theme Dark | Light, range 15m | 1h | 24h | 7d, strictness). Buttons with `aria-pressed`.
+ * `disabled` disables the whole control, `option.disabled` a single button; disabled buttons never call `onChange`.
+ */
 export function Segmented<V extends string = string>({
   options,
   value,
   onChange,
   ariaLabel,
   size = "md",
+  disabled = false,
   className,
 }: {
   options: readonly SegmentedOption<V>[];
@@ -92,22 +98,29 @@ export function Segmented<V extends string = string>({
   onChange: (value: V) => void;
   ariaLabel: string;
   size?: "sm" | "md";
+  disabled?: boolean;
   className?: string;
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className={cn(segBase, className)}>
+    <div role="group" aria-label={ariaLabel} aria-disabled={disabled || undefined} className={cn(segBase, className)}>
       {options.map((o) => {
         const on = o.value === value;
+        const off = disabled || !!o.disabled;
         return (
           <button
             key={o.value}
             type="button"
             aria-pressed={on}
-            onClick={() => onChange(o.value)}
+            disabled={off}
+            aria-disabled={off || undefined}
+            onClick={() => {
+              if (!off) onChange(o.value);
+            }}
             className={cn(
               "border-0 border-r border-border text-[12px] last:border-r-0",
               size === "sm" ? "px-2.5 py-1" : "min-h-8 px-3",
               on ? "bg-accent-soft text-text" : "bg-transparent text-muted hover:text-text",
+              off && "cursor-not-allowed opacity-50 hover:text-muted",
             )}
           >
             {o.label}

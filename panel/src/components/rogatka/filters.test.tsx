@@ -56,6 +56,53 @@ describe("Segmented", () => {
     await userEvent.click(within(group).getByRole("button", { name: "Light" }));
     expect(onChange).toHaveBeenCalledWith("light");
   });
+
+  it("disables a single option: disabled + aria-disabled, no onChange", async () => {
+    const onChange = vi.fn();
+    render(
+      <Segmented
+        ariaLabel="Mode"
+        value="a"
+        onChange={onChange}
+        options={[
+          { value: "a", label: "A" },
+          { value: "b", label: "B", disabled: true },
+          { value: "c", label: "C" },
+        ]}
+      />,
+    );
+    const b = screen.getByRole("button", { name: "B" });
+    expect(b).toBeDisabled();
+    expect(b).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "C" })).not.toBeDisabled();
+    await userEvent.click(b);
+    expect(onChange).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "C" }));
+    expect(onChange).toHaveBeenCalledWith("c");
+  });
+
+  it("disables the whole control", async () => {
+    const onChange = vi.fn();
+    render(
+      <Segmented
+        ariaLabel="Mode"
+        value="a"
+        disabled
+        onChange={onChange}
+        options={[
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("group", { name: "Mode" })).toHaveAttribute("aria-disabled", "true");
+    for (const name of ["A", "B"]) {
+      expect(screen.getByRole("button", { name })).toBeDisabled();
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-disabled", "true");
+    }
+    await userEvent.click(screen.getByRole("button", { name: "B" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("FilterMenuButton", () => {

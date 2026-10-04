@@ -2,13 +2,17 @@
 
 import * as React from "react";
 
-/** Current time, re-rendered every `intervalMs` (live countdowns). */
-export function useNow(intervalMs = 1000): number {
+/**
+ * Current time in ms, re-rendered every `intervalMs` (live countdowns, relative labels).
+ * Pass `active = false` to stop ticking (the value then stays at the last tick).
+ */
+export function useNow(intervalMs = 1000, active = true): number {
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
+    if (!active) return;
     const id = window.setInterval(() => setNow(Date.now()), intervalMs);
     return () => window.clearInterval(id);
-  }, [intervalMs]);
+  }, [intervalMs, active]);
   return now;
 }
 

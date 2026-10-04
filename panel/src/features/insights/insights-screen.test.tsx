@@ -7,19 +7,13 @@ import { insightClusters } from "@/mocks/db/insights";
 import { policyStatus } from "@/mocks/db/policy";
 import { DEV_USER } from "@/lib/auth/user";
 import { renderApp } from "@/test/render";
-import { WithUrl } from "@/features/overview/test-url";
 import { InsightsScreen } from "./insights-screen";
 import { fillTemplate, howOften, placeholdersOf, timeItTakes } from "./model";
 
 const VIEWER = { ...DEV_USER, role: "viewer" as const, roles: ["acl-viewer"] };
 
 function renderInsights(search?: string, opts: Parameters<typeof renderApp>[1] = {}) {
-  return renderApp(
-    <WithUrl search={search}>
-      <InsightsScreen />
-    </WithUrl>,
-    opts,
-  );
+  return renderApp(<InsightsScreen />, { searchParams: search, urlMemory: true, ...opts });
 }
 
 const sidebar = () => screen.findByRole("complementary", { name: "Repeated task" });

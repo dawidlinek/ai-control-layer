@@ -1,12 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Meter, RuleChip, SidebarSection } from "@/components/rogatka";
+import { DiffBox, Meter, RuleChip, SidebarSection, useNow } from "@/components/rogatka";
 import { DECISION_VAR } from "@/lib/decisions";
 import { formatClock, formatCountdown, formatDay } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { DiffBox } from "@/features/approvals/diff-box";
-import { useNow } from "@/features/approvals/use-now";
 import { shortHash, type BreakerEvidence, type BreakerStateName, type RugPullEvidence } from "./readers";
 
 const tint = (v: string) => ({ "--c": v }) as React.CSSProperties;

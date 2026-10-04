@@ -5,7 +5,6 @@ import { server } from "@/mocks/server";
 import { adminPath, problem } from "@/mocks/handlers/helpers";
 import { renderApp } from "@/test/render";
 import { formatTokens, OverviewScreen } from "./overview-screen";
-import { WithUrl } from "./test-url";
 
 const card = (name: string) => screen.getByRole("region", { name });
 
@@ -27,11 +26,7 @@ describe("OverviewScreen", () => {
 
   it("switches the range and keeps it in the URL", async () => {
     const onUrlUpdate = vi.fn();
-    const { user } = renderApp(
-      <WithUrl onUrlUpdate={onUrlUpdate}>
-        <OverviewScreen />
-      </WithUrl>,
-    );
+    const { user } = renderApp(<OverviewScreen />, { urlMemory: true, onUrlUpdate });
     const now = card("What is happening?");
     await within(now).findByText("1 284");
     const range = screen.getByRole("group", { name: "Time range" });

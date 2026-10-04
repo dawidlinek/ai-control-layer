@@ -16,6 +16,11 @@ export interface RenderOptions {
   /** Initial query string, e.g. `?sel=tr_8f3a2c`. */
   searchParams?: string;
   pathname?: string;
+  /**
+   * Make the in-memory URL remember updates, so filters, tabs, `?sel=` and `?page=` written by the screen are read back
+   * and re-render it. Off by default (updates are only reported to `onUrlUpdate`).
+   */
+  urlMemory?: boolean;
   onUrlUpdate?: OnUrlUpdateFunction;
 }
 
@@ -30,7 +35,7 @@ export function renderApp(ui: React.ReactElement, opts: RenderOptions = {}) {
     return (
       <ThemeProvider initial={opts.theme ?? "dark"}>
         <QueryClientProvider client={client}>
-          <NuqsTestingAdapter searchParams={opts.searchParams} onUrlUpdate={opts.onUrlUpdate}>
+          <NuqsTestingAdapter hasMemory={opts.urlMemory} searchParams={opts.searchParams} onUrlUpdate={opts.onUrlUpdate}>
             <UserProvider user={opts.user ?? DEV_USER} devMode={opts.devMode}>
               <TooltipProvider>{children}</TooltipProvider>
             </UserProvider>

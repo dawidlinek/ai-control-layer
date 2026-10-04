@@ -7,9 +7,10 @@
  * - OpenCode built-ins are not MCP tools and no admin endpoint lists them. They are checked per call through
  *   `/v1/decide` (policy `tools.yaml`, ids `opencode.<tool>`); `BUILTINS` mirrors that managed config, read-only.
  */
+import type { ToolStatus } from "@/components/rogatka";
 import type { McpServerInfo, McpToolInfo } from "@/lib/api/types";
 
-export type ToolStatus = "approved" | "quarantined" | "built-in" | "denied" | "not approved";
+export type { ToolStatus };
 export type ToolRule = "allowed" | "needs approval" | "denied" | "—";
 
 export interface ToolDetails {

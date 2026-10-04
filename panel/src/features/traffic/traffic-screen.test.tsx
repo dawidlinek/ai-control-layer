@@ -6,18 +6,18 @@ import { adminPath } from "@/mocks/handlers/helpers";
 import { DEV_USER } from "@/lib/auth/user";
 import { renderApp } from "@/test/render";
 import { TrafficScreen } from "./traffic-screen";
-import { WithUrl } from "./test-url";
 
 type UrlEvent = { queryString: string; searchParams: URLSearchParams };
 
 function setup(search = "", opts: Parameters<typeof renderApp>[1] = {}) {
   const onUrlUpdate = vi.fn<(e: UrlEvent) => void>();
-  const r = renderApp(
-    <WithUrl search={search} onUrlUpdate={onUrlUpdate}>
-      <TrafficScreen />
-    </WithUrl>,
-    { pathname: "/traffic", ...opts },
-  );
+  const r = renderApp(<TrafficScreen />, {
+    pathname: "/traffic",
+    searchParams: search,
+    urlMemory: true,
+    onUrlUpdate,
+    ...opts,
+  });
   const lastUrl = () => onUrlUpdate.mock.calls.at(-1)?.[0].searchParams ?? new URLSearchParams(search);
   return { ...r, onUrlUpdate, lastUrl };
 }

@@ -5,15 +5,9 @@ import { server } from "@/mocks/server";
 import { adminPath } from "@/mocks/handlers/helpers";
 import { renderApp } from "@/test/render";
 import { TrafficScreen } from "./traffic-screen";
-import { WithUrl } from "./test-url";
 
 function openTrace(sel: string) {
-  const r = renderApp(
-    <WithUrl search={`?sel=${sel}`}>
-      <TrafficScreen />
-    </WithUrl>,
-    { pathname: "/traffic" },
-  );
+  const r = renderApp(<TrafficScreen />, { pathname: "/traffic", searchParams: `?sel=${sel}`, urlMemory: true });
   return { ...r, aside: () => screen.getByRole("complementary", { name: "Trace" }) };
 }
 

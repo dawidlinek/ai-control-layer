@@ -205,3 +205,45 @@ export function ToggleChip({
     </button>
   );
 }
+
+/** allow / deny / budget chip on a grant (allow and deny in the decision tints; budget neutral). */
+export function EffectChip({ effect }: { effect: "allow" | "deny" | "budget" }) {
+  const tint = effect === "allow" ? "var(--dec-allow)" : effect === "deny" ? "var(--dec-block)" : null;
+  return (
+    <span
+      data-effect={effect}
+      className={cn(
+        "inline-flex shrink-0 rounded-[4px] px-1.5 font-mono text-[11px] leading-[1.6]",
+        tint ? "tint" : "border border-border text-muted",
+      )}
+      style={tint ? ({ "--c": tint } as React.CSSProperties) : undefined}
+    >
+      {effect}
+    </span>
+  );
+}
+
+export type ToolStatus = "approved" | "quarantined" | "built-in" | "denied" | "not approved";
+
+const TOOL_STATUS_TINT: Partial<Record<ToolStatus, string>> = {
+  approved: "var(--dec-allow)",
+  quarantined: "var(--dec-block)",
+  "not approved": "var(--dec-require-approval)",
+};
+
+/** Tool status pill: tinted for approved / quarantined / not approved, outlined for built-in and denied. */
+export function ToolStatusChip({ status }: { status: ToolStatus }) {
+  const tint = TOOL_STATUS_TINT[status];
+  return (
+    <span
+      data-status={status}
+      className={cn(
+        "inline-flex whitespace-nowrap rounded-full border px-2 py-px text-[12px]",
+        tint ? "tint" : status === "denied" ? "border-border-strong text-muted" : "border-border text-text",
+      )}
+      style={tint ? ({ "--c": tint } as React.CSSProperties) : undefined}
+    >
+      {status}
+    </span>
+  );
+}
