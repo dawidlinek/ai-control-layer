@@ -726,7 +726,9 @@ def test_sse_summaries_are_enriched(app) -> None:
         while not sub.queue.empty():
             seen.append(sub.queue.get_nowait())
     first = next(s for s in seen if s.point == InspectionPoint.ingress)
-    assert (
-        first.summary.startswith("anna's prompt contained a PESEL") and first.changed_steps and first.client_ref is None
-    )
+    assert first.summary.startswith("anna's prompt contained a PESEL") and first.changed_steps
+    # the live row carries the same client reference as the list row (it used to be missing)
+    assert first.client_ref is not None and first.client_ref.client == "librechat"
+    listed = next(e for e in get(app, "/events", VIEWER).json() if e["event_id"] == first.event_id)
+    assert listed["client_ref"] == first.model_dump(mode="json")["client_ref"]
     assert PESEL not in first.model_dump_json()

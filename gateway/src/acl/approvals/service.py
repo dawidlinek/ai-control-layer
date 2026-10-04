@@ -29,7 +29,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acl.approvals.db_models import ApprovalRow
@@ -288,6 +288,10 @@ class ApprovalService:
         return self.to_contract(await self._load(approval_id))
 
     async def list(self, status: ApprovalStatus | None = None, *, limit: int = 200) -> list[Approval]:
+        return (await self.list_page(status, limit=limit))[0]
+
+    async def list_page(self, status: ApprovalStatus | None = None, *, limit: int = 200) -> tuple[list[Approval], int]:
+        """(newest approvals up to `limit`, total approvals in `status`)."""
         async with self._sessions()() as s:
             due = (
                 (
@@ -305,8 +309,12 @@ class ApprovalService:
             if status is not None:
                 stmt = stmt.where(ApprovalRow.status == status.value)
             rows = (await s.execute(stmt)).scalars().all()
+            count = select(func.count()).select_from(ApprovalRow)
+            if status is not None:
+                count = count.where(ApprovalRow.status == status.value)
+            total = int((await s.execute(count)).scalar_one())
         await self._after_expiry(expired)
-        return [self.to_contract(r) for r in rows]
+        return [self.to_contract(r) for r in rows], total
 
     async def decide(
         self,

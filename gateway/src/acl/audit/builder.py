@@ -131,6 +131,55 @@ def redacted_text(ctx: InspectionContext, verdicts: list[Verdict]) -> str:
     return _capped("\n".join(t for _, t in redacted_pairs(ctx, verdicts)))
 
 
+TOOL_PREVIEW_MAX = 120
+# argument names worth showing, most telling first (compared lower-case without `_`: filePath == file_path)
+_PREVIEW_ARGS = (
+    "command",
+    "cmd",
+    "script",
+    "sql",
+    "query",
+    "url",
+    "uri",
+    "filepath",
+    "path",
+    "packages",
+    "package",
+    "to",
+    "subject",
+)
+_LEAF = re.compile(r"(?:\[\d+\])*$")
+
+
+def tool_preview(ctx: InspectionContext, verdicts: list[Verdict]) -> str | None:
+    """`bash: git push origin main`: one short line for the live traffic list, from the already masked arguments.
+
+    Detected spans are masked (as in `redacted_pairs`) and secret-looking spans on top of that. Only well-known
+    argument names are shown; nothing is invented when there is none.
+    """
+    payload = ctx.payload
+    if payload.kind == "tool_call":
+        name, prefix = payload.tool, "arguments."
+    elif payload.kind == "mcp" and payload.method == "tools/call" and isinstance(payload.params.get("name"), str):
+        name, prefix = str(payload.params["name"]), "params.arguments."
+    else:
+        return None
+    by_arg: dict[str, list[str]] = {}
+    for field, text in redacted_pairs(ctx, verdicts):
+        if field.startswith(prefix) and "." not in field[len(prefix) :]:
+            key = _LEAF.sub("", field[len(prefix) :]).replace("_", "").lower()
+            by_arg.setdefault(key, []).append(text)
+    value = next((" ".join(by_arg[k]) for k in _PREVIEW_ARGS if k in by_arg), None)
+    if not value:
+        return None
+    from acl.controls.secrets.rules import find_secrets  # lazy: the controls package imports the audit side
+
+    for h in sorted(find_secrets(value), key=lambda h: h.start, reverse=True):
+        value = value[: h.start] + "[REDACTED]" + value[h.end :]
+    text = f"{re.split(r'[.:/]', name)[-1]}: {' '.join(value.split())}"
+    return text if len(text) <= TOOL_PREVIEW_MAX else text[: TOOL_PREVIEW_MAX - 1] + "…"
+
+
 _MESSAGE_TEXT = re.compile(r"^messages\[(\d+)\]\.content(?:\[\d+\]\.text)?$")
 
 
@@ -180,6 +229,10 @@ def build_event(
         turn = last_message_text(redacted_pairs(ctx, decision.verdicts))
         if turn is not None:
             detail["turn_text"] = turn
+    if redacted_payload is not None:  # same switch as the stored redacted text (policy `store_redacted_payloads`)
+        preview = tool_preview(ctx, decision.verdicts)
+        if preview is not None:
+            detail["tool_preview"] = preview
     return AuditEvent(
         event_id=decision.decision_id or str(uuid.uuid4()),
         seq=0,

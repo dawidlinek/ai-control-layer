@@ -33,7 +33,11 @@ class SignatureType(StrEnum):
 
 
 class SignatureEntry(StrictModel):
-    id: str = Field(pattern=r"^SIG-[A-Z0-9][A-Z0-9-]*$", examples=["SIG-PKG-LITELLM-01"])
+    id: str = Field(
+        pattern=r"^[A-Z][A-Z0-9]*(-[A-Z0-9_.]+)+$",
+        description="Rule id: `SIG-…` for curated signatures, e.g. `FEED-LOCAL-0001` for rules added in the panel.",
+        examples=["SIG-PKG-LITELLM-01", "FEED-LOCAL-0001"],
+    )
     type: SignatureType
     pattern: str = Field(
         description=(

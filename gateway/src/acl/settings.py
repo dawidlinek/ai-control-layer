@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     oidc_audience: str = "gateway"
 
     feed_url: str | None = None
+    feed_admin_token: SecretStr | None = Field(
+        default=None,
+        description="Bearer token of the feed server's editing API; enables `POST /admin/v1/feed/rules`.",
+    )
+    feed_admin_url: str | None = Field(
+        default=None, description="Base URL of the feed server's editing API; defaults to the origin of `feed_url`."
+    )
     value_hash_salt: SecretStr = SecretStr("dev-only-salt-change-me")
     api_key_pepper: SecretStr = SecretStr("dev-only-pepper-change-me")
 

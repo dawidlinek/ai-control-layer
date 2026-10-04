@@ -49,6 +49,7 @@ def install(app: FastAPI, settings: Settings) -> None:
             stream=app.state.event_stream,
             metrics=app.state.metrics,
             versions=versions,
+            policy=lambda: app.state.engine.policy if app.state.engine is not None else None,
         )
         head_seq, _ = chain.head
         log.info("audit log %s ready (head seq %s)", settings.audit_path, head_seq)

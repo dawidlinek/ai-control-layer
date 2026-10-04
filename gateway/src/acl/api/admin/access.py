@@ -6,8 +6,9 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 
+from acl.api.admin.paging import TOTAL_COUNT_RESPONSES, set_total
 from acl.api.deps import ERROR_RESPONSES, Admin, Analyst, PrincipalDep, Viewer, not_implemented
 from acl.audit import queries as audit_queries
 from acl.contracts.admin import (
@@ -97,12 +98,18 @@ async def _stats_7d(request: Request, subjects: list[str]) -> dict[str, UsageSta
     return await audit_queries.user_stats(sessions, subjects, window="7d")
 
 
-@router.get("/users", response_model=list[User], operation_id="listUsers")
+@router.get("/users", response_model=list[User], operation_id="listUsers", responses=TOTAL_COUNT_RESPONSES)
 async def list_users(
-    request: Request, p: Viewer, q: str | None = None, group: str | None = None, limit: int = 100
+    request: Request,
+    response: Response,
+    p: Viewer,
+    q: str | None = None,
+    group: str | None = None,
+    limit: int = 100,
 ) -> list[User]:
     svc = _svc(request)
-    rows = await svc.users.list(q=q, group=group, limit=limit)
+    rows, total = await svc.users.list_page(q=q, group=group, limit=limit)
+    set_total(response, total)
     stats = await _stats_7d(request, [r.subject for r in rows])
     presets = await asyncio.gather(*(_preset_of(svc, r) for r in rows))
     return [
@@ -232,18 +239,21 @@ async def update_group_settings(request: Request, name: str, body: GroupSettings
     return await writer.patch_files(plan.edits, p, base_version=body.base_version, message=message[:500])
 
 
-@router.get("/grants", response_model=list[Grant], operation_id="listGrants")
+@router.get("/grants", response_model=list[Grant], operation_id="listGrants", responses=TOTAL_COUNT_RESPONSES)
 async def list_grants(
     request: Request,
+    response: Response,
     p: Viewer,
     subject: str | None = None,
     resource_type: GrantResourceType | None = None,
     resource: str | None = None,
     active: bool | None = True,
 ) -> list[Grant]:
-    return await _svc(request).grants.list(
+    grants = await _svc(request).grants.list(
         subject=subject, resource_type=resource_type, resource=resource, active=active
     )
+    set_total(response, len(grants))
+    return grants
 
 
 @router.post("/grants", response_model=Grant, status_code=201, operation_id="createGrant")

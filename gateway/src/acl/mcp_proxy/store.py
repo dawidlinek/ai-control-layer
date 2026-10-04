@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acl.controls.mcp.canon import (
@@ -89,6 +89,11 @@ class McpStore:
             if server:
                 stmt = stmt.where(McpToolRow.server_id == server)
             return list((await s.execute(stmt)).scalars().all())
+
+    async def count_tools(self, status: str) -> int:
+        async with self._sessions()() as s:
+            stmt = select(func.count()).select_from(McpToolRow).where(McpToolRow.status == status)
+            return int((await s.execute(stmt)).scalar_one())
 
     async def get_tool(self, server: str, name: str) -> McpToolRow | None:
         async with self._sessions()() as s:
