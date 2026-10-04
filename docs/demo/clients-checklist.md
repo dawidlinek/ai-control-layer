@@ -76,3 +76,19 @@ In the OpenCode TUI (as **jan**, model `company/auto`):
   time calls MCP tools; with two concurrent sessions the plugin sends none and the proxy uses the principal-wide
   MCP session.
 - LibreChat still uses the build-guarded `http://` issuer patch (deploy/README-clients.md).
+
+## OpenCode on the demo PC itself (Windows host, no container)
+
+Profile in `C:\Users\dawid\rogatka-opencode` (outside the repo; your normal OpenCode config is untouched): the managed
+config of `deploy/opencode` pointed at `localhost`, the built guard plugin, pinned CLI 1.18.34 (`cli\`), and a clean copy
+of the demo repo **without** the README injection (the host's `~/.ssh` is real). Verified: device login as jan, chat
+through the gateway, `read .env` blocked with `[SIG-PATH-ENV-FILE-01, SEC-TOOL-01, ...]`, audit rows with
+`client_app=opencode`.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\Users\dawid\rogatka-opencode\start-opencode.ps1 auth login   # "company", log in in the browser
+powershell -ExecutionPolicy Bypass -File C:\Users\dawid\rogatka-opencode\start-opencode.ps1              # TUI
+```
+
+`-Desktop` opens OpenCode Desktop on the same profile, but only when no other OpenCode window is open (single-instance
+app). This is layer 3 only: the host has internet, so there's no layer-4 proof here. Use the container for the lockdown demo.
