@@ -54,6 +54,8 @@ class ToolEvent:
     diff: str | None = None
     old_hash: str | None = None
     new_hash: str | None = None
+    pinned_at: datetime | None = None  # when the pin that drifted was approved / first made
+    changed_at: datetime | None = None  # when the change was first seen
 
 
 @dataclass
@@ -265,6 +267,8 @@ class McpStore:
                                     row.description_diff,
                                     old_hash=row.pinned_hash,
                                     new_hash=h,
+                                    pinned_at=row.approved_at or row.first_seen,
+                                    changed_at=row.drift_detected_at,
                                 )
                             )
                 out[name] = row

@@ -25,7 +25,7 @@ import asyncio
 import contextlib
 import logging
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -33,7 +33,16 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acl.approvals.db_models import ApprovalRow
-from acl.contracts.admin import Approval
+from acl.approvals.typed import (
+    approver_label,
+    client_of,
+    data_class_of,
+    flags_of,
+    holding_verdicts,
+    preview_of,
+    reasons_of,
+)
+from acl.contracts.admin import Approval, ApprovalPreview
 from acl.contracts.audit import EventType
 from acl.contracts.canonical import canonical_json, value_hash
 from acl.contracts.common import Action, ApprovalStatus, AuthMethod, Severity
@@ -101,8 +110,10 @@ class ApprovalService:
         now: Callable[[], datetime] = utcnow,
         salt: Callable[[], str] = lambda: "dev-salt",
         policy_view: Callable[[], Any] = lambda: None,
+        shadow_view: Callable[[], Iterable[str]] = lambda: (),
     ) -> None:
         self._policy_view = policy_view
+        self._shadow_view = shadow_view  # ids of controls in shadow mode (their verdicts never hold a call)
         self._sessions = sessions
         self._audit = audit
         self.ttl = ttl
@@ -124,6 +135,7 @@ class ApprovalService:
             ev.set()
 
     def to_contract(self, row: ApprovalRow) -> Approval:
+        typed: dict[str, Any] = row.detail or {}  # fields derived at creation, see `acl.approvals.typed`
         elev = None
         if row.elevation_until is not None and row.elevation_scope:
             elev = Elevation(scope=row.elevation_scope, until=row.elevation_until)
@@ -145,6 +157,12 @@ class ApprovalService:
             decided_by=row.decided_by,
             decided_at=row.decided_at,
             elevation=elev,
+            approver_label=approver_label(row.approver_scope),
+            data_class=typed.get("data_class"),
+            client=typed.get("client"),
+            flags=[str(f) for f in typed.get("flags") or []],
+            preview=ApprovalPreview.model_validate(typed["preview"]) if typed.get("preview") else None,
+            reasons=[str(r) for r in typed.get("reasons") or []],
         )
 
     async def _record(self, state: str, row: ApprovalRow, actor: Principal | None = None, **extra: Any) -> None:
@@ -207,12 +225,24 @@ class ApprovalService:
         payload = ctx.payload
         tool = server = args_hash = None
         egress = False
+        tool_labels: list[Any] = []
         if isinstance(payload, ToolCallPayload):
             tool, server = payload.tool, payload.server
             args_hash = value_hash(canonical_json(payload.arguments), self._salt(), 64)  # same as the audit record
             policy = self._policy_view()
             catalogue = policy.tools.get(tool) if policy is not None else None
             egress = catalogue is not None and call_is_sink(catalogue, payload)[0]
+            tool_labels = list(catalogue.labels) if catalogue is not None else []
+        holders = holding_verdicts(decision, self._shadow_view())
+        preview_text = preview[:2000]
+        typed_preview = preview_of(tool, preview_text)
+        typed_fields: dict[str, Any] = {
+            "data_class": data_class_of(decision, ctx),
+            "client": client_of(ctx),
+            "flags": flags_of(decision, ctx, holders, egress=egress, tool_labels=tool_labels),
+            "preview": typed_preview.model_dump(mode="json") if typed_preview else None,
+            "reasons": reasons_of(holders),
+        }
         row = ApprovalRow(
             id=f"apr-{uuid.uuid4().hex[:16]}",
             status=ApprovalStatus.pending.value,
@@ -232,7 +262,7 @@ class ApprovalService:
             reason=(decision.reason or "")[:1000],
             rule_ids=list(decision.rule_ids),
             risk_score=decision.risk_score,
-            detail={},
+            detail=typed_fields,
         )
         async with self._sessions()() as s:
             s.add(row)

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { renderHook } from "@testing-library/react";
+import { makeQueryClient, shouldRetry } from "@/components/providers";
+import { ApiError } from "@/lib/api/client";
+import { useInsightClusters } from "./api";
 import { server } from "@/mocks/server";
 import { adminPath, problem } from "@/mocks/handlers/helpers";
 import { insightClusters } from "@/mocks/db/insights";
@@ -147,5 +152,45 @@ describe("InsightsScreen", () => {
     expect(timeItTakes({ ...base, est_minutes_per_day: 0 })).toBe("—");
     expect(placeholdersOf("Explain {test} for {code} and {test}")).toEqual(["test", "code"]);
     expect(fillTemplate("A {x} b", { x: "1" })).toEqual([{ text: "A " }, { name: "x", value: "1" }, { text: " b" }]);
+  });
+});
+
+describe("Insights on a gateway without the feature (real shape: 501 {detail})", () => {
+  const notImplemented = () =>
+    server.use(http.get(adminPath("/insights/clusters"), () => HttpResponse.json({ detail: "insights is not implemented yet" }, { status: 501 })));
+
+  it("shows an empty state instead of an error", async () => {
+    notImplemented();
+    renderInsights();
+    expect(await screen.findByText("Automation Insights is not switched on in this gateway yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Could not load/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Automation Insights" })).toBeInTheDocument();
+  });
+
+  it("does not retry a 501 with the app's default QueryClient (one request only)", async () => {
+    let calls = 0;
+    server.use(
+      http.get(adminPath("/insights/clusters"), () => {
+        calls += 1;
+        return HttpResponse.json({ detail: "insights is not implemented yet" }, { status: 501 });
+      }),
+    );
+    const client = makeQueryClient();
+    const { result } = renderHook(() => useInsightClusters(), {
+      wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(calls).toBe(1);
+    expect(result.current.failureCount).toBe(1);
+  });
+
+  it("default retry policy: skips 4xx and 501, retries transient failures twice", () => {
+    expect(shouldRetry(0, new ApiError(501, "x"))).toBe(false);
+    expect(shouldRetry(0, new ApiError(404, "x"))).toBe(false);
+    expect(shouldRetry(0, new ApiError(403, "x"))).toBe(false);
+    expect(shouldRetry(0, new ApiError(503, "x"))).toBe(true);
+    expect(shouldRetry(1, new Error("network"))).toBe(true);
+    expect(shouldRetry(2, new ApiError(503, "x"))).toBe(false);
   });
 });

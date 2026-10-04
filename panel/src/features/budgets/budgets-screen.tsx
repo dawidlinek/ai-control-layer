@@ -34,6 +34,7 @@ import {
   formatAmount,
   formatWithUnit,
   hoursOf,
+  isIdleSession,
   KIND_LABEL,
   limitOf,
   modelsOf,
@@ -108,11 +109,19 @@ export function BudgetsScreen() {
   const [closed, setClosed] = React.useState(false);
   const tree = useBudgetTree();
   const displayName = useDisplayNames();
-  const rows = React.useMemo(() => flattenTree(tree.data?.nodes ?? []), [tree.data]);
+  const [showIdle, setShowIdle] = React.useState(false);
+  const allRows = React.useMemo(() => flattenTree(tree.data?.nodes ?? []), [tree.data]);
+  const selectedRaw = sel ?? (closed ? null : DEFAULT_SELECTION);
+  // Idle sessions (no spend, no limit, no breaker) are hidden behind a toggle; a selected one stays visible.
+  const idleCount = allRows.filter((r) => isIdleSession(r.node) && r.node.id !== selectedRaw).length;
+  const rows = React.useMemo(
+    () => (showIdle ? allRows : allRows.filter((r) => !isIdleSession(r.node) || r.node.id === selectedRaw)),
+    [allRows, showIdle, selectedRaw],
+  );
   const hasOpen = rows.some((r) => r.node.breaker?.state === "open");
   const now = useNow(1000, hasOpen);
 
-  const selectedId = sel ?? (closed ? null : DEFAULT_SELECTION);
+  const selectedId = selectedRaw;
   const selected = rows.find((r) => r.node.id === selectedId)?.node;
   const org = rows.find((r) => r.node.level === "org")?.node;
 
@@ -124,9 +133,11 @@ export function BudgetsScreen() {
         meta: { className: "max-w-[280px]" },
         cell: ({ row: { original: r } }) => (
           <span className="flex min-w-0 items-center gap-2" style={{ paddingLeft: r.depth * 18 }}>
-            <Truncate className={cn(r.depth === 0 ? "font-semibold" : r.depth === 1 ? "font-medium" : "font-normal", "w-auto")}>
-              {nameOf(r.node, displayName)}
-            </Truncate>
+            <span title={r.node.level === "session" ? r.node.id.slice("session:".length) : undefined} className="min-w-0">
+              <Truncate className={cn(r.depth === 0 ? "font-semibold" : r.depth === 1 ? "font-medium" : "font-normal", "w-auto")}>
+                {nameOf(r.node, displayName)}
+              </Truncate>
+            </span>
             <span className="shrink-0 text-[11px] text-muted">{KIND_LABEL[r.node.level]}</span>
           </span>
         ),
@@ -207,6 +218,7 @@ export function BudgetsScreen() {
         }}
         sidebarLabel="Budget"
         list={
+          <div className="flex flex-col gap-2">
           <DataTable
             ariaLabel="Budget tree"
             data={rows}
@@ -222,6 +234,17 @@ export function BudgetsScreen() {
             emptyTitle="No budgets"
             emptyMessage="budgets.yaml defines no limits yet."
           />
+          {(idleCount > 0 || showIdle) && (
+            <button
+              type="button"
+              aria-pressed={showIdle}
+              onClick={() => setShowIdle((v) => !v)}
+              className="self-start text-[12.5px] text-accent hover:underline"
+            >
+              {showIdle ? "Hide idle sessions" : `Show ${idleCount} idle ${idleCount === 1 ? "session" : "sessions"}`}
+            </button>
+          )}
+          </div>
         }
         sidebar={selected && <BudgetSidebar key={selected.id} node={selected} period={period} now={now} name={nameOf(selected, displayName)} />}
       />
@@ -336,6 +359,11 @@ function BudgetSidebar({ node, period, now, name }: { node: BudgetNode; period: 
   return (
     <>
       <SidebarHeader label={KIND_LABEL[node.level]} title={name} />
+      {node.level === "session" && (
+        <div className="px-3.5 pt-2.5 text-[12px] text-muted">
+          Full id <span className="break-all font-mono text-text">{node.id.slice("session:".length)}</span>
+        </div>
+      )}
       {open && (
         <div
           role="status"

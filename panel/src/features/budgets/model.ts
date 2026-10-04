@@ -101,6 +101,20 @@ export const KIND_LABEL: Record<BudgetNode["level"], string> = {
   session: "agent session",
 };
 
+/**
+ * Session ids are principal-namespaced (`<principal hash>:<session>`); the readable part is after the last colon.
+ * `session:91dfc8100f170058:e2e-1d9f` -> `e2e-1d9f`.
+ */
+export const shortSessionId = (node: BudgetNode) => keyOf(node).split(":").pop() || keyOf(node);
+
+/** A session with no spend in either period, no limit of its own and no open / half-open breaker. */
+export function isIdleSession(node: BudgetNode): boolean {
+  if (node.level !== "session") return false;
+  if (node.breaker?.state === "open" || node.breaker?.state === "half_open") return false;
+  if (Object.values(node.limits).some((v) => typeof v === "number")) return false;
+  return (["today", "month"] as const).every((p) => usedOf(node, p, "usd") === 0 && usedOf(node, p, "gpu_seconds") === 0);
+}
+
 export function nameOf(node: BudgetNode, displayName: (username: string) => string): string {
   switch (node.level) {
     case "org":
@@ -108,7 +122,7 @@ export function nameOf(node: BudgetNode, displayName: (username: string) => stri
     case "user":
       return displayName(keyOf(node));
     case "session":
-      return `session ${keyOf(node)}`;
+      return `session ${shortSessionId(node)}`;
     default:
       return keyOf(node);
   }

@@ -69,7 +69,7 @@ class FakeEventSource {
   static instances: FakeEventSource[] = [];
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
-  onmessage: ((m: { data: string }) => void) | null = null;
+  listeners = new Map<string, Array<(m: { data: string }) => void>>();
   closed = false;
   constructor(public url: string) {
     FakeEventSource.instances.push(this);
@@ -78,8 +78,12 @@ class FakeEventSource {
   close() {
     this.closed = true;
   }
-  emit(e: unknown) {
-    this.onmessage?.({ data: JSON.stringify(e) });
+  addEventListener(name: string, fn: (m: { data: string }) => void) {
+    this.listeners.set(name, [...(this.listeners.get(name) ?? []), fn]);
+  }
+  /** Like the gateway: a named `event: event` frame. */
+  emit(e: unknown, name = "event") {
+    for (const fn of this.listeners.get(name) ?? []) fn({ data: JSON.stringify(e) });
   }
 }
 

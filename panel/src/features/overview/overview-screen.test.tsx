@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
 import { server } from "@/mocks/server";
 import { adminPath, problem } from "@/mocks/handlers/helpers";
+import { buildOverview } from "@/mocks/db/overview";
 import { renderApp } from "@/test/render";
+import { shortRiskId, topRisks } from "./risks";
 import { formatTokens, OverviewScreen } from "./overview-screen";
 
 const card = (name: string) => screen.getByRole("region", { name });
@@ -77,6 +79,32 @@ describe("OverviewScreen", () => {
     expect(links[4]).toHaveTextContent("Tool poisoning (rug pull)");
   });
 
+  it("shows the real gateway taxonomy keys (\"LLM02:2025\") once as a short id plus a name", async () => {
+    server.use(
+      http.get(adminPath("/metrics/overview"), ({ request }) => {
+        const window = new URL(request.url).searchParams.get("window") as Parameters<typeof buildOverview>[0];
+        return HttpResponse.json({
+          ...buildOverview(window ?? "15m"),
+          top_taxonomy: { "LLM02:2025": 12, "LLM01:2025": 5, ASI05: 3, ASI10: 2, "LLM02": 1, "X-UNKNOWN": 1 },
+        });
+      }),
+    );
+    renderApp(<OverviewScreen />);
+    const safe = card("Are we safe?");
+    const risks = await within(safe).findByRole("list", { name: "Top risks" });
+    const links = within(risks).getAllByRole("link");
+    expect(links).toHaveLength(5);
+    expect(links[0]).toHaveTextContent("LLM02");
+    expect(links[0]).toHaveTextContent("Sensitive information disclosure");
+    expect(links[0]).toHaveTextContent("13"); // LLM02:2025 and LLM02 merged
+    expect(links[0]).not.toHaveTextContent("2025");
+    expect(links[0]?.textContent?.match(/LLM02/g)).toHaveLength(1);
+    expect(links[1]).toHaveTextContent("Prompt injection");
+    expect(links[2]).toHaveTextContent("Unexpected code execution");
+    expect(links[3]).toHaveTextContent("Rogue agents");
+    expect(links[4]?.textContent?.match(/X-UNKNOWN/g)).toHaveLength(1); // unknown id appears once
+  });
+
   it("answers What is it costing? with spend, GPU time and usage by model", async () => {
     renderApp(<OverviewScreen />);
     const cost = card("What is it costing?");
@@ -113,5 +141,18 @@ describe("OverviewScreen", () => {
     expect(formatTokens(318_000)).toBe("318k");
     expect(formatTokens(1_420_000)).toBe("1.4M");
     expect(formatTokens(412)).toBe("412");
+  });
+});
+
+describe("risk helpers", () => {
+  it("shortens taxonomy ids and falls back to the id", () => {
+    expect(shortRiskId("LLM02:2025")).toBe("LLM02");
+    expect(shortRiskId("owasp_llm:LLM07:2025")).toBe("LLM07");
+    expect(shortRiskId("ASI02")).toBe("ASI02");
+    expect(shortRiskId("AML.T0057")).toBe("AML.T0057");
+    expect(topRisks({ "LLM09:2025": 1, ASI09: 4 })).toEqual([
+      { id: "ASI09", name: "Human-agent trust exploitation", count: 4 },
+      { id: "LLM09", name: "Misinformation", count: 1 },
+    ]);
   });
 });

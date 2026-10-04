@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acl.audit.db_models import IncidentRow
+from acl.audit.evidence import evidence_for
 from acl.contracts.admin import Incident, IncidentNote
 from acl.contracts.common import Severity
 
@@ -23,13 +24,14 @@ def as_utc(dt: datetime) -> datetime:
 
 
 def incident_from_row(row: IncidentRow) -> Incident:
+    created_at = as_utc(row.created_at)
     return Incident(
         id=row.id,
         title=row.title,
         category=row.category,
         severity=Severity(row.severity),
         status=row.status,  # type: ignore[arg-type]
-        created_at=as_utc(row.created_at),
+        created_at=created_at,
         updated_at=as_utc(row.updated_at),
         assignee=row.assignee,
         subject=row.subject,
@@ -37,6 +39,7 @@ def incident_from_row(row: IncidentRow) -> Incident:
         rule_ids=list(row.rule_ids or []),
         notes=[IncidentNote.model_validate(n) for n in (row.notes or [])],
         detail=dict(row.detail or {}),
+        evidence=evidence_for(row.category, row.detail, created_at),
     )
 
 

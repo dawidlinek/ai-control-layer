@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from .audit import AuditEvent
 from .common import (
@@ -112,6 +112,14 @@ class DryRunResponse(StrictModel):
     errors: list[PolicyError] = Field(default_factory=list)
 
 
+class PolicyRollbackRequest(StrictModel):
+    """Optional body of `POST /policy/versions/{id}/rollback` (the route still works with no body)."""
+
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)] = Field(
+        description="Why the policy is rolled back (audit trail)."
+    )
+
+
 class PolicyVersion(StrictModel):
     id: int
     version: str
@@ -119,6 +127,7 @@ class PolicyVersion(StrictModel):
     author: str | None = None
     source: Literal["file", "panel", "rollback", "startup"]
     message: str = ""
+    reason: str | None = Field(default=None, description="Rollback reason given by the admin (source `rollback`).")
     files_changed: list[str] = Field(default_factory=list)
 
 
@@ -435,6 +444,109 @@ class IncidentNote(StrictModel):
     text: str
 
 
+class _EvidenceBase(StrictModel):
+    summary: str | None = Field(default=None, description="One plain sentence written from a template, no raw values.")
+
+
+class McpRugPullEvidence(_EvidenceBase):
+    """A pinned MCP tool changed after approval."""
+
+    kind: Literal["mcp_rug_pull"] = "mcp_rug_pull"
+    server: str
+    tool: str
+    tool_id: str
+    status: str | None = Field(default=None, description="Pin status after the change: quarantined | drifted.")
+    approved_hash: str | None = Field(default=None, description="Pinned (approved) hash.")
+    approved_at: datetime | None = None
+    new_hash: str | None = None
+    changed_at: datetime | None = None
+    description_diff: str | None = Field(default=None, description="Unified-style diff, lines start with + - or space.")
+    findings: list[str] = Field(default_factory=list, description="Value-free flag labels.")
+
+
+class McpToolFlaggedEvidence(_EvidenceBase):
+    """A new MCP tool was quarantined as poisoned, or collides with an existing tool name."""
+
+    kind: Literal["mcp_tool_poisoning", "mcp_name_collision"]
+    server: str
+    tool: str
+    tool_id: str
+    status: str | None = None
+    new_hash: str | None = None
+    findings: list[str] = Field(default_factory=list)
+
+
+class McpProtocolViolationEvidence(_EvidenceBase):
+    kind: Literal["mcp_protocol_violation"] = "mcp_protocol_violation"
+    server: str | None = None
+    violations: list[str] = Field(default_factory=list, description="Violation codes, e.g. `MCP_ORIGIN_MISMATCH`.")
+
+
+class CanaryEvidence(_EvidenceBase):
+    kind: Literal["canary_triggered"] = "canary_triggered"
+    tool: str | None = None
+    server: str | None = None
+    occurrences: int | None = Field(default=None, description="Canary values found (and redacted) in the result.")
+
+
+class BudgetBreachEvidence(_EvidenceBase):
+    kind: Literal["budget_breach"] = "budget_breach"
+    level: Literal["soft", "hard", "loop"] | None = None
+    node: str | None = Field(default=None, examples=["user:jan", "session:s-1"])
+    scope: str | None = None
+    session_id: str | None = Field(default=None, description="Set when the node is a session.")
+    meter: str | None = Field(default=None, examples=["usd_day", "gpu_seconds_session"])
+    limit: float | None = None
+    used: float | None = None
+    projected: float | None = None
+    action: str | None = Field(default=None, description="alert | block | degrade_to_local | require_approval ...")
+    breaker: Literal["closed", "open", "half_open"] | None = None
+    cooldown_s: int | None = None
+    loop_rule: str | None = Field(default=None, description="Runaway-signal rule id when `level` is `loop`.")
+
+
+class ForbiddenModelEvidence(_EvidenceBase):
+    kind: Literal["forbidden_model"] = "forbidden_model"
+    model: str | None = None
+
+
+class BlockedEvidence(_EvidenceBase):
+    """Enforced block that opened a grouped incident (`blocked_request` / `blocked_response`)."""
+
+    kind: Literal["blocked_request", "blocked_response"]
+    point: str | None = None
+    decided_by: str | None = Field(default=None, description="Control id that decided the block.")
+
+
+class PluginBypassEvidence(_EvidenceBase):
+    kind: Literal["plugin_bypass"] = "plugin_bypass"
+    tool: str | None = None
+    tool_call_id_hash: str | None = None
+    explanation: str | None = None
+
+
+class GenericEvidence(_EvidenceBase):
+    """Fallback for categories without a dedicated shape: scalar facts copied from `detail`."""
+
+    kind: Literal["generic"] = "generic"
+    category: str
+    facts: dict[str, str | int | float | bool] = Field(default_factory=dict)
+
+
+IncidentEvidence = Annotated[
+    McpRugPullEvidence
+    | McpToolFlaggedEvidence
+    | McpProtocolViolationEvidence
+    | CanaryEvidence
+    | BudgetBreachEvidence
+    | ForbiddenModelEvidence
+    | BlockedEvidence
+    | PluginBypassEvidence
+    | GenericEvidence,
+    Field(discriminator="kind"),
+]
+
+
 class Incident(StrictModel):
     id: str
     title: str
@@ -448,7 +560,10 @@ class Incident(StrictModel):
     event_ids: list[str] = Field(default_factory=list)
     rule_ids: list[RuleId] = Field(default_factory=list)
     notes: list[IncidentNote] = Field(default_factory=list)
-    detail: dict[str, Any] = Field(default_factory=dict, description="e.g. rug-pull description diff.")
+    detail: dict[str, Any] = Field(default_factory=dict, description="Raw producer detail (free-form; see `evidence`).")
+    evidence: IncidentEvidence | None = Field(
+        default=None, description="Typed view of `detail`, discriminated on `kind` (the incident category)."
+    )
 
 
 class IncidentPatch(StrictModel):
@@ -458,6 +573,13 @@ class IncidentPatch(StrictModel):
 
 
 # ---------------------------------------------------------------- approvals
+
+
+class ApprovalPreview(StrictModel):
+    """Redacted preview of what the held call would do (never raw secrets or personal data)."""
+
+    type: Literal["diff", "email", "plan", "text"]
+    body: str
 
 
 class Approval(StrictModel):
@@ -478,6 +600,16 @@ class Approval(StrictModel):
     decided_by: str | None = None
     decided_at: datetime | None = None
     elevation: Elevation | None = None
+    approver_label: str | None = Field(default=None, examples=["Security team", "Team lead"])
+    data_class: str | None = Field(
+        default=None, description="Session confidentiality when held: public | internal | confidential | restricted."
+    )
+    client: str | None = Field(default=None, description="Client app that issued the call.", examples=["opencode"])
+    flags: list[str] = Field(
+        default_factory=list, description="Red flags, e.g. `untrusted input`, `sensitive data`, `external egress`."
+    )
+    preview: ApprovalPreview | None = None
+    reasons: list[str] = Field(default_factory=list, description="Why it was held: one line per holding control.")
 
 
 # ---------------------------------------------------------------- budgets

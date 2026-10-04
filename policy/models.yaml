@@ -11,6 +11,12 @@ connectors:
     api_key: env:LOCAL_LLM_API_KEY
     tier: local
     timeout_s: 120
+  local-pl:                            # second vLLM server (own port) that serves Bielik
+    type: openai_compatible
+    base_url: env:LOCAL_PL_BASE_URL
+    api_key: env:LOCAL_LLM_API_KEY
+    tier: local
+    timeout_s: 120
   gemini:
     type: openai_compatible
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
@@ -20,7 +26,14 @@ connectors:
 
 models:
   # Model lineup (HANDOFF §7.1): Gemini Flash = fast cloud (default for normal work), Gemini Pro = strong cloud
-  # (`auto` picks it for complex requests), Qwen3.8-27B on the local GPU = everything confidential.
+  # (`auto` picks it for complex requests), Qwen3.8-27B on the local GPU = everything confidential,
+  # Bielik = local Polish-language specialist (user decision 2026-10-04).
+  #
+  # How users pick (by alias): cloud `flash` / `smart` (cheap, fast) or `pro` / `smart-pro` (strong); local `qwen`
+  # / `local` / `fast` or `bielik`; or `auto` (the router decides). Whatever the pick, sensitivity escalation wins:
+  # confidential/restricted data or a route_local obligation is served locally (router steps 2b/3). An admin routing
+  # rule such as "Polish legal texts go to Bielik" is a `specialist` block on the target model (see local/bielik).
+  #
   # Models whose weights come from a file (our own fine-tunes, Hugging Face downloads) can carry an artifact reference:
   #     artifact: {sha256: "<64 hex of the model file>", scan_id: art-0123456789ab}    # scan_id is optional
   # The model is then only available while the newest artifact scan of that sha256 passed
@@ -28,7 +41,7 @@ models:
   - id: local/qwen3.8-27b
     connector: local
     upstream_model: env:LOCAL_GENERAL_MODEL     # e.g. the Ollama / vLLM tag of Qwen3.8-27B
-    aliases: [local, fast]
+    aliases: [local, fast, qwen]
     tags: {role: "local, all confidential work", family: qwen}
     capabilities: [chat, tools]
     data_classes: [public, internal, confidential, restricted]
@@ -53,6 +66,33 @@ models:
       You are a credit analyst. From the application, write a concise credit memo in English: applicant
       (pseudonym), amount, purpose, income, liabilities, DTI, risks, recommendation.
 
+  # Local Polish-language specialist (Bielik). `auto` routes here when the prompt is close (kNN over `examples`,
+  # see acl.routing.specialist) to the Polish legal-text task; users can also pick it directly with `bielik`.
+  # LOCAL_PL_BASE_URL or LOCAL_BIELIK_MODEL unset → the model is reported unavailable and the router falls back to the degraded local
+  # target (Qwen); `auto` simply skips it.
+  - id: local/bielik
+    connector: local-pl
+    upstream_model: env:LOCAL_BIELIK_MODEL      # e.g. the Ollama / vLLM tag of Bielik 11B Instruct
+    aliases: [bielik]
+    tags: {role: "local, Polish language specialist", family: bielik, task: polish_legal}
+    capabilities: [chat]
+    data_classes: [public, internal, confidential, restricted]
+    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
+    specialist:
+      task: polish_legal
+      min_confidence: 0.5
+      examples:
+        - "Przeanalizuj tę umowę najmu pod kątem klauzul niedozwolonych."
+        - "Jakie są skutki prawne odstąpienia od umowy sprzedaży według Kodeksu cywilnego?"
+        - "Wyjaśnij art. 471 Kodeksu cywilnego o odpowiedzialności za niewykonanie zobowiązania."
+        - "Sporządź projekt pozwu o zapłatę zgodnie z Kodeksem postępowania cywilnego."
+        - "Czy ten regulamin sklepu internetowego jest zgodny z ustawą o prawach konsumenta?"
+        - "Przygotuj projekt umowy zlecenia lub o dzieło i wskaż ryzyka prawne dla zamawiającego."
+        - "Jakie są terminy i wymogi formalne apelacji w postępowaniu cywilnym?"
+        - "Jaki termin przedawnienia roszczeń wynika z przepisów Kodeksu cywilnego?"
+        - "Zredaguj aneks do umowy o pracę zgodnie z Kodeksem pracy."
+        - "Zinterpretuj przepis rozporządzenia dotyczący obowiązków administratora danych."
+
   - id: local/embed
     connector: local
     upstream_model: env:LOCAL_EMBED_MODEL
@@ -69,7 +109,7 @@ models:
   - id: gemini/flash
     connector: gemini
     upstream_model: env:GEMINI_MODEL
-    aliases: [smart]
+    aliases: [smart, flash]
     tags: {role: fast cloud}
     capabilities: [chat, tools]
     data_classes: [public, internal]   # confidential/restricted never go to the cloud (LOCK-01)
@@ -78,7 +118,7 @@ models:
   - id: gemini/pro
     connector: gemini
     upstream_model: env:GEMINI_PRO_MODEL
-    aliases: [smart-pro]
+    aliases: [smart-pro, pro]
     tags: {role: strong cloud}
     capabilities: [chat, tools]
     data_classes: [public, internal]
@@ -87,7 +127,7 @@ models:
 aliases:
   auto:
     strategy: specialist_then_rules
-    description: Specialist by task, else sensitivity × complexity × budget rules (Flash by default, Pro when complex)
+    description: Specialist by task (loan memo, Polish legal text), else sensitivity × complexity × budget rules (Flash by default, Pro when complex)
 
 skills:
   skill/loan-memo-summary:

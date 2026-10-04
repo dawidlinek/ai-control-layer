@@ -43,7 +43,7 @@ async function fetchTrafficPage(
   for (let i = 0; i < MAX_BATCHES; i++) {
     const batch = unwrap(
       await api.GET("/admin/v1/events", {
-        params: { query: { ...server, since, before_seq: before, limit: FETCH_BATCH } },
+        params: { query: { ...server, event_type: "decision", since, before_seq: before, limit: FETCH_BATCH } },
         signal,
       }),
     );
@@ -81,6 +81,8 @@ export function useTrafficStream(f: TrafficFilters, size: number, page: number, 
   useEventStream({
     enabled: page === 1,
     onEvent: (ev) => {
+      // The audit log also carries policy_change / admin / incident events; Traffic lists decisions only.
+      if (ev.event_type !== "decision") return;
       if (ev.timestamp < sinceFor(f.range) || !matchesFilters(ev as EventSummary, f, people.nameOf)) return;
       qc.setQueryData<TrafficPage>(key, (old) => {
         if (!old || old.rows.some((r) => r.event_id === ev.event_id)) return old;

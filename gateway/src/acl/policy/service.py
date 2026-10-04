@@ -58,6 +58,7 @@ class Attribution:
     author: str | None
     message: str
     principal: Principal | None = None
+    reason: str | None = None  # why (rollback reason given by the admin)
 
 
 def author_of(principal: Principal | None) -> str | None:
@@ -284,6 +285,7 @@ class PolicyService:
             "source": attribution.source,
             "author": attribution.author,
             "message": attribution.message,
+            "reason": attribution.reason,
             "files_changed": changed if previous else sorted(texts),
             "version_id": version_id,
             "locked_control_modified": [v.as_dict() for v in violations],
@@ -312,6 +314,7 @@ class PolicyService:
                     source=attribution.source,
                     author=attribution.author,
                     message=attribution.message,
+                    reason=attribution.reason,
                     files=texts,
                     previous_files=dict(latest.files) if latest is not None else None,
                 ),

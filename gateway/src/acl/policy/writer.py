@@ -126,7 +126,9 @@ class PolicyWriter:
         if base_version != current:
             raise StaleVersion("policy", current)
 
-    async def rollback(self, version_id: int, principal: Principal | None, message: str = "") -> PolicyStatus:
+    async def rollback(
+        self, version_id: int, principal: Principal | None, message: str = "", reason: str | None = None
+    ) -> PolicyStatus:
         """Restore the files of a stored version (files that were part of the running set but are not in the
         target are removed; unrelated files on disk are left alone)."""
         store = self.service.versions
@@ -143,7 +145,14 @@ class PolicyWriter:
             candidate.update(target)
             deletions = tuple(sorted(n for n in running if n not in target and n in disk))
             note = f"rollback to version #{version_id} ({row.version})"
-            await self._commit(candidate, deletions, "rollback", principal, f"{note}: {message}" if message else note)
+            await self._commit(
+                candidate,
+                deletions,
+                "rollback",
+                principal,
+                f"{note}: {message or reason}" if message or reason else note,
+                reason=reason,
+            )
         return await self.service.status()
 
     # ------------------------------------------------------------ internals
@@ -181,9 +190,10 @@ class PolicyWriter:
         source: Source,
         principal: Principal | None,
         message: str,
+        reason: str | None = None,
     ) -> None:
         svc = self.service
-        attribution = Attribution(source, author_of(principal), message, principal)
+        attribution = Attribution(source, author_of(principal), message, principal, reason)
         compiled = await svc.compile_candidate({n: t for n, t in candidate.items() if n not in deletions})
         disk = svc.current_files()
         svc.expect(compiled.version, attribution)

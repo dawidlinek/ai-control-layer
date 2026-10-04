@@ -2,6 +2,7 @@
  * Tolerant readers for `InsightCluster`. `draft_skill` is a free-form map in the contract; the keys used here are
  * documented in src/mocks/db/insights.ts. Missing keys fall back to derived values or are left out.
  */
+import { ApiError } from "@/lib/api/client";
 import type { InsightCluster } from "@/lib/api/types";
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
@@ -145,4 +146,9 @@ export function specialistOf(clusters: readonly InsightCluster[]): SpecialistInf
     };
   }
   return null;
+}
+
+/** The gateway does not serve Insights (501 "not implemented yet", or 404): an empty state, not an error. */
+export function isNotSwitchedOn(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 501 || error.status === 404);
 }

@@ -188,8 +188,9 @@ Subtitle: "Found in masked prompts, on local models. Patterns used by fewer than
 | Fast cloud (default for normal work) | **Gemini Flash** | Gemini API (paid key) | public, internal |
 | Strong cloud (router picks by complexity) | **Gemini Pro** | Gemini API | public, internal |
 | Local (all confidential work, confidential sessions, confidential repos) | **Qwen ~27B** — user wrote "qwen 3.8 27B"; **exact Ollama tag still to confirm** | Ollama | all classes |
+| Local Polish specialist (`auto` sends Polish legal texts here; pick by name `bielik`) | **Bielik** — user decision 2026-10-04 (overrides "No Bielik"); own vLLM server, connector `local-pl` | vLLM | all classes |
 
-No Bielik (chat or guard). GPU: a 27B model at 4-bit needs ~17–20 GB VRAM plus context → plan ≥ 24 GB, or two GPUs if the judge runs separately.
+Users pick by alias: cloud `flash`/`smart` or `pro`/`smart-pro`, local `qwen`/`local` or `bielik`, or `auto`; sensitivity escalation (confidential data, `route_local`) always overrides the pick. Routing rules such as "Polish legal texts go to Bielik" are `specialist` blocks (task + examples + min confidence) on a model. No Bielik as a guard/classifier model. GPU: a 27B model at 4-bit needs ~17–20 GB VRAM plus context → plan ≥ 24 GB, or two GPUs if the judge runs separately.
 
 **Supporting models (local):**
 - Prompt-injection classifier — Apache-licensed DeBERTa injection model, ONNX on CPU (**required**).

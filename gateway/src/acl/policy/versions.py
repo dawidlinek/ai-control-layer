@@ -51,6 +51,7 @@ def _summary(row: PolicyVersionRow) -> dict[str, Any]:
         "author": row.author,
         "source": row.source,
         "message": row.message or "",
+        "reason": row.reason,
         "files_changed": list(row.files_changed or []),
     }
 
@@ -73,6 +74,7 @@ class VersionStore:
         author: str | None,
         message: str,
         files: dict[str, str],
+        reason: str | None = None,
         previous_files: dict[str, str] | None,
     ) -> PolicyVersionRow:
         diff, changed = diff_files(previous_files, files)
@@ -82,6 +84,7 @@ class VersionStore:
             author=author,
             source=source,
             message=message,
+            reason=reason,
             files_changed=changed,
             files=dict(files),
             diff=diff,
