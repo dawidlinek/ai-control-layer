@@ -5,8 +5,9 @@ You are the local integrator for the Rogatka Dashboard (`panel/`) in repo `ai-co
 the API gaps, and get it merged.
 
 ## Start here
-1. `git fetch origin main-k95m17 && git checkout main-k95m17` (or merge it into local `main`). Last cloud commit: `507fc37`.
-   The branch is `main` @ fc66307 plus the panel screens; nothing there touches `gateway/`, `policy/` or `contracts/`.
+1. Work directly on `main`. First bring the cloud work in:
+   `git checkout main && git fetch origin main-k95m17 && git merge --no-ff origin/main-k95m17`. The branch is `main` @ fc66307
+   plus the panel screens; nothing there touches `gateway/`, `policy/` or `contracts/`. Commit every step on `main`.
 2. Read, in order: `CLAUDE.md` (binding), `docs/checkpoints/CP3-panel.md` (what was built, every API gap, what to verify),
    `panel/ARCHITECTURE.md` (panel conventions, mock layer, ownership), `docs/ux/HANDOFF.md` (scope and look).
 3. `pnpm -C panel install`, then establish the baseline:
@@ -26,6 +27,35 @@ the API gaps, and get it merged.
 - **Never run against the real gateway / Keycloak** (cloud had no docker stack).
 - **No contract changes were made.** The panel works around the gaps with tolerant readers over free-form fields and with
   demo-only data. Actions without endpoints are disabled with the title "Not available in the admin API yet".
+
+## How to work: lead + Sonnet subagents
+- You are the lead. Delegate implementation to subagents with the Agent tool, `model: "sonnet"`.
+- Run **at most 2–3 at a time**: the local Windows machine ran out of memory under parallel test runs before.
+- Agents work in the shared checkout on `main`. Each owns a disjoint set of files, named in its brief, and touches nothing
+  else. Agents do not commit, stash, reset or switch branches.
+- Each agent runs only its own tests:
+  - backend: `uv run pytest <its test files> -p no:xdist`;
+  - panel: `pnpm -C panel exec vitest run src/features/<screen>`.
+
+  Agents never run `pnpm dev`, `pnpm build`, `pnpm e2e`, the docker stack or the full `dev.py test`, because these share
+  `.next/`, ports and CPU.
+- Each brief says: read `CLAUDE.md` + `panel/ARCHITECTURE.md`; the exact files it owns; what "done" means; report the files it
+  changed, its test count and any problems.
+- Suggested split. The contract work is sequential where models overlap: do it in one agent, or split by router file.
+  - **A (backend, contract):** approval typed fields + incident typed `detail` + rollback `{reason}` body. It owns:
+    - `gateway/src/acl/contracts/admin.py` and the approval / incident / policy admin routes;
+    - their tests;
+    - regenerating `contracts/`.
+  - **B (backend, after A):** feed signatures/rules routes, list totals, `GET /metrics/counts`, `client_ref` in SSE summaries.
+  - **C (panel, after each contract change lands):** run `gen:api`, then replace the workaround readers with typed fields
+    and re-enable the disabled buttons. Split per screen folder: approvals + incidents, threats, policies, shell badges.
+  - **D (panel, independent):** promote the duplicated helpers to `components/rogatka`, `renderApp` URL memory, `Segmented`
+    `disabled`, a Select primitive, read-only org-lock lines in YAML, optional `monaco-yaml` wiring.
+- **The lead keeps:**
+  - the real-stack verification (task 1);
+  - reviewing each agent's diff;
+  - the full gates after each merge of work: `dev.py test` + `lint`, and `pnpm -C panel typecheck/lint/test/build/e2e`;
+  - one plain commit per finished piece, on `main`.
 
 ## Tasks
 
@@ -88,7 +118,7 @@ Rule: new fields only, no breaking changes; sessions B, C and D build on the con
 - Every screen verified against the real stack, in dark and light.
 - The contract gaps above closed or explicitly deferred.
 - `docs/checkpoints/CP3-panel.md` updated with the integration results.
-- Merged to `main` and pushed, so cloud sessions B, C and D can rebase.
+- Committed on `main` and pushed, so cloud sessions B, C and D can rebase.
 
 ## Rules
 - Commit messages are plain, with no AI attribution or co-author trailers.
