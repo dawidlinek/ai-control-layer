@@ -138,7 +138,7 @@ def _event(
     )
 
 
-def _route(model: str = "local/general", tier: ConnectorTier = ConnectorTier.local, **factors: Any) -> RouteInfo:
+def _route(model: str = "local/qwen3.8-27b", tier: ConnectorTier = ConnectorTier.local, **factors: Any) -> RouteInfo:
     return RouteInfo(
         model_requested="auto",
         model=model,
@@ -428,7 +428,7 @@ def test_trace_steps_order_changed_flags_and_ms() -> None:
     assert not by["normalise"].changed and not by["similarity"].changed and not by["judge"].changed
     assert by["judge"].ms is None and by["similarity"].ms == 14.0
     assert by["decide"].changed and "pseudonymise + route_local" in by["decide"].result
-    assert by["route"].changed and "auto → local/general (local)" in by["route"].result
+    assert by["route"].changed and "auto → local/qwen3.8-27b (local)" in by["route"].result
     assert not by["output"].changed and by["output"].ms == 5.0
     assert narrate.changed_steps(ev).keys() == {"rules", "classifier", "decide", "route"}
     assert not any(PESEL in s.result for s in steps)
@@ -689,8 +689,8 @@ def test_overview_cost_timeline_and_budget_fields(app) -> None:
         and sum(sum(b["counts"].values()) for b in ov["timeline"]) == ov["decisions_total"]
     )
     assert all(b["start"] for b in ov["timeline"])
-    assert {m["model"] for m in ov["cost_by_model"]} >= {"local/general"}
-    local = next(m for m in ov["cost_by_model"] if m["model"] == "local/general")
+    assert {m["model"] for m in ov["cost_by_model"]} >= {"local/qwen3.8-27b"}
+    local = next(m for m in ov["cost_by_model"] if m["model"] == "local/qwen3.8-27b")
     assert local["tier"] == "local" and local["tokens_in"] > 0 and local["tokens_out"] > 0 and local["gpu_seconds"] > 0
     assert abs(sum(m["share"] for m in ov["cost_by_model"]) - 1.0) < 1e-3
     assert ov["cost_by_model"] == sorted(ov["cost_by_model"], key=lambda m: -(m["tokens_in"] + m["tokens_out"]))
@@ -708,7 +708,7 @@ def test_overview_cost_timeline_and_budget_fields(app) -> None:
 def test_models_carry_role_and_usage(app) -> None:
     traffic(app)
     models = {m["id"]: m for m in get(app, "/models", VIEWER).json()}
-    local = models["local/general"]
+    local = models["local/qwen3.8-27b"]
     assert local["requests_day"] >= 2 and local["tokens_in_day"] > 0 and local["tokens_out_day"] > 0
     assert local["gpu_seconds_day"] > 0 and local["usd_day"] >= 0 and local["role"] is None
     assert models["local/embed"]["requests_day"] == 0 and models["local/embed"]["tokens_in_day"] == 0
