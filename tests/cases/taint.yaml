@@ -1,8 +1,8 @@
 # SEC-FLOW-01 — Rule of Two / lethal trifecta at tool_call (concept §9, §16 row 6).
 # untrusted input + sensitive data + external egress → rule_of_two_action (balanced: require_approval, strict/paranoid:
 # block, monitor: log only); taint_mode full (paranoid): untrusted + sink → block. `session:` presets come from the harness.
-# SEC-FLOW-01 needs no semantic control; label raising (SEC-TAINT-01) is covered in gateway/tests/test_2b_taint.py
-# because the case harness evaluates single steps (labels_after is not an expectation key).
+# SEC-FLOW-01 needs no semantic control; label raising (SEC-TAINT-01) has its own cases in taint_labels.yaml
+# (`expect.labels_after`) and unit tests in gateway/tests/test_2b_taint.py.
 
 # ---- negatives -----------------------------------------------------------------------------------------------------
 - id: flow-fetch-after-poisoned-readme-and-secret

@@ -6,6 +6,7 @@ prompts when the principal may use it; explicit picks go by alias; sensitivity e
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -20,8 +21,22 @@ from acl.routing.registry import ConnectorRegistry
 from acl.routing.router import Router, RouteRequest
 from acl.routing.specialist import SpecialistIndex, last_user_text, stems
 
-sys.path.insert(0, str(Path(__file__).parent))
-from test_1a_api import PESEL, audit_records, chat, harness  # noqa: F401  (harness is a fixture)
+
+def _load_1a_api():  # type: ignore[no-untyped-def]
+    """Load test_1a_api under the module name pytest's importlib mode gives it, so its test controls (which
+    self-register by type) exist once per process whichever file a worker collects first."""
+    name = "gateway.tests.test_1a_api"
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, Path(__file__).with_name("test_1a_api.py"))
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    return sys.modules[name]
+
+
+_api = _load_1a_api()
+PESEL, audit_records, chat, harness = _api.PESEL, _api.audit_records, _api.chat, _api.harness
 
 POLICY_DIR = Path(__file__).resolve().parents[2] / "policy"
 BIELIK = "local/bielik"
@@ -273,7 +288,7 @@ async def test_explicit_bielik_stays_on_bielik_for_confidential_data(setup) -> N
 # ------------------------------------------------------------------ end to end (chat flow, mock connectors)
 
 
-def test_chat_auto_routes_polish_legal_prompt_to_bielik(harness) -> None:  # type: ignore[no-untyped-def]  # noqa: F811
+def test_chat_auto_routes_polish_legal_prompt_to_bielik(harness) -> None:  # type: ignore[no-untyped-def]
     client, _, settings = harness
     r = chat(client, LEGAL, model="auto")
     assert r.status_code == 200 and r.headers["x-acl-model"] == BIELIK
@@ -282,7 +297,7 @@ def test_chat_auto_routes_polish_legal_prompt_to_bielik(harness) -> None:  # typ
     assert route["model"] == BIELIK and route["tier"] == "local" and "polish_legal" in route["reason"]
 
 
-def test_chat_explicit_picks_and_escalation(harness) -> None:  # type: ignore[no-untyped-def]  # noqa: F811
+def test_chat_explicit_picks_and_escalation(harness) -> None:  # type: ignore[no-untyped-def]
     client, _, _ = harness
     assert chat(client, "hello", model="bielik").headers["x-acl-model"] == BIELIK
     assert chat(client, "hello", model="qwen").headers["x-acl-model"] == QWEN

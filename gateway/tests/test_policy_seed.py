@@ -48,7 +48,9 @@ def test_unknown_field_rejected_with_location() -> None:
 
 def test_dangling_model_reference_rejected() -> None:
     texts = read_policy_dir(POLICY_DIR)
-    texts["groups.yaml"] = texts["groups.yaml"].replace("models: [auto, local]", "models: [auto, nope/model]", 1)
+    texts["groups.yaml"] = texts["groups.yaml"].replace(
+        "models: [auto, local, bielik]", "models: [auto, nope/model]", 1
+    )
     with pytest.raises(PolicyLoadError):
         parse_documents(texts)
 

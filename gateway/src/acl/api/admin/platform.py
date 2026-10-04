@@ -1,5 +1,5 @@
 """Admin: approvals (2B), budgets (2D), models/connectors (1A/3B), MCP (2A), feed (1D),
-artifacts (4A), insights (4B).
+artifacts (4A). Insights (4B) live in `acl.api.admin.insights`.
 
 Each section is owned by the phase noted; the route signatures are the contract.
 """
@@ -11,29 +11,26 @@ import logging
 import time
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from acl.api.admin.paging import TOTAL_COUNT_RESPONSES, set_total
 from acl.api.deps import ERROR_RESPONSES, Admin, Viewer, not_implemented
 from acl.audit.queries import rule_hits, spend_by_connector, usage_by_model
 from acl.contracts.admin import (
-    ArtifactScanResult,
     ConnectorStatus,
     FeedRuleCreate,
     FeedRuleCreated,
     FeedSignature,
     FeedStatus,
     FeedTarget,
-    InsightCluster,
     KillSwitchRequest,
     ModelInfo,
-    PublishSkillRequest,
 )
 from acl.contracts.audit import EventType
 from acl.contracts.common import Severity
 from acl.feed.admin import FeedAdminClient, FeedAdminError, RuleInvalid, build_entry, describe
 from acl.feed.compile import CompiledEntry, compile_entries, compile_entry
-from acl.policy.models import Policy
+from acl.policy.models import ModelEntry, Policy
 from acl.routing.registry import RoutingTable
 
 log = logging.getLogger(__name__)
@@ -135,6 +132,21 @@ async def _usage_day(request: Request) -> dict[str, dict[str, float]]:
         return {}
 
 
+def _artifact_status(request: Request, m: ModelEntry) -> str:
+    """`n/a` without an artifact ref; otherwise from the scan store (4A): scanned_ok | scanned_bad | unscanned."""
+    store = getattr(request.app.state, "artifacts", None)
+    if m.artifact is None:
+        return "n/a"
+    return "unscanned" if store is None else store.status(m.artifact)
+
+
+def _artifact_problem(request: Request, m: ModelEntry) -> str | None:
+    store = getattr(request.app.state, "artifacts", None)
+    if m.artifact is None:
+        return None
+    return "artifact is not scanned" if store is None else store.gate_problem(m.artifact)
+
+
 @router.get("/models", response_model=list[ModelInfo], tags=["models"], operation_id="listModelsAdmin")
 async def models(request: Request, p: Viewer) -> list[ModelInfo]:
     policy, table = _policy_and_table(request)
@@ -147,7 +159,7 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
     for m in policy.models:
         cfg = policy.connectors[m.connector]
         handle = table.models[m.id]
-        artifact = "n/a" if m.artifact is None else "scanned_ok" if m.artifact.scan_id else "unscanned"
+        artifact = _artifact_status(request, m)
         used = usage.get(m.id, {})
         out.append(
             ModelInfo(
@@ -160,7 +172,9 @@ async def models(request: Request, p: Viewer) -> list[ModelInfo]:
                 pricing=m.pricing.model_dump(exclude_none=True),
                 artifact_status=artifact,  # type: ignore[arg-type]
                 enabled=m.enabled and cfg.enabled and not request.app.state.connectors.is_killed(m.connector),
-                available=handle.unavailable is None and table.connectors[m.connector].unavailable is None,
+                available=handle.unavailable is None
+                and table.connectors[m.connector].unavailable is None
+                and _artifact_problem(request, m) is None,
                 role=m.tags.get("role"),
                 requests_day=int(used.get("requests", 0)),
                 tokens_in_day=int(used.get("tokens_in", 0)),
@@ -321,34 +335,3 @@ async def add_feed_rule(request: Request, body: FeedRuleCreate, p: Admin) -> Fee
         synced=synced,
         feed=store.status(),
     )
-
-
-# ---------------------------------------------------------------- artifacts (4A)
-
-
-@router.post("/artifacts/scan", response_model=ArtifactScanResult, tags=["artifacts"], operation_id="scanArtifact")
-async def scan_artifact(file: UploadFile, p: Admin) -> ArtifactScanResult:
-    not_implemented("artifact scan")
-
-
-@router.get("/artifacts", response_model=list[ArtifactScanResult], tags=["artifacts"], operation_id="listArtifacts")
-async def list_artifacts(p: Viewer) -> list[ArtifactScanResult]:
-    not_implemented("artifacts")
-
-
-# ---------------------------------------------------------------- insights (4B)
-
-
-@router.get("/insights/clusters", response_model=list[InsightCluster], tags=["insights"], operation_id="listInsights")
-async def insights(p: Viewer, group: str | None = None) -> list[InsightCluster]:
-    not_implemented("insights")
-
-
-@router.post(
-    "/insights/clusters/{cluster_id}/publish",
-    response_model=InsightCluster,
-    tags=["insights"],
-    operation_id="publishSkill",
-)
-async def publish(cluster_id: str, body: PublishSkillRequest, p: Admin) -> InsightCluster:
-    not_implemented("insights publish")

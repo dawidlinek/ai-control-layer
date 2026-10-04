@@ -119,6 +119,31 @@ controls:
     cost_tier: deterministic
     timeout_ms: 20
 
+  - id: SEC-ART-01
+    type: artifact_scan
+    enabled: true
+    description: Model-artifact scanner (default deny; only safetensors and GGUF load). Walks pickle opcodes, archives, Keras configs, GGUF/safetensors headers, Hugging Face pinning
+    stages: [artifact_load]
+    cost_tier: deterministic
+    fail_mode: closed
+    timeout_ms: 10000          # large files: the scan streams, but hashing a multi-GB file takes a while
+    taxonomy: {owasp_llm: ["LLM03:2025"], atlas: ["AML.T0010"]}
+    params:
+      allowed_formats: [safetensors, gguf]
+      # Exceptions admit ONE specific blocked-format file (matched by sha256) for a stated reason, until `expires`.
+      # They never admit a malicious file: a pickle that calls os.system is blocked whatever is listed here.
+      #   - sha256: "<64 hex of the exact file>"
+      #     reason: "legacy checkpoint, reviewed by security on 2026-03-01"
+      #     formats: [torch_zip]          # optional: restrict to these detected formats (empty = any)
+      #     expires: 2026-12-31           # optional
+      exceptions: []
+      # Demo list: Hugging Face sources must be `hf:<org>/<repo>@<40-hex commit sha>` and match one of these globs.
+      hf_repo_allowlist: ["speakleash/*", "CYFRAGOVPL/*", "meta-llama/*", "google/*", "Qwen/*"]
+      max_file_bytes: 8589934592       # 8 GiB (uploads above this are rejected with 413)
+      max_pickle_bytes: 268435456      # 256 MiB walked per pickle
+      min_torch_version: "2.6.0"       # CVE-2025-32434: pickle-based torch files need torch>=2.6.0 + weights_only=True
+      use_feed_opcodes: true           # feed `opcode` signatures also turn the scan malicious (SEC-SIG-01 matches them too)
+
   - id: SEC-HYG-01
     type: egress_hygiene
     enabled: true

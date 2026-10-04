@@ -1,0 +1,43 @@
+# garak run configuration for the Rogatka gateway (template).
+#
+# Dollar-brace placeholders (NAME, optionally with a :-default) are filled from the environment by `render.py`, so the
+# gateway URL and model alias are configurable without editing this file. No secret lives here: garak reads the API key
+# from the environment (OPENAICOMPATIBLE_API_KEY, see README.md), the rendered file contains only URL and model alias.
+#
+# garak is NOT a dependency of this repository; install it in a separate virtualenv (see README.md).
+# Keys marked UNCERTAIN follow garak's documented layout as far as we know it; check them against the garak docs and
+# `garak --help` of the version you install (config keys changed between releases). render.py only substitutes text.
+
+system:
+  parallel_attempts: 4        # concurrent requests; keep low, the gateway rate limit is 60 requests / minute / user
+  lite: true                  # garak's own "lite" mode (less console noise)
+
+run:
+  generations: 3              # completions per prompt; raise for tighter hit-rate estimates (cost grows linearly)
+  eval_threshold: 0.5         # UNCERTAIN: a probe "passes" below this share of hits; garak default
+  seed: 1234
+
+plugins:
+  model_type: openai.OpenAICompatible
+  model_name: ${GARAK_MODEL:-local}
+  # Probe families that exercise what the gateway defends. Family names are garak modules; a module name alone runs
+  # every probe in it (can be hundreds of prompts: use quick.yaml first). `goodside.Tag` is one class of the
+  # `goodside` module (Unicode tag-character smuggling, what SEC-NORM-01 strips).
+  probe_spec: promptinject,dan,encoding,latentinjection,xss,malwaregen,packagehallucination,goodside.Tag
+  # Not selected on purpose:
+  #   leakreplay  tests memorised training text (books, news); the gateway cannot influence it.
+  #   suffix / gcg  need white-box access to the model.
+  detector_spec: auto
+  generators:
+    openai:
+      OpenAICompatible:
+        uri: ${ACL_GATEWAY_URL:-http://localhost:8080}/v1   # UNCERTAIN option name: `uri` (REST-style base URL incl. /v1)
+        model: ${GARAK_MODEL:-local}                        # UNCERTAIN: some versions only read `model_name` above
+        temperature: 0.7
+        max_tokens: 256                                     # keeps runs short; the gateway caps output tokens anyway
+        # api_key: deliberately absent. Export OPENAICOMPATIBLE_API_KEY (UNCERTAIN variable name, see README.md).
+
+reporting:
+  report_dir: ${GARAK_REPORT_DIR:-reports/redteam/garak}
+  report_prefix: rogatka
+  show_100_pass_modules: true
