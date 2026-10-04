@@ -8,6 +8,12 @@
     expect.applied         actions that must all be in `decision.applied`
     expect.would_action    expected `decision.would_action`
     expect.decided_by / decided_phase / final   exact match on the decision fields
+    expect.labels_after    {integrity: trusted|untrusted, confidentiality: <DataClass>, taint: [flags that must be
+                           present], taint_absent: [flags that must not be present]} checked against
+                           `decision.labels_after` (the session's input labels joined with every verdict's label update;
+                           for blocked / held calls it is the unchanged input labels). A verdict that raised labels
+                           counts as "fired" for `rule_id` even when its action is `allow` (label-only controls such as
+                           SEC-TAINT-01 never intervene).
 
 Live mode runs every case three times and passes on 2 of 3 (the individual runs are kept in the result).
 The runner is independent of how the engine is obtained: it takes `evaluate(ctx) -> Decision`.
@@ -26,7 +32,7 @@ from harness.cases import build_context, expected_action, primary_preset
 
 from acl.contracts.common import Action
 from acl.contracts.decision import Decision
-from acl.contracts.inspection import InspectionContext
+from acl.contracts.inspection import InspectionContext, SessionLabels
 from acl.engine.text import apply_replacements, iter_texts
 
 LIVE_RUNS = 3
@@ -48,6 +54,8 @@ class RunOutcome:
     applied: list[str]
     latency_ms: float
     failures: list[str]
+    labels_after: dict[str, str] = field(default_factory=dict)  # integrity, confidentiality, taint ("a,b"), sources
+    label_controls: list[str] = field(default_factory=list)  # controls whose verdict raised labels
 
     @property
     def passed(self) -> bool:
@@ -76,6 +84,7 @@ class CaseResult:
     outcome: RunOutcome
     runs: list[RunOutcome] = field(default_factory=list)  # live mode: all runs
     live: bool = False
+    label_case: bool = False  # the case has `expect.labels_after`: a label-raising (not intervening) expectation
 
     @property
     def passed(self) -> bool:
@@ -89,6 +98,53 @@ class CaseResult:
 
 
 RESULTS: list[CaseResult] = []
+
+
+def labels_dict(labels: SessionLabels) -> dict[str, str]:
+    """String form of session labels for reports: integrity, confidentiality, taint ("a,b"), sources ("x,y")."""
+    return {
+        "integrity": labels.integrity.value,
+        "confidentiality": labels.confidentiality.value,
+        "taint": ",".join(sorted(t.value for t in labels.taint)),
+        "sources": ",".join(labels.sources),
+    }
+
+
+def raised_labels(decision: Decision) -> list[str]:
+    """Ids of the controls whose label update made it into `labels_after`.
+
+    A blocked / held decision discards every label update (`compose_decision` keeps the input labels), so nothing
+    counts as raised then.
+    """
+    out: list[str] = []
+    if decision.action in (Action.block, Action.require_approval):
+        return out
+    for v in decision.verdicts:
+        u = v.labels
+        if u is not None and (u.integrity_untrusted or u.confidentiality or u.taint) and v.control_id not in out:
+            out.append(v.control_id)
+    return out
+
+
+def _check_labels(spec: dict[str, Any], decision: Decision, failures: list[str]) -> None:
+    got = decision.labels_after
+    present = {t.value for t in got.taint}
+    summary = f"integrity={got.integrity.value}, confidentiality={got.confidentiality.value}, taint={sorted(present)}"
+    if "integrity" in spec and got.integrity.value != spec["integrity"]:
+        failures.append(
+            f"labels_after: expected integrity={spec['integrity']!r}, got {got.integrity.value!r} ({summary})"
+        )
+    if "confidentiality" in spec and got.confidentiality.value != spec["confidentiality"]:
+        failures.append(
+            f"labels_after: expected confidentiality={spec['confidentiality']!r}, "
+            f"got {got.confidentiality.value!r} ({summary})"
+        )
+    missing = [f for f in _as_list(spec.get("taint")) if f not in present]
+    if missing:
+        failures.append(f"labels_after: expected taint flag(s) {missing} ({summary})")
+    unexpected = [f for f in _as_list(spec.get("taint_absent")) if f in present]
+    if unexpected:
+        failures.append(f"labels_after: taint flag(s) {unexpected} must be absent ({summary})")
 
 
 def _as_list(value: Any) -> list[str]:
@@ -122,6 +178,11 @@ def _check_redaction(spec: dict[str, Any], ctx: InspectionContext, decision: Dec
             failures.append(f"redaction: {needle!r} still present in transformed payload (skipped findings: {skipped})")
 
 
+def _raised(verdict: Any) -> bool:
+    u = verdict.labels
+    return u is not None and bool(u.integrity_untrusted or u.confidentiality or u.taint)
+
+
 def check_expectations(case: dict[str, Any], preset: str, ctx: InspectionContext, decision: Decision) -> list[str]:
     failures: list[str] = []
     expect = case.get("expect") or {}
@@ -137,7 +198,9 @@ def check_expectations(case: dict[str, Any], preset: str, ctx: InspectionContext
 
     if "rule_id" in expect and not (case.get("matrix") and want == "allow"):
         wanted_rules = _as_list(expect["rule_id"])
-        fired = set(decision.rule_ids) | {r for v in decision.verdicts if v.action != Action.allow for r in v.rule_ids}
+        fired = set(decision.rule_ids) | {
+            r for v in decision.verdicts if v.action != Action.allow or _raised(v) for r in v.rule_ids
+        }
         if not wanted_rules:
             if decision.rule_ids:
                 failures.append(f"expected no rules, got {decision.rule_ids}")
@@ -161,6 +224,9 @@ def check_expectations(case: dict[str, Any], preset: str, ctx: InspectionContext
     for a in _as_list(expect.get("applied")):
         if a not in [x.value for x in decision.applied]:
             failures.append(f"expected {a!r} in applied={[x.value for x in decision.applied]}")
+
+    if expect.get("labels_after"):
+        _check_labels(expect["labels_after"], decision, failures)
 
     red = expect.get("redaction")
     if red and (not red.get("presets") or preset in red["presets"]):
@@ -199,6 +265,8 @@ class CaseRunner:
             applied=[a.value for a in decision.applied],
             latency_ms=elapsed,
             failures=check_expectations(case, preset, ctx, decision),
+            labels_after=labels_dict(decision.labels_after),
+            label_controls=raised_labels(decision),
         )
 
     def run(self, case: dict[str, Any], preset: str) -> CaseResult:
@@ -223,6 +291,7 @@ class CaseRunner:
             outcome=outcome,
             runs=runs if self.live else [],
             live=self.live,
+            label_case=bool((case.get("expect") or {}).get("labels_after")),
         )
         if self.record:
             RESULTS.append(result)

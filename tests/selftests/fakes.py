@@ -9,7 +9,7 @@ from harness.host import ROOT
 from pydantic import BaseModel, ConfigDict
 
 from acl.contracts.common import Action, CostTier, InspectionPoint
-from acl.contracts.decision import Decision, Finding
+from acl.contracts.decision import Decision, Finding, LabelUpdate
 from acl.contracts.inspection import InspectionContext
 from acl.controls.base import Control, ControlRegistry
 from acl.engine.engine import Engine
@@ -33,6 +33,8 @@ class FakeControl(Control):
     needs_taint   only act when the session carries this taint flag (session presets)
     allow_groups  principals in one of these groups are allowed (principal handling)
     script        list of actions returned on successive calls (live 2-of-3 tests)
+    labels        {integrity_untrusted, confidentiality, taint}: label update attached to a hit verdict (use
+                  `action: allow` for a label-only control like SEC-TAINT-01)
     """
 
     type = "fake"
@@ -78,6 +80,7 @@ class FakeControl(Control):
             final=action == Action.block,
             rule_ids=[self.id],
             findings=findings if action in (Action.redact, Action.pseudonymise) else [],
+            labels=LabelUpdate(**p["labels"]) if p.get("labels") else None,
         )
 
 

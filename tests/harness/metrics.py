@@ -11,14 +11,21 @@ Definitions (also written to `extra.definitions`):
   * ASR = negatives not intervened / negatives, over enforcing presets (monitor cells excluded).
     FPR (per call) = positives intervened / positives, same cells.
   * Layer attribution = `decided_phase` of intervened negatives; `missed` for the rest.
+  * Label-raising cases (`expect.labels_after`, e.g. SEC-TAINT-01) are judged by what the control is for: raising
+    session labels. A `negative` is a TP when the cell passed (the expected labels were raised) and the control's
+    verdict carried the label update, else a FN; a `positive` is a FP when the control raised labels it should not
+    have (or the cell failed its labels expectation), else a TN. They never intervene, so they are excluded from
+    ASR, FPR per call, layer attribution and the per-preset detection / FPR columns (those measure intervention).
   * Failed expectation cells (`extra.failed_cases`) are separate from detection quality: a case can pass
     its expectation (e.g. "monitor must allow") while counting as an attack success.
 """
 
 from __future__ import annotations
 
+import json
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from harness.runner import CaseResult
@@ -36,7 +43,13 @@ def _per_control(results: list[CaseResult]) -> tuple[list[dict[str, Any]], int]:
             continue
         o = r.outcome
         s = stats[r.control]
-        if r.kind == "negative":
+        if r.label_case:
+            raised = r.control in o.label_controls
+            if r.kind == "negative":
+                s["tp" if raised and r.passed else "fn"] += 1
+            else:
+                s["fp" if raised or not r.passed else "tn"] += 1
+        elif r.kind == "negative":
             if o.intervened and r.control in o.fired_controls:
                 s["tp"] += 1
             else:
@@ -66,8 +79,8 @@ def _per_preset(results: list[CaseResult]) -> dict[str, dict[str, float]]:
     for preset, rs in sorted(by_preset.items()):
         passed = sum(r.passed for r in rs)
         _, lo, hi = wilson(passed, len(rs))
-        neg = [r for r in rs if r.kind == "negative" and r.control != NONE_CONTROL]
-        pos = [r for r in rs if r.kind == "positive" and r.control != NONE_CONTROL]
+        neg = [r for r in rs if r.kind == "negative" and r.control != NONE_CONTROL and not r.label_case]
+        pos = [r for r in rs if r.kind == "positive" and r.control != NONE_CONTROL and not r.label_case]
         row: dict[str, float] = {
             "cells": float(len(rs)),
             "passed": float(passed),
@@ -94,7 +107,9 @@ def build_summary(
     leak_rate_by_channel: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     per_control, caught_by_other = _per_control(results)
-    scored = [r for r in results if r.control != NONE_CONTROL and r.preset not in ENFORCING_EXCLUDED]
+    scored = [
+        r for r in results if r.control != NONE_CONTROL and r.preset not in ENFORCING_EXCLUDED and not r.label_case
+    ]
     scored_primary = [r for r in scored if r.primary]
     neg = [r for r in scored_primary if r.kind == "negative"]
     pos = [r for r in scored_primary if r.kind == "positive"]
@@ -137,6 +152,50 @@ def _latency(results: list[CaseResult]) -> list[float]:
     if not xs:
         return []
     return [round(xs[len(xs) // 2], 3), round(xs[min(len(xs) - 1, int(len(xs) * 0.95))], 3)]
+
+
+def merge_evidence(summary: dict[str, Any], reports_dir: Path) -> dict[str, Any]:
+    """Put `reports/mutation.json` / `reports/adaptive.json` into the summary (keys `mutation` / `adaptive`).
+
+    A report is merged only when it parses and validates against its contract model; an invalid or missing
+    one leaves the summary untouched (and removes a stale key), so a half-written report can never break
+    `summary.json`. Returns the same dict.
+    """
+    from acl.contracts.admin import AdaptiveTierSummary, MutationCoverage
+
+    for key, model in (("mutation", MutationCoverage), ("adaptive", AdaptiveTierSummary)):
+        path = reports_dir / f"{key}.json"
+        summary.pop(key, None)
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            model.model_validate(data)
+        except (OSError, ValueError):
+            continue
+        summary[key] = data
+    return summary
+
+
+def remerge_summary_file(reports_dir: Path) -> bool:
+    """Re-merge the evidence reports into an existing `summary.json` (used by the mutation / adaptive CLIs).
+
+    Returns False when there is no (valid) summary to update. The result is validated before it is written.
+    """
+    path = reports_dir / "summary.json"
+    if not path.exists():
+        return False
+    try:
+        summary = json.loads(path.read_text(encoding="utf-8"))
+        validate_summary(summary)
+    except (OSError, ValueError):
+        return False
+    merge_evidence(summary, reports_dir)
+    validate_summary(summary)
+    with path.open("w", encoding="utf-8", newline="\n") as fh:
+        json.dump(summary, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+    return True
 
 
 def validate_summary(summary: dict[str, Any]) -> None:
