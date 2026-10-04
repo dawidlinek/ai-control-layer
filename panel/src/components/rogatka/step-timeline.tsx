@@ -12,7 +12,7 @@ export interface TimelineStep {
   result: React.ReactNode;
   /** Right-aligned mono duration ("7 ms"). */
   meta?: string;
-  /** Steps that changed something are bold with a filled accent dot. */
+  /** Steps that changed something are bold (the rings and dots are the brand motif, not a decision colour). */
   changed?: boolean;
   /** Expandable detail (the controls that ran). Steps without detail are not clickable. */
   detail?: React.ReactNode;
@@ -52,13 +52,15 @@ export function StepTimeline({
         return (
           <li key={s.id} data-step={s.id} data-changed={s.changed || undefined} className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-2.5">
             <span className="flex flex-col items-center" aria-hidden>
+              {/* brand motif: 2 px accent rail, 12 px hollow ring per step, 14 px filled dot for the final step */}
               <span
+                data-slot={last ? "timeline-final" : "timeline-ring"}
                 className={cn(
-                  "mt-[9px] size-3 rounded-full border-2",
-                  s.changed ? "border-accent bg-accent" : "border-muted bg-transparent",
+                  "shrink-0 rounded-full border-2 border-accent",
+                  last ? "mt-2 size-3.5 bg-accent" : "mt-[9px] size-3 bg-surface",
                 )}
               />
-              <span className={cn("w-0.5 flex-1", last ? "bg-transparent" : "bg-border")} />
+              <span className={cn("w-0.5 flex-1", last ? "bg-transparent" : "bg-accent")} />
             </span>
             <div className="flex flex-col gap-1.5 pb-[7px] pt-[5px]">
               <button

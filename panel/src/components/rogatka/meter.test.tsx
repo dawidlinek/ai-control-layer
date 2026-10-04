@@ -16,12 +16,12 @@ describe("meterState", () => {
 });
 
 describe("Meter", () => {
-  it("is accent below 80 %", () => {
+  it("is ink below 80 %", () => {
     const { container } = render(<Meter label="Spend today" value={3.12} max={5} />);
     const meter = screen.getByRole("meter", { name: "Spend today" });
     expect(meter).toHaveAttribute("aria-valuenow", "3.12");
     expect(meter).toHaveAttribute("data-state", "normal");
-    expect(container.querySelector(".bg-accent")).toHaveStyle({ width: "62.4%" });
+    expect(container.querySelector(".bg-ink")).toHaveStyle({ width: "62.4%" });
   });
 
   it("turns orange at 80 % and red when over", () => {

@@ -91,8 +91,8 @@ export function SidebarHeader({
   const [copied, setCopied] = React.useState(false);
   return (
     <div className={cn("flex items-center gap-2 border-b border-border px-3.5 py-2.5", className)}>
-      <span className="text-[11px] font-semibold uppercase tracking-[.08em] text-muted">{label}</span>
-      {title && <span className="min-w-0 truncate font-mono text-[12.5px]">{title}</span>}
+      <span className="text-[11px] font-bold uppercase tracking-[.1em] text-muted">{label}</span>
+      {title && <span className="min-w-0 truncate font-mono text-[13px]">{title}</span>}
       {copyText && (
         <button
           type="button"

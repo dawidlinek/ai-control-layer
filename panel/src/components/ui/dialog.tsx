@@ -38,9 +38,9 @@ export function DialogContent({
 }
 
 export function DialogTitle({ className, ...props }: React.ComponentProps<typeof Primitive.Title>) {
-  return <Primitive.Title className={cn("m-0 text-[15px] font-semibold", className)} {...props} />;
+  return <Primitive.Title className={cn("m-0 text-[16px] font-semibold", className)} {...props} />;
 }
 
 export function DialogDescription({ className, ...props }: React.ComponentProps<typeof Primitive.Description>) {
-  return <Primitive.Description className={cn("m-0 text-[12.5px] text-muted", className)} {...props} />;
+  return <Primitive.Description className={cn("m-0 text-[13.5px] text-muted", className)} {...props} />;
 }

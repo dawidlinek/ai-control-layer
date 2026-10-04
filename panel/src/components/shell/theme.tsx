@@ -14,7 +14,7 @@ interface ThemeCtx {
 const ThemeContext = React.createContext<ThemeCtx | null>(null);
 
 /**
- * Dark / light theme. The server renders `<html data-theme>` from the `rogatka-theme` cookie, so there is no
+ * Light (default) / dark theme. The server renders `<html data-theme>` from the `rogatka-theme` cookie, so there is no
  * flash on reload; switching sets the attribute and the cookie (1 year, same-site).
  */
 export function ThemeProvider({ initial, children }: { initial: Theme; children: React.ReactNode }) {

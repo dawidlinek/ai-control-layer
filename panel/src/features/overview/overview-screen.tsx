@@ -26,6 +26,10 @@ const MODEL_NOTE: Record<string, string> = {
   guards: "classifier + NER",
 };
 
+// Stat block (STYLEGUIDE section 4): 2 px accent top rule, big number, one-line caption.
+const STAT_BLOCK = "flex flex-col gap-1 self-start border-t-2 border-accent pt-2.5";
+const STAT_NUMBER = "font-mono text-[36px] font-bold leading-none tracking-[-0.03em]";
+const STAT_CAPTION = "text-[14px] text-muted";
 const linkCls = "text-[12.5px] text-accent no-underline hover:underline";
 
 /** `318k`, `1.4M`, `412`. */
@@ -101,9 +105,9 @@ function HappeningCard({ range, summary, ...state }: CardProps & { range: Range;
           const legend = DECISIONS.filter((d) => (s.decisions_by_action[d] ?? 0) > 0);
           return (
             <>
-              <div className="flex items-baseline gap-2.5">
-                <span className="font-mono text-[34px] font-semibold tracking-[-0.02em]">{formatNumber(s.decisions_total)}</span>
-                <span className="text-muted">decisions · {RANGE_TEXT[range]}</span>
+              <div className={STAT_BLOCK}>
+                <span className={STAT_NUMBER}>{formatNumber(s.decisions_total)}</span>
+                <span className={STAT_CAPTION}>decisions · {RANGE_TEXT[range]}</span>
               </div>
               <DecisionsChart
                 buckets={s.timeline}
@@ -179,9 +183,9 @@ function SafeCard({ day, ...state }: CardProps & { day?: OverviewSummary }) {
         <ErrorState error={incidents.error} onRetry={() => void incidents.refetch()} />
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Link href="/incidents" className="flex items-baseline gap-2 text-text no-underline hover:underline">
-            <span className="font-mono text-[28px] font-semibold tracking-[-0.02em]">{open.length}</span>
-            <span className="text-muted">open {open.length === 1 ? "incident" : "incidents"}</span>
+          <Link href="/incidents" className={`${STAT_BLOCK} text-text no-underline hover:underline`}>
+            <span className={STAT_NUMBER}>{open.length}</span>
+            <span className={STAT_CAPTION}>open {open.length === 1 ? "incident" : "incidents"}</span>
           </Link>
           <span className="flex flex-wrap gap-1.5">
             {SEVERITIES.filter((s) => bySeverity.has(s)).map((s) => (
@@ -259,9 +263,9 @@ function CostCard({ summary, ...state }: CardProps & { summary?: OverviewSummary
             <>
               <div className="flex flex-wrap gap-x-7 gap-y-3.5">
                 <div className="flex min-w-0 flex-[1.3_1_240px] flex-col gap-1.5">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-[28px] font-semibold tracking-[-0.02em]">{formatUsd(s.usd_today)}</span>
-                    <span className="text-muted">{limit ? `/ ${formatUsd(limit)} USD today` : "USD today"}</span>
+                  <div className={STAT_BLOCK}>
+                    <span className={STAT_NUMBER}>{formatUsd(s.usd_today)}</span>
+                    <span className={STAT_CAPTION}>{limit ? `/ ${formatUsd(limit)} USD today` : "USD today"}</span>
                   </div>
                   {limit ? (
                     <Meter label="Spend today" value={s.usd_today} max={limit} forecast={s.usd_forecast_day ?? undefined} className="h-2" />

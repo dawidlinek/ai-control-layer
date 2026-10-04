@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-/** Page title (20 px / 600), optional subtitle, actions on the right. */
+/** Page title (22 px / 600 / -0.01em), optional subtitle, actions on the right. */
 export function PageHeader({
   title,
   subtitle,
@@ -16,8 +16,8 @@ export function PageHeader({
   return (
     <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2", className)}>
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h1 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">{title}</h1>
-        {subtitle && <p className="m-0 text-[12.5px] text-muted">{subtitle}</p>}
+        <h1 className="m-0 text-[22px] font-semibold tracking-[-0.01em]">{title}</h1>
+        {subtitle && <p className="m-0 text-[14px] text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -26,7 +26,7 @@ export function PageHeader({
 
 /** The one plain-language sentence at the top of every sidebar (generated from templates, never by an LLM). */
 export function PlainSentence({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <p className={cn("m-0 text-[14px] leading-[1.5]", className)}>{children}</p>;
+  return <p className={cn("m-0 text-[16px] font-medium leading-[1.45]", className)}>{children}</p>;
 }
 
 export interface Fact {
@@ -39,18 +39,18 @@ export interface Fact {
 /** 4-8 key facts in a 2-column grid; values ellipsise. */
 export function FactsGrid({ facts, className }: { facts: readonly Fact[]; className?: string }) {
   return (
-    <dl className={cn("m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-[12.5px]", className)}>
+    <dl className={cn("m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-[14px]", className)}>
       {facts.map((f) => (
         <div key={f.label} className="flex min-w-0 flex-col gap-px">
-          <dt className="text-[11px] text-muted">{f.label}</dt>
-          <dd className={cn("m-0 truncate", f.mono && "font-mono text-[12px]")}>{f.value}</dd>
+          <dt className="text-[12px] text-muted">{f.label}</dt>
+          <dd className={cn("m-0 truncate", f.mono && "font-mono text-[13px]")}>{f.value}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
-/** Sidebar / card section: 11 px / 600 / uppercase / .08em label. */
+/** Sidebar / card section: 11 px / 700 / uppercase / .1em muted label. */
 export function SidebarSection({
   title,
   aside,
@@ -66,17 +66,17 @@ export function SidebarSection({
   return (
     <section aria-labelledby={id} className={cn("flex flex-col gap-2 border-b border-border p-3.5", className)}>
       <div className="flex items-baseline justify-between gap-2">
-        <h3 id={id} className="m-0 text-[11px] font-semibold uppercase tracking-[.08em] text-muted">
+        <h3 id={id} className="m-0 text-[11px] font-bold uppercase tracking-[.1em] text-muted">
           {title}
         </h3>
-        {aside && <span className="text-[11.5px] text-muted">{aside}</span>}
+        {aside && <span className="text-[12px] text-muted">{aside}</span>}
       </div>
       {children}
     </section>
   );
 }
 
-/** Overview-style card: surface, border, 8 px radius, 16 px padding, optional uppercase heading. */
+/** Overview-style card: surface, 1 px border, 8 px radius, 16 px padding, no shadow, optional uppercase heading. */
 export function Card({
   title,
   children,
@@ -91,7 +91,7 @@ export function Card({
       {...rest}
     >
       {title && (
-        <h2 id={id} className="m-0 text-[11px] font-semibold uppercase tracking-[.08em] text-muted">
+        <h2 id={id} className="m-0 text-[11px] font-bold uppercase tracking-[.1em] text-muted">
           {title}
         </h2>
       )}

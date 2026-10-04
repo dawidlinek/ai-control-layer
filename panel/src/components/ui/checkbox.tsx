@@ -10,7 +10,7 @@ export function Checkbox({ className, ...props }: React.ComponentProps<typeof Pr
     <Primitive.Root
       data-slot="checkbox"
       className={cn(
-        "inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-border-strong bg-inset data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-on-accent",
+        "inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-border-strong bg-inset data-[state=checked]:border-ink data-[state=checked]:bg-ink data-[state=checked]:text-on-ink",
         className,
       )}
       {...props}

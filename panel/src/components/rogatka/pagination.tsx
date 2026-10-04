@@ -24,7 +24,7 @@ export function pageWindow(page: number, pageCount: number): (number | null)[] {
   return out;
 }
 
-const btn = "min-h-8 min-w-[34px] rounded-[6px] border border-border bg-surface px-2 text-[12.5px] disabled:opacity-50";
+const btn = "min-h-8 min-w-[34px] rounded-[6px] border border-border bg-surface px-2 text-[13.5px] disabled:opacity-50";
 
 /**
  * "Rows per page 25 v" on the left, "< 1 2 3 ... N >" on the right.
@@ -53,14 +53,14 @@ export function Pagination({
   const last = pageCount ?? (hasNext ? page + 1 : page);
   const canNext = pageCount !== undefined ? page < pageCount : !!hasNext;
   return (
-    <nav aria-label="Pagination" className={cn("flex flex-wrap items-center gap-2 text-[12.5px]", className)}>
+    <nav aria-label="Pagination" className={cn("flex flex-wrap items-center gap-2 text-[13.5px]", className)}>
       <span className="text-muted">Rows per page</span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label="Rows per page"
-            className="inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border border-border bg-surface px-2.5 text-[12.5px]"
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border border-border bg-surface px-2.5 text-[13.5px]"
           >
             {pageSize}
             <PathIcon path={ICON_PATHS.chevronDown} size={11} strokeWidth={2.4} />

@@ -32,7 +32,7 @@ export function StatusBox({
     <div
       role={variant === "error" ? "alert" : "status"}
       data-variant={variant}
-      className={cn("tint flex items-start gap-2.5 rounded-[6px] px-3 py-2.5 text-[12.5px]", className)}
+      className={cn("tint flex items-start gap-2.5 rounded-[6px] px-3 py-2.5 text-[13.5px]", className)}
       style={{ "--c": s.v } as React.CSSProperties}
     >
       <PathIcon path={s.icon} size={15} className="mt-px shrink-0" />

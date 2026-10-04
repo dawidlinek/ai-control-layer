@@ -19,7 +19,7 @@ export function SidebarNav() {
       {NAV.map((section, i) => (
         <div key={section.title ?? i} className="flex flex-col gap-px">
           {section.title && (
-            <div className="px-2.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[.08em] text-muted">
+            <div className="px-2.5 pb-1.5 text-[11px] font-bold uppercase tracking-[.1em] text-muted">
               {section.title}
             </div>
           )}
@@ -32,8 +32,10 @@ export function SidebarNav() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "box-border flex min-h-8 items-center justify-between gap-2 rounded-[6px] px-2.5 py-1.5 text-[13px] no-underline",
-                  active ? "bg-accent-soft font-semibold text-text" : "font-normal text-muted hover:bg-raised hover:text-text",
+                  "relative box-border flex min-h-9 items-center justify-between gap-2 rounded-[6px] px-2.5 py-1.5 text-[14px] no-underline",
+                  active
+                    ? "bg-accent-soft font-semibold text-text before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-accent before:content-['']"
+                    : "font-normal text-muted hover:bg-raised hover:text-text",
                 )}
               >
                 <span>{item.label}</span>
@@ -41,7 +43,7 @@ export function SidebarNav() {
                   <span
                     data-badge={item.badge}
                     aria-label={`${count} ${item.badge === "incidents" ? "open" : "pending"}`}
-                    className="rounded-[9px] bg-accent-soft px-[7px] text-[11px] font-semibold text-accent"
+                    className="rounded-[9px] bg-accent-soft px-[7px] font-mono text-[11.5px] font-semibold text-accent"
                   >
                     {count}
                   </span>

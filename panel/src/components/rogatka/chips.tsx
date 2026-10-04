@@ -96,7 +96,7 @@ export function SeverityChip({
 }
 
 const ruleChipClass =
-  "inline-flex items-center gap-1 rounded-[4px] border border-border-strong bg-raised px-[5px] font-mono text-[11px] leading-[1.5] text-text no-underline";
+  "inline-flex items-center gap-1 rounded-[4px] border border-border-strong bg-raised px-[5px] font-mono text-[12px] leading-[1.5] text-text no-underline";
 
 /**
  * Rule id chip: mono, raised background, strong border. Links to `/policies?rule=<ID>` unless `href={false}`.
@@ -130,7 +130,7 @@ export function RuleChip({
     <Link
       data-rule={ruleId}
       href={href ?? `/policies?rule=${encodeURIComponent(ruleId)}`}
-      className={cn(ruleChipClass, "hover:border-accent", className)}
+      className={cn(ruleChipClass, "hover:border-ink", className)}
     >
       {body}
     </Link>
@@ -193,12 +193,12 @@ export function ToggleChip({
       disabled={disabled}
       onClick={() => onChange?.(!on)}
       className={cn(
-        "inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[12.5px] disabled:opacity-60",
+        "inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[13.5px] disabled:opacity-60",
         on ? "border-accent-line bg-accent-soft text-text" : "border-border bg-surface text-muted hover:border-border-strong",
         className,
       )}
     >
-      <span aria-hidden className={cn("font-mono", on && "text-accent")}>
+      <span aria-hidden className={cn("font-mono", on && "text-text")}>
         {on ? "✓" : "+"}
       </span>
       {label}

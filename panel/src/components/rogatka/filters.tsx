@@ -34,7 +34,7 @@ export interface TabItem<V extends string = string> {
 
 const segBase = "inline-flex overflow-hidden rounded-[6px] border border-border";
 const segBtn =
-  "min-h-8 border-0 border-r border-border px-3 text-[12.5px] last:border-r-0 transition-colors";
+  "min-h-8 border-0 border-r border-border px-3 text-[13.5px] last:border-r-0 transition-colors";
 
 /** Tabs with counts ("Open 7 | Resolved 2 | All 9"). Page-level tabs too (Rules | YAML | History). */
 export function SegmentedTabs<V extends string = string>({
@@ -167,7 +167,7 @@ export function FilterMenuButton({
         <button
           type="button"
           className={cn(
-            "inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[12.5px] text-text",
+            "inline-flex min-h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[13.5px] text-text",
             active ? "border-accent-line bg-accent-soft" : "border-border bg-surface hover:border-border-strong",
             className,
           )}
@@ -230,7 +230,7 @@ export function SearchInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-text outline-none placeholder:text-muted focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="min-w-0 flex-1 border-0 bg-transparent text-[13.5px] text-text outline-none placeholder:text-muted focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
     </label>
   );
@@ -252,7 +252,7 @@ export function LabeledSwitch({
 }) {
   const id = React.useId();
   return (
-    <div className={cn("inline-flex min-h-8 items-center gap-2 px-1 text-[12.5px]", className)}>
+    <div className={cn("inline-flex min-h-8 items-center gap-2 px-1 text-[13.5px]", className)}>
       <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
       <label htmlFor={id} className="cursor-pointer select-none">
         {label}

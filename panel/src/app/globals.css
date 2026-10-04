@@ -1,64 +1,37 @@
 @import "tailwindcss";
 
 /*
- * Rogatka Dashboard design tokens (docs/ux/HANDOFF.md section 4).
- * Dark is the default theme; `:root[data-theme="light"]` switches to light.
- * The theme attribute is set before first paint by the inline script in app/layout.tsx.
+ * Rogatka Dashboard design tokens (docs/ux/STYLEGUIDE.md; the dark values come from docs/ux/HANDOFF.md section 4).
+ * Light is the default theme; `:root[data-theme="dark"]` switches to dark.
+ * The theme attribute is rendered by the server from the `rogatka-theme` cookie (app/layout.tsx).
+ *
+ * Red is a brand mark (logo tag, header rule, active-nav bar, timeline rails), not an action colour: primary
+ * buttons, selection and focus are ink / neutral so that red keeps meaning "block" in the decision palette.
  */
 :root {
-  --bg: #0e1013;
-  --surface: #15181c;
-  --raised: #1c2025;
-  --inset: #101215;
-  --border: #272c33;
-  --border-strong: #3a414a;
-  --text: #e7e9ec;
-  --muted: #9ba4ae;
-  --accent: #4c8dff;
-  --on-accent: #0e1013;
-  --accent-soft: rgb(76 141 255 / 0.16);
-  --accent-line: rgb(76 141 255 / 0.7);
-
-  /* tint strengths for decision / severity chips (dark | light) */
-  --tint-bg: 14%;
-  --tint-bd: 32%;
-
-  --dec-allow: #4ade80;
-  --dec-monitor: #a3b1c2;
-  --dec-redact: #d8a4fe;
-  --dec-pseudonymise: #b4a0ff;
-  --dec-sanitize: #2dd4bf;
-  --dec-downgrade: #fbbf24;
-  --dec-route-local: #7cb4ff;
-  --dec-require-approval: #fb923c;
-  --dec-block: #f87171;
-  --sev-critical: #fb7185;
-  --sev-high: #f87171;
-  --sev-medium: #fbbf24;
-  --sev-low: #a3b1c2;
-
-  --radius-chip: 4px;
-  --radius-control: 6px;
-  --radius-card: 8px;
-
-  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.35);
-  color-scheme: dark;
-}
-
-:root[data-theme="light"] {
-  --bg: #f3f4f6;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --raised: #f6f7f9;
-  --inset: #eceef1;
-  --border: #dce0e5;
+  --raised: #f6f6f4;
+  --inset: #f6f6f4;
+  --border: #d9dce3;
   --border-strong: #c3c9d1;
-  --text: #14171b;
+  --ink: #111111;
+  --on-ink: #ffffff;
+  --text: #111111;
+  --text-secondary: #3d4450;
   --muted: #56606b;
-  --accent: #3460ad;
-  --on-accent: #ffffff;
-  --accent-soft: rgb(76 141 255 / 0.12);
-  --accent-line: rgb(76 141 255 / 0.8);
 
+  /* brand red: fills, rules, dots (accent); small text and white-label buttons (accent-text) */
+  --accent: #e3322b;
+  --accent-text: #c4261f;
+  --accent-pressed: #8f1b16;
+  --accent-50: #fff5f4;
+  --on-accent: #ffffff;
+  /* selection / hover-on-selection: neutral, never red (a red row would read as a block) */
+  --accent-soft: rgb(17 17 17 / 0.06);
+  --accent-line: rgb(17 17 17 / 0.45);
+
+  /* tint strengths for decision / severity chips (light | dark) */
   --tint-bg: 10%;
   --tint-bd: 30%;
 
@@ -76,8 +49,54 @@
   --sev-medium: #a16207;
   --sev-low: #475569;
 
+  --radius-chip: 4px;
+  --radius-control: 6px;
+  --radius-card: 8px;
+
   --shadow-pop: 0 12px 32px rgb(20 23 27 / 0.16);
   color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1013;
+  --surface: #15181c;
+  --raised: #1c2025;
+  --inset: #101215;
+  --border: #272c33;
+  --border-strong: #3a414a;
+  --ink: #e7e9ec;
+  --on-ink: #0e1013;
+  --text: #e7e9ec;
+  --text-secondary: #c3c9d1;
+  --muted: #9ba4ae;
+
+  --accent: #f0554d;
+  --accent-text: #f0554d;
+  --accent-pressed: #ff8a84;
+  --accent-50: rgb(240 85 77 / 0.1);
+  --on-accent: #0e1013;
+  --accent-soft: rgb(231 233 236 / 0.08);
+  --accent-line: rgb(231 233 236 / 0.45);
+
+  --tint-bg: 14%;
+  --tint-bd: 32%;
+
+  --dec-allow: #4ade80;
+  --dec-monitor: #a3b1c2;
+  --dec-redact: #d8a4fe;
+  --dec-pseudonymise: #b4a0ff;
+  --dec-sanitize: #2dd4bf;
+  --dec-downgrade: #fbbf24;
+  --dec-route-local: #7cb4ff;
+  --dec-require-approval: #fb923c;
+  --dec-block: #f87171;
+  --sev-critical: #fb7185;
+  --sev-high: #f87171;
+  --sev-medium: #fbbf24;
+  --sev-low: #a3b1c2;
+
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -87,9 +106,15 @@
   --color-inset: var(--inset);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
   --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-accent-50: var(--accent-50);
   --color-on-accent: var(--on-accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-line: var(--accent-line);
@@ -112,7 +137,7 @@
   --radius-control: 6px;
   --radius-card: 8px;
 
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
@@ -128,7 +153,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
@@ -143,12 +168,21 @@
     cursor: not-allowed;
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--ink);
     outline-offset: 2px;
   }
   ::selection {
     background: var(--accent-soft);
   }
+}
+
+/*
+ * Small red text (links, "cloud" tags) must use `accent-text` (AA contrast on white, STYLEGUIDE section 2):
+ * `text-accent` resolves to it so features written against the old blue accent stay readable.
+ * Fills and rules (`bg-accent`, `border-accent`) keep the brand red.
+ */
+.text-accent {
+  color: var(--accent-text);
 }
 
 /* Tinted chip: set `--c` to a decision/severity colour, add `.tint`. */

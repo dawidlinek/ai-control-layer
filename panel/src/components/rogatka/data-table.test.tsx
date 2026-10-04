@@ -35,7 +35,7 @@ describe("DataTable", () => {
   it("renders headers and rows", () => {
     render(table());
     const t = screen.getByRole("table", { name: "Events" });
-    expect(within(t).getByRole("columnheader", { name: "Who" })).toHaveClass("uppercase", "text-[10.5px]");
+    expect(within(t).getByRole("columnheader", { name: "Who" })).toHaveClass("uppercase", "text-[11px]", "font-bold");
     expect(within(t).getAllByRole("row")).toHaveLength(4);
     expect(within(t).getByText("SEC-FLOW-01")).toHaveClass("font-mono");
   });
@@ -55,7 +55,7 @@ describe("DataTable", () => {
     const rows = screen.getAllByRole("row");
     expect(rows[2]).toHaveAttribute("aria-selected", "true");
     expect(rows[2]).toHaveClass("bg-accent-soft");
-    expect(rows[2].querySelector("td")).toHaveClass("shadow-[inset_3px_0_0_var(--accent)]");
+    expect(rows[2].querySelector("td")).toHaveClass("shadow-[inset_3px_0_0_var(--ink)]");
     expect(rows[1]).toHaveAttribute("aria-selected", "false");
   });
 

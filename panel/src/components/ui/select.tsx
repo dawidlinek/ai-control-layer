@@ -15,7 +15,7 @@ export function SelectTrigger({ className, children, ...props }: React.Component
     <Primitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        "inline-flex min-h-[34px] w-full items-center justify-between gap-2 rounded-[6px] border border-border bg-inset px-2.5 text-left text-[13px] text-text",
+        "inline-flex min-h-[34px] w-full items-center justify-between gap-2 rounded-[6px] border border-border-strong bg-inset px-2.5 text-left text-[14px] text-text",
         "data-[placeholder]:text-muted data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 aria-[invalid=true]:border-dec-block",
         className,
       )}
@@ -43,7 +43,7 @@ export function SelectContent({
         position={position}
         sideOffset={sideOffset}
         className={cn(
-          "rg-pop z-50 max-h-[var(--radix-select-content-available-height)] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[10px] border border-border-strong bg-surface text-[13px] text-text shadow-[var(--shadow-pop)]",
+          "rg-pop z-50 max-h-[var(--radix-select-content-available-height)] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[10px] border border-border-strong bg-surface text-[14px] text-text shadow-[var(--shadow-pop)]",
           className,
         )}
         {...props}
@@ -59,14 +59,14 @@ export function SelectItem({ className, children, ...props }: React.ComponentPro
     <Primitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-9 cursor-pointer select-none items-center rounded-[6px] py-0 pl-8 pr-2.5 text-[13px] outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-raised",
+        "relative flex min-h-9 cursor-pointer select-none items-center rounded-[6px] py-0 pl-8 pr-2.5 text-[14px] outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-raised",
         className,
       )}
       {...props}
     >
       <span className="absolute left-2.5 flex size-4 items-center justify-center">
         <Primitive.ItemIndicator>
-          <Check className="size-3.5 text-accent" aria-hidden />
+          <Check className="size-3.5 text-text" aria-hidden />
         </Primitive.ItemIndicator>
       </span>
       <Primitive.ItemText>{children}</Primitive.ItemText>
@@ -77,7 +77,7 @@ export function SelectItem({ className, children, ...props }: React.ComponentPro
 export function SelectLabel({ className, ...props }: React.ComponentProps<typeof Primitive.Label>) {
   return (
     <Primitive.Label
-      className={cn("px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[.08em] text-muted", className)}
+      className={cn("px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.1em] text-muted", className)}
       {...props}
     />
   );

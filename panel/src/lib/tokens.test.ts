@@ -8,20 +8,27 @@ const block = (selector: string) => {
   const start = css.indexOf(selector);
   return css.slice(start, css.indexOf("\n}", start));
 };
-const dark = block(":root {");
-const light = block(':root[data-theme="light"] {');
+// Light is the default theme (`:root`); `:root[data-theme="dark"]` overrides it.
+const light = block(":root {");
+const dark = block(':root[data-theme="dark"] {');
 
-describe("design tokens (HANDOFF section 4)", () => {
+describe("design tokens (STYLEGUIDE section 2; dark values from HANDOFF section 4)", () => {
   it.each([
-    ["--bg", "#0e1013", "#f3f4f6"],
+    ["--bg", "#0e1013", "#ffffff"],
     ["--surface", "#15181c", "#ffffff"],
-    ["--raised", "#1c2025", "#f6f7f9"],
-    ["--inset", "#101215", "#eceef1"],
-    ["--border", "#272c33", "#dce0e5"],
+    ["--raised", "#1c2025", "#f6f6f4"],
+    ["--inset", "#101215", "#f6f6f4"],
+    ["--border", "#272c33", "#d9dce3"],
     ["--border-strong", "#3a414a", "#c3c9d1"],
-    ["--text", "#e7e9ec", "#14171b"],
+    ["--ink", "#e7e9ec", "#111111"],
+    ["--on-ink", "#0e1013", "#ffffff"],
+    ["--text", "#e7e9ec", "#111111"],
+    ["--text-secondary", "#c3c9d1", "#3d4450"],
     ["--muted", "#9ba4ae", "#56606b"],
-    ["--accent", "#4c8dff", "#3460ad"],
+    ["--accent", "#f0554d", "#e3322b"],
+    ["--accent-text", "#f0554d", "#c4261f"],
+    ["--accent-pressed", "#ff8a84", "#8f1b16"],
+    ["--accent-50", "rgb(240 85 77 / 0.1)", "#fff5f4"],
     ["--on-accent", "#0e1013", "#ffffff"],
     ["--dec-allow", "#4ade80", "#15803d"],
     ["--dec-monitor", "#a3b1c2", "#475569"],
@@ -41,6 +48,11 @@ describe("design tokens (HANDOFF section 4)", () => {
     expect(light).toContain(`${name}: ${l};`);
   });
 
+  it("keeps selection neutral: accent-soft / accent-line are not red", () => {
+    expect(light).toContain("--accent-soft: rgb(17 17 17 / 0.06);");
+    expect(dark).toContain("--accent-soft: rgb(231 233 236 / 0.08);");
+  });
+
   it("tints chips 14 % / 32 % in dark and 10 % / 30 % in light", () => {
     expect(dark).toContain("--tint-bg: 14%;");
     expect(dark).toContain("--tint-bd: 32%;");
@@ -49,16 +61,16 @@ describe("design tokens (HANDOFF section 4)", () => {
   });
 
   it("maps every token into the Tailwind theme", () => {
-    for (const name of ["bg", "surface", "raised", "inset", "border", "border-strong", "text", "muted", "accent", "on-accent", "accent-soft"]) {
+    for (const name of ["bg", "surface", "raised", "inset", "border", "border-strong", "ink", "on-ink", "text", "text-secondary", "muted", "accent", "accent-text", "accent-pressed", "accent-50", "on-accent", "accent-soft"]) {
       expect(css).toContain(`--color-${name}: var(--${name});`);
     }
     for (const d of DECISIONS) expect(css).toContain(`--color-dec-${d.replace("_", "-")}:`);
     for (const s of SEVERITIES) expect(css).toContain(`--color-sev-${s}:`);
   });
 
-  it("uses the 13 px / 1.45 base with the Plex fonts", () => {
-    expect(css).toMatch(/font-size: 13px;\s*line-height: 1.45;/);
-    expect(css).toContain("--font-plex-sans");
+  it("uses the 14 px / 1.45 base with Instrument Sans and Plex Mono", () => {
+    expect(css).toMatch(/font-size: 14px;\s*line-height: 1.45;/);
+    expect(css).toContain("--font-instrument-sans");
     expect(css).toContain("--font-plex-mono");
   });
 });

@@ -26,7 +26,7 @@ describe("SidebarNav", () => {
       "Automation Insights",
     ]);
     for (const section of ["Monitor", "Access", "Govern", "Optimise"]) {
-      expect(within(nav).getByText(section)).toHaveClass("uppercase", "text-[10.5px]");
+      expect(within(nav).getByText(section)).toHaveClass("uppercase", "text-[11px]", "font-bold");
     }
   });
 
