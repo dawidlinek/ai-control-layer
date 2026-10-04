@@ -66,15 +66,20 @@ models:
       You are a credit analyst. From the application, write a concise credit memo in English: applicant
       (pseudonym), amount, purpose, income, liabilities, DTI, risks, recommendation.
 
-  # Local Polish-language specialist (Bielik). `auto` routes here when the prompt is close (kNN over `examples`,
-  # see acl.routing.specialist) to the Polish legal-text task; users can also pick it directly with `bielik`.
+  # Local Polish-language specialist (Bielik). `auto` routes here when the prompt is Polish legal text: the deterministic detector
+  # (acl.routing.polish_legal: Polish language x legal vocabulary / article citations) or the kNN over `examples`
+  # (acl.routing.specialist), whichever scores higher, reaches min_confidence; users can also pick it directly with `bielik`.
   # LOCAL_PL_BASE_URL or LOCAL_BIELIK_MODEL unset → the model is reported unavailable and the router falls back to the degraded local
   # target (Qwen); `auto` simply skips it.
   - id: local/bielik
     connector: local-pl
     upstream_model: env:LOCAL_BIELIK_MODEL      # e.g. the Ollama / vLLM tag of Bielik 11B Instruct
     aliases: [bielik]
-    tags: {role: "local, Polish language specialist", family: bielik, task: polish_legal}
+    tags:
+      role: "local, Polish language specialist"
+      family: bielik
+      task: polish_legal
+      auto_how: "A fixed detector decides, with no model call: Polish wording combined with legal vocabulary or article citations such as art. 415 k.c. Confidential Polish legal text stays on Bielik. If Bielik is not available or you have no access to it, auto uses the normal rules instead (confidential data stays on local Qwen)."
     capabilities: [chat]
     data_classes: [public, internal, confidential, restricted]
     pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}

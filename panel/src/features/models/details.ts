@@ -7,7 +7,7 @@ import { formatNumber, formatUsd } from "@/lib/format";
 import type { ConnectorStatus, ModelInfo } from "@/lib/api/types";
 
 /** Tag keys that carry demo details (not shown as plain tags). */
-const DETAIL_KEYS = new Set(["about", "who", "auto_share", "auto_reasons", "model_file", "limit", "guard", "role"]);
+const DETAIL_KEYS = new Set(["about", "who", "auto_share", "auto_reasons", "model_file", "limit", "guard", "role", "auto_how"]);
 
 export interface WhoEntry {
   label: string;
@@ -98,6 +98,15 @@ export function autoReasons(m: ModelInfo): AutoReason[] {
     label,
     count: Number.isFinite(Number(count)) && count !== "" ? formatNumber(Number(count)) : count,
   }));
+}
+
+/** One plain sentence on why auto picks this model (specialists); null when the gateway sends nothing. */
+export function autoHow(m: ModelInfo): string | null {
+  if (m.tags.auto_how) return m.tags.auto_how;
+  if (m.tags.task === "polish_legal") {
+    return "A fixed detector decides, with no model call: Polish wording combined with legal vocabulary or article citations such as art. 415 k.c. Confidential Polish legal text stays on Bielik. If Bielik is not available or you have no access to it, auto uses the normal rules instead (confidential data stays on local Qwen).";
+  }
+  return null;
 }
 
 export function modelFileName(m: ModelInfo): string | null {

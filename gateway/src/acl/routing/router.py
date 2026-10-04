@@ -5,7 +5,8 @@ Resolution of the requested name:
     alias declared on a model        → that model
     `aliases[x]` strategy `fixed`    → its target
     `aliases[x]` specialist_then_rules → first a specialist (`acl.routing.specialist`: kNN over the examples of models
-                                       with a `specialist` block, e.g. Polish legal text → local/bielik) that is
+                                       with a `specialist` block, or the task's deterministic detector, e.g. Polish
+                                       legal text → local/bielik; the step cites scores and counts, never text) that is
                                        available and usable for this principal and data class, and, when the request
                                        must stay local, local; otherwise as below
     `aliases[x]` auto/rules          → data class → routing.data_class_sensitivity → routing.sensitivity:
@@ -40,7 +41,7 @@ from acl.contracts.decision import RouteInfo
 from acl.policy.models import DataClassTierLock, ModelEntry, Policy
 from acl.routing.connectors.base import Connector
 from acl.routing.registry import RoutingTable
-from acl.routing.specialist import SpecialistIndex
+from acl.routing.specialist import SpecialistIndex, SpecialistMatch
 
 
 class RouteError(Exception):
@@ -95,8 +96,8 @@ class Router:
         self._alias_owner = {a: m.id for m in policy.models for a in m.aliases}
         self._specialists = SpecialistIndex(policy) if policy.routing.specialist.enabled else None
 
-    def _specialist(self, req: RouteRequest) -> tuple[str, str] | None:
-        """(model id, step text) of the specialist `auto` should use for this request, if any."""
+    def _specialist(self, req: RouteRequest) -> tuple[str, str, SpecialistMatch] | None:
+        """(model id, step text, match) of the specialist `auto` should use for this request, if any."""
         if self._specialists is None or not req.prompt or self.policy.routing.specialist.method != "knn":
             return None
         must_stay_local = self._requires_local(req)
@@ -110,7 +111,7 @@ class Router:
                 or (must_stay_local and self._tier(mid) != ConnectorTier.local)
             ):
                 continue
-            return mid, f"task={match.task} ({match.confidence:.2f} >= {match.threshold:g})"
+            return mid, match.reason, match
         return None
 
     # ------------------------------------------------------------ name resolution
@@ -195,6 +196,8 @@ class Router:
             if specialist is not None:
                 model_id = specialist[0]
                 factors["specialist"] = model_id
+                factors["specialist_method"] = specialist[2].method
+                factors["specialist_confidence"] = specialist[2].confidence
                 steps.append(f"{name} → {model_id}: {specialist[1]}, data={req.data_class.value}")
             elif rule == "local_only":
                 model_id = local

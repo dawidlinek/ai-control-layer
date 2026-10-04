@@ -156,10 +156,12 @@ function seedModels(): ModelInfo[] {
         task: "polish_legal",
         about:
           "Bielik on its own local server, built for Polish. auto picks it for Polish legal texts (contracts, regulations, civil code questions); you can also choose it by name. Confidential data stays on company servers either way.",
+        auto_how:
+          "A fixed detector decides, with no model call: Polish wording combined with legal vocabulary or article citations such as art. 415 k.c. Confidential Polish legal text stays on Bielik. If Bielik is not available or you have no access to it, auto uses the normal rules instead (confidential data stays on local Qwen).",
         limit: "picked when task score ≥ 0.50",
         who: "everyone=through auto;developers=group;credit-analysts=group;operations=group",
         auto_share: "3%",
-        auto_reasons: "Polish legal text (≥ 0.50)=41;asked for bielik directly=17",
+        auto_reasons: "Polish legal text, fixed detector (≥ 0.50)=41;asked for bielik directly=17",
         model_file: "bielik-11b-instruct-q4_k_m.gguf",
       },
     }),

@@ -1,0 +1,202 @@
+# Routing cases for the Polish-legal specialist rule (`auto` -> local/bielik): acl.routing.polish_legal + specialist.
+#
+# These are ROUTER cases, not engine cases: the system harness (tests/harness) evaluates the inspection engine and
+# never routes, so this directory is not collected by it (tests/cases/*.yaml only). They are run by
+# gateway/tests/test_polish_legal_cases.py against the real Router, seed policy and mock connectors.
+#
+# Case keys (same spirit as tests/cases/README.md):
+#   id, control (ROUTE-PL-LEGAL), pair, input        as in the system cases
+#   kind: negative   the detector must catch it: `auto` goes to local/bielik (negative = "caught")
+#         positive   near-miss that must NOT be caught: the normal sensitivity x complexity rules decide
+#   principal: {bielik: false}                  the principal has no grant for local/bielik (default true)
+#   bielik: unavailable                         LOCAL_PL_BASE_URL / LOCAL_BIELIK_MODEL unset (default available)
+#   data_class: public | internal | confidential | restricted   (default public; ignored when `matrix` is set)
+#   expect: {model: <id>, tier: local|cloud, specialist: true|false (specialist step in the route trace)}
+#   matrix: {<data_class>: <expected model>, ...}   one cell per data class, overrides expect.model
+
+# ------------------------------------------------------------------ caught (kind: negative)
+
+- id: pl-legal-demo-oral-lease
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-legal-single-umowa
+  input: "Czy umowa najmu zawarta ustnie jest ważna według kodeksu cywilnego?"
+  expect: {tier: local, specialist: true}
+  matrix: {public: local/bielik, internal: local/bielik, confidential: local/bielik, restricted: local/bielik}
+
+- id: pl-legal-article-citation
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-legal-english-civil-code
+  input: "Wyjaśnij mi, jak działa art. 415 k.c. i kiedy można żądać naprawienia szkody."
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-labour-notice
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-notice-period-everyday
+  input: "Jaki jest okres wypowiedzenia umowy o pracę na czas nieokreślony według Kodeksu pracy?"
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-court-filing
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-coding-court-metaphor
+  input: "Sporządź pozew o zapłatę i wskaż, w jakim terminie wnosi się apelację od wyroku sądu pierwszej instancji."
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-data-protection
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-it-data-settings
+  input: "Czy przetwarzanie danych klientów jest zgodne z RODO i ustawą o ochronie danych osobowych?"
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-inheritance
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-small-talk
+  input: "Jak sporządzić testament u notariusza i kto jest spadkobiercą ustawowym według kodeksu cywilnego?"
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-without-diacritics
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-recipe
+  input: "Czy umowa najmu zawarta ustnie jest wazna wedlug kodeksu cywilnego i czy najemca moze ja wypowiedziec?"
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-long-document
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-long-recipe
+  input: >-
+    Wklejam fragment umowy najmu lokalu. Najemca zobowiązuje się do zapłaty czynszu, a wynajmujący do wydania lokalu.
+    Strony zgodnie oświadczają, że umowa została zawarta na czas oznaczony. Kaucja zostanie zwrócona najemcy po
+    zakończeniu najmu. Spory rozstrzyga sąd właściwy dla siedziby wynajmującego. Czy te postanowienia są zgodne z
+    kodeksem cywilnym i czy któraś klauzula jest niedozwolona?
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-confidential-pesel-text
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-legal-no-grant
+  data_class: confidential
+  input: "Mój klient (PESEL <PESEL_1>) pyta, czy umowa najmu zawarta ustnie jest ważna według kodeksu cywilnego."
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-article-471-kc-uppercase
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-it-data-settings
+  input: "Jakie są przesłanki odpowiedzialności z art. 471 KC?"
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-article-415-kodeks-cywilny
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-recipe
+  input: "Wyjaśnij krótko, czym jest art. 415 Kodeksu cywilnego."
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+- id: pl-legal-article-22-kp-uppercase
+  control: ROUTE-PL-LEGAL
+  kind: negative
+  pair: pl-small-talk
+  input: "Co mówi art. 22 KP o stosunku pracy i kiedy umowa o pracę nawiązuje stosunek pracy?"
+  expect: {model: local/bielik, tier: local, specialist: true}
+
+# ------------------------------------------------------------------ not caught (kind: positive): the normal rules
+
+- id: pl-legal-single-umowa
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-demo-oral-lease
+  input: "Podpisaliśmy umowę z dostawcą kawy, a potem poszliśmy razem na obiad do miasta."
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, internal: gemini/flash, confidential: local/qwen3.8-27b, restricted: local/qwen3.8-27b}
+
+- id: pl-recipe
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-without-diacritics
+  input: "Podaj przepis na szarlotkę z jabłkami i cynamonem, którą można upiec w godzinę."
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-long-recipe
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-long-document
+  input: >-
+    Zaczynamy od ciasta. Wsyp mąkę do miski, dodaj masło, cukier i jajko, a potem zagnieć gładką kulę. Wstaw ciasto do
+    lodówki na godzinę. W tym czasie obierz jabłka, pokrój je w kostkę i podsmaż z cynamonem. Wylep formę ciastem,
+    wyłóż jabłka i piecz w dwustu stopniach, aż wierzch się zarumieni. Czy mogę zamienić masło na margarynę?
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-coding-court-metaphor
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-court-filing
+  input: "Napisz funkcję w Pythonie, która sortuje listę słowników według klucza i zwraca nową listę."
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-it-data-settings
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-data-protection
+  input: "Jak zmienić ustawienia drukarki w systemie Windows, żeby drukowała dwustronnie?"
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-small-talk
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-inheritance
+  input: "Cześć, co słychać? Jak minął weekend i czy udało się wam pojechać nad jezioro?"
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-notice-period-everyday
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-labour-notice
+  input: "Umówmy się na spotkanie jutro o dziesiątej, najmniej na godzinę, bo mamy dużo do omówienia."
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-legal-english-civil-code
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-article-citation
+  input: "Explain what article 415 of the Polish Civil Code says about liability for damage, and how the contract law concept of consideration compares."
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-legal-english-lease
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-demo-oral-lease
+  input: "Is an oral lease agreement valid under civil law, and can the tenant terminate it with one month's notice?"
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-legal-no-grant
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-demo-oral-lease
+  principal: {bielik: false}
+  input: "Czy umowa najmu zawarta ustnie jest ważna według kodeksu cywilnego?"
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, internal: gemini/flash, confidential: local/qwen3.8-27b}
+
+- id: pl-legal-bielik-unavailable
+  control: ROUTE-PL-LEGAL
+  kind: positive
+  pair: pl-legal-demo-oral-lease
+  bielik: unavailable
+  input: "Czy umowa najmu zawarta ustnie jest ważna według kodeksu cywilnego?"
+  expect: {specialist: false}
+  matrix: {public: gemini/flash, confidential: local/qwen3.8-27b, restricted: local/qwen3.8-27b}
