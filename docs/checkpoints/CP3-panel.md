@@ -80,7 +80,64 @@ Known limitations:
 5. `docker compose --profile panel up` (`deploy/compose.panel.yml`, `panel/Dockerfile`).
 6. Optionally, wire `monaco-yaml` with the webpack alias above and confirm the build.
 
-## Open decisions for the user
+## Integration against the real stack (local, 2026-10-04)
+
+*Local integrator session on `main`, after merging `main-k95m17`. Lead + Sonnet subagents, one commit per piece.*
+
+### Verified on the real stack (gateway + Keycloak + feed server in docker, panel `pnpm dev`)
+
+| Check | Result |
+|---|---|
+| Keycloak login with client `panel`, sign-out | **Works.** Redirect → realm login → back to the panel; `adam` (`acl-admin`) gets the admin UI. A second redirect URI `http://localhost:3005/*` was added for a dev panel when port 3000 is taken |
+| SSE through the panel proxy `/admin/v1/events/stream` | **Works after a fix.** The gateway sends named frames (`event: event`); `useEventStream` only listened to `onmessage`, so no live row ever arrived (Traffic, and the incident/approval badges). Fixed in `lib/api/sse.ts`; the mock stream now sends named frames too |
+| Traffic, trace sidebar, session link | **Works after a fix.** The list asked for all audit events, so `policy_change` and admin events showed as blank rows; it now asks for `event_type=decision` and SSE drops non-decision events |
+| Policy file save → new version → hot reload | **Works:** `PUT routing.yaml` → v37, `/policy` reports the new version within 2.5 s |
+| YAML save with a stale version | **409** `stale_version` with the current version in `details` |
+| Rollback with a reason | **Works:** `{reason}` stored, shown in History (`rollback to version #36 (…): <reason>`), a 1-character reason → 422 |
+| Invalid file on disk → banner, last good version kept | Covered by `test_1b_policy_service.py` and the panel banner test; not re-run live (the running gateway mounted another worktree's `policy/`) |
+| Overview, Incidents, Approvals, Users, Grants, Models, Tools, Threats, Budgets, Insights with real data | Render without errors. Fixed: OWASP ids shown twice (names now from a static OWASP LLM 2025 / Agentic table), dozens of idle `agent session` budget nodes (hidden behind "Show N idle sessions", ids shortened), Insights 501 shown as an error and retried 9× (empty state; the default query retry now skips 4xx/501) |
+| Light and dark | Light is the default now (STYLEGUIDE); dark still works |
+| Bielik on WCSS | `model: bielik` answers from `local/bielik` (host :8002, `bielik-11b`). `auto` sends "Wyjaśnij krótko, czym jest art. 415 Kodeksu cywilnego." to Bielik and English prompts to Gemini Flash; "Jakie są przesłanki odpowiedzialności z art. 471 KC?" still goes to Flash (the lexical matcher misses that wording; the CP3 integration session is building a Polish-legal detector) |
+
+Real data notes: the users list only has people the gateway has seen (no Keycloak directory sync); semantic controls
+(SEC-PI-01, SEC-SIM-01, NER, judges) are disabled in `controls.yaml`, so an injection prompt is allowed by the deterministic
+tier alone (session D's scope); local connector health is `unreachable` whenever the WCSS tunnel is down.
+
+### Contract gaps closed (additive; contracts regenerated, no drift)
+
+| Gap | Change | Commit |
+|---|---|---|
+| Approval details parsed from `arguments_preview` / `reason` | `Approval.approver_label`, `data_class`, `client`, `flags[]`, `preview{type,body}`, `reasons[]` | a16b358, panel fe560e8 |
+| Untyped `Incident.detail` | `Incident.evidence`, a union on `kind` built at read time (old rows too); `detail` unchanged | a16b358, panel fe560e8 |
+| Rollback reason never sent | `POST /policy/versions/{id}/rollback` body `{reason}` (3–500), `PolicyVersion.reason`, migration `3p_policy_version_reason` | a16b358, panel fe560e8 |
+| No signatures list, no "+ Add rule" (F11) | `GET /feed/signatures` (bundle + offline baseline, 24 h hits), `POST /feed/rules` (proxied to the feed server's `POST /entries`, then synced; audit without the pattern) | 5e66a48 |
+| No totals | `X-Total-Count` on `/users`, `/grants`, `/incidents`, `/approvals`, `/feed/signatures` | 5e66a48 |
+| No count endpoint for badges | `GET /metrics/counts` → `{open_incidents, pending_approvals, quarantined_tools}` | 5e66a48 |
+| SSE summaries thinner than list rows | Live rows are built like `/events` rows (session label threshold, `client_ref`) | 5e66a48 |
+| No tool preview | `EventSummary.tool_preview` (masked, ≤ 120 chars) | 5e66a48 |
+
+Still deferred: totals on `/events` (cursor paging), grant extend/edit, replay / add-to-incident, budget forecast / by-model /
+limit source, group members + Keycloak URL, rule delete from the panel, schema generation in serialization mode.
+
+### Decisions taken with the user
+
+1. **Model choice:** users pick cloud (`flash`/`smart`, `pro`/`smart-pro`), local (`qwen`/`local`, `bielik`) or `auto`.
+   Sensitive data still escalates: a confidential request on a cloud pick is rerouted local (LOCK-01). Admin routing rules
+   are specialist examples in `models.yaml` (e.g. Polish legal text → `local/bielik`, kNN-style lexical matcher).
+   Bielik runs on its own vLLM server on WCSS (connector `local-pl`, `LOCAL_PL_BASE_URL`, `LOCAL_BIELIK_MODEL`).
+2. **Realm vs personas:** the realm now follows HANDOFF §6 (Jan in developers, Anna in credit-analysts); e2e users swapped.
+3. **Two-person approval, GitOps mode:** deferred.
+4. **Look:** `docs/ux/STYLEGUIDE.md` agreed and applied (light default, red brand marks only, ink primary buttons, Deny the
+   only red button, Instrument Sans, 14 px body).
+
+### Smaller panel items done
+
+Shared `DiffBox`, `useNow`, `EffectChip`, `ToolStatusChip`, `TextLink`/`linkClass` and a Radix `Select` in
+`components/`; `Segmented disabled`; `renderApp({ urlMemory })` replaces the two local URL helpers; Vitest capped at half
+the cores with longer async timeouts (the full suite timed out under load on a 22-thread host).
+Not done: `monaco-yaml` wiring and read-only org-lock lines (the server still rejects such edits with 422).
+
+## Open decisions for the user (cloud handoff; answered above)
 
 1. **Developers reach Gemini through `auto`:** `auto` grants its routing targets, so only picking `smart` by name needs a grant. Keep it, or give developers a local-only router alias?
 2. **Session D** (`docs/prompts/cloud-d-semantic.md` item 9) should build on the existing complexity routing (`acl/routing/complexity.py`), not redo it.
