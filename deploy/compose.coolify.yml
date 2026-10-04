@@ -1,0 +1,334 @@
+# Rogatka (AI Control Layer): public deployment on Coolify v4 behind its TLS-terminating proxy.
+# Runbook: docs/DEPLOY-coolify.md. Local development keeps using deploy/docker-compose.yml (`make up`).
+#
+# Coolify resource settings: Build Pack "Docker Compose", Base Directory `/deploy`,
+# Docker Compose Location `/compose.coolify.yml` (so the relative paths below resolve against deploy/, like the
+# other compose files), "Connect to Predefined Network" OFF (service names are the internal DNS names).
+#
+# PUBLIC HOSTS. Decision: plain env vars, NOT Coolify magic SERVICE_FQDN_* / SERVICE_URL_* variables. The magic
+# vars make Coolify invent the domain and their behaviour differs between Coolify v4 builds; plain variables
+# keep Keycloak's issuer, the realm redirect URIs, Auth.js and LibreChat in lockstep from one value each and work
+# the same outside Coolify. The routing itself is set in the Coolify UI, per service, "Domains" field:
+#     panel      https://rogatka.b.solvro.pl:3000
+#     librechat  https://rogatka-chat.b.solvro.pl:3080
+#     keycloak   https://rogatka-auth.b.solvro.pl:8080
+#     gateway    https://rogatka-api.b.solvro.pl:8000
+# (the `:port` suffix tells Coolify which container port to route to; the public URL stays on 443).
+# If a domain changes, change BOTH the Coolify domain and the matching PUBLIC_*_URL variable.
+#
+# No `ports:` anywhere: only the four services above are reachable, through the proxy. No bind mounts of repository
+# files either (Coolify does not keep the checkout): the realm file, the LibreChat config, the default policy and
+# the insights seed are baked into images. The only bind mounts are the two WCSS secret files (see wcss-link).
+name: rogatka
+
+x-mcp-server: &mcp-server
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  healthcheck:
+    test:
+      - CMD
+      - python
+      - -c
+      - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"
+    interval: 10s
+    timeout: 3s
+    retries: 6
+    start_period: 5s
+
+services:
+  # ------------------------------------------------------------------ data
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: acl
+      POSTGRES_USER: acl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acl -d acl"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # One-shot init (exits 0): seeds the policy volume from the repo ONLY when it is empty (panel edits survive
+  # redeploys), refreshes the insights seed, creates the `keycloak` database. Coolify shows it as exited; that is
+  # expected. See deploy/coolify/bootstrap.sh.
+  bootstrap:
+    build:
+      context: ..
+      dockerfile: deploy/coolify/bootstrap.Dockerfile
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - policy:/policy
+      - seed_insights:/seed-insights
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  # ------------------------------------------------------------------ identity
+  keycloak:
+    build:
+      context: .
+      dockerfile: coolify/keycloak.Dockerfile
+    command:
+      - start
+      - --import-realm               # imports only when the realm does not exist yet (first boot on an empty DB)
+      - --http-enabled=true          # TLS ends at the Coolify proxy
+      - --http-port=8080
+      - --proxy-headers=xforwarded
+      - --hostname=${PUBLIC_AUTH_URL:-https://rogatka-auth.b.solvro.pl}
+      - --health-enabled=true
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: acl
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?set KC_ADMIN_PASSWORD}
+      # Tokens carry the public issuer; containers still reach Keycloak at http://keycloak:8080 (backchannel).
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      # Realm import placeholders (deploy/keycloak/realm-export.json).
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?set DEMO_USER_PASSWORD}
+      KC_PANEL_SECRET: ${KC_PANEL_SECRET:?set KC_PANEL_SECRET}
+      KC_LIBRECHAT_SECRET: ${KC_LIBRECHAT_SECRET:?set KC_LIBRECHAT_SECRET}
+      KC_AGENT_RESEARCH_BOT_SECRET: ${KC_AGENT_RESEARCH_BOT_SECRET:?set KC_AGENT_RESEARCH_BOT_SECRET}
+      PUBLIC_PANEL_URL: ${PUBLIC_PANEL_URL:-https://rogatka.b.solvro.pl}
+      PUBLIC_CHAT_URL: ${PUBLIC_CHAT_URL:-https://rogatka-chat.b.solvro.pl}
+    depends_on:
+      postgres: {condition: service_healthy}
+      bootstrap: {condition: service_completed_successfully}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status": "UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ internal helpers
+  feed-server:
+    build: ../feed-server
+    environment:
+      FEED_ADMIN_TOKEN: ${FEED_ADMIN_TOKEN:?set FEED_ADMIN_TOKEN}
+      FEED_SIGNING_KEY: ${FEED_SIGNING_KEY:-}
+      STATE_DIR: /srv/state
+    volumes:
+      - feed_state:/srv/state
+    restart: unless-stopped
+
+  attacker-sink:
+    build: ../tests/oracle
+    restart: unless-stopped
+
+  # SSH tunnel sidecar to the WCSS model server (deploy/wcss-link/). It retries with its own backoff and exits with
+  # code 78 when SSH authentication fails, so Docker must NOT restart it: a stopped wcss-link in Coolify is the
+  # alert (fix the key / known_hosts, then redeploy or start it). Cloud models keep working meanwhile.
+  # The two secret files are bind mounts: in Coolify, open this service's Storages, "Convert to file" and paste
+  # the content (or point WCSS_KEY_FILE / WCSS_KNOWN_HOSTS_FILE at absolute paths on the server).
+  wcss-link:
+    build:
+      context: ./wcss-link
+    environment:
+      WCSS_HOST: ui.wcss.pl
+      WCSS_USER: ${WCSS_USER:-dawlin1140}
+      WCSS_ACCOUNT: ${WCSS_ACCOUNT:-}
+      LISTEN_PORT: "8001"
+    volumes:
+      - type: bind
+        source: ${WCSS_KEY_FILE:-./wcss-link/secrets/id_ed25519}
+        target: /run/secrets/wcss_key
+        read_only: true
+      - type: bind
+        source: ${WCSS_KNOWN_HOSTS_FILE:-./wcss-link/secrets/known_hosts}
+        target: /run/secrets/known_hosts
+        read_only: true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS -o /dev/null -m 10 http://127.0.0.1:8001/health
+      interval: 15s
+      timeout: 15s
+      retries: 4
+      start_period: 60s
+    restart: "no"
+
+  # ------------------------------------------------------------------ gateway
+  gateway:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    depends_on:
+      postgres: {condition: service_healthy}
+      bootstrap: {condition: service_completed_successfully}
+      feed-server: {condition: service_started}
+    environment:
+      ACL_DATABASE_URL: postgresql+asyncpg://acl:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/acl
+      ACL_OIDC_ISSUER: ${PUBLIC_AUTH_URL:-https://rogatka-auth.b.solvro.pl}/realms/acl
+      ACL_OIDC_JWKS_URL: http://keycloak:8080/realms/acl/protocol/openid-connect/certs
+      ACL_OIDC_AUDIENCE: gateway
+      ACL_FEED_URL: http://feed-server:8080/bundle.json
+      ACL_FEED_ADMIN_TOKEN: ${FEED_ADMIN_TOKEN:-}
+      ACL_DETERMINISTIC: ${ACL_DETERMINISTIC:-0}
+      ACL_LOG_LEVEL: ${ACL_LOG_LEVEL:-INFO}
+      ACL_VALUE_HASH_SALT: ${ACL_VALUE_HASH_SALT:?set ACL_VALUE_HASH_SALT}
+      ACL_API_KEY_PEPPER: ${ACL_API_KEY_PEPPER:?set ACL_API_KEY_PEPPER}
+      FORWARDED_ALLOW_IPS: "*"   # uvicorn --proxy-headers: trust X-Forwarded-* from the Coolify proxy
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      GEMINI_PRO_MODEL: ${GEMINI_PRO_MODEL:-gemini-pro-latest}
+      LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-http://wcss-link:8001/v1}
+      LOCAL_LLM_API_KEY: ${LOCAL_LLM_API_KEY:-}
+      LOCAL_GENERAL_MODEL: ${LOCAL_GENERAL_MODEL:-qwen3.8-27b}
+      LOCAL_PL_BASE_URL: ${LOCAL_PL_BASE_URL:-http://wcss-link:8002/v1}
+      LOCAL_BIELIK_MODEL: ${LOCAL_BIELIK_MODEL:-bielik-11b}
+      # Embeddings use connector `local` (LOCAL_LLM_BASE_URL, :8001 = Qwen). The embedding server on wcss-link:8003
+      # (qwen3-embedding-0.6b) needs its own connector in policy/models.yaml first; until then leave this empty.
+      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-}
+      LOCAL_JUDGE_MODEL: ${LOCAL_JUDGE_MODEL:-qwen3.8-27b}
+      ACL_INSIGHTS_SEED_DIR: /seed/insights
+      ACL_INSIGHTS_ENABLED_GROUPS: '["credit-analysts", "developers"]'
+    volumes:
+      - policy:/policy               # seeded by `bootstrap`; the gateway's policy service is the single writer
+      - audit:/data/audit
+      - seed_insights:/seed/insights:ro
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ MCP servers (internal, via gateway /mcp)
+  mcp-governed:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: governed-tools}
+
+  mcp-files:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: files}
+    environment:
+      FILES_ALLOW_OUTSIDE: ${MCP_FILES_ALLOW_OUTSIDE:-0}
+
+  mcp-mail:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: mail}
+    environment:
+      ATTACKER_SINK_URL: http://attacker-sink:8080/mail
+
+  mcp-web:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: web}
+
+  mcp-core-banking:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: core-banking}
+
+  mcp-rugpull:
+    <<: *mcp-server
+    build:
+      context: ..
+      dockerfile: mcp-servers/Dockerfile
+      args: {SERVER: rugpull-demo}
+    environment:
+      RUGPULL_AFTER_CALLS: ${RUGPULL_AFTER_CALLS:-3}
+
+  # ------------------------------------------------------------------ Rogatka Dashboard
+  panel:
+    build:
+      context: ../panel
+    depends_on:
+      gateway: {condition: service_healthy}
+      keycloak: {condition: service_healthy}
+    environment:
+      ROGATKA_GATEWAY_URL: http://gateway:8000
+      AUTH_KEYCLOAK_ID: panel
+      AUTH_KEYCLOAK_SECRET: ${KC_PANEL_SECRET:?set KC_PANEL_SECRET}
+      # Browser redirect + `iss` check use the public issuer; token/userinfo/JWKS/refresh go to the internal one.
+      AUTH_KEYCLOAK_ISSUER: ${PUBLIC_AUTH_URL:-https://rogatka-auth.b.solvro.pl}/realms/acl
+      AUTH_KEYCLOAK_INTERNAL_ISSUER: http://keycloak:8080/realms/acl
+      AUTH_SECRET: ${PANEL_AUTH_SECRET:?set PANEL_AUTH_SECRET}
+      AUTH_URL: ${PUBLIC_PANEL_URL:-https://rogatka.b.solvro.pl}
+      AUTH_TRUST_HOST: "true"
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ LibreChat
+  librechat-mongo:
+    image: mongo:8.0.20
+    command: ["mongod", "--bind_ip_all", "--noauth"]   # internal network only, no published port
+    volumes:
+      - librechat_mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  librechat:
+    build:
+      context: ./librechat               # librechat.yaml is baked in (baseURL http://gateway:8000/v1, internal)
+    entrypoint: ["/bin/sh", "/librechat-entrypoint.sh"]
+    command: ["npm", "run", "backend"]
+    depends_on:
+      librechat-mongo: {condition: service_healthy}
+      keycloak: {condition: service_healthy}
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3080"
+      MONGO_URI: mongodb://librechat-mongo:27017/LibreChat
+      DOMAIN_CLIENT: ${PUBLIC_CHAT_URL:-https://rogatka-chat.b.solvro.pl}
+      DOMAIN_SERVER: ${PUBLIC_CHAT_URL:-https://rogatka-chat.b.solvro.pl}
+      CONFIG_PATH: /app/librechat.yaml
+      SEARCH: "false"
+      SCHEDULES_SINGLE_PROCESS: "true"
+      LOGIN_MAX: "100"
+      ENDPOINTS: custom
+      LIBRECHAT_APP_SECRET: ${LIBRECHAT_APP_SECRET:?set LIBRECHAT_APP_SECRET}
+      ALLOW_EMAIL_LOGIN: "false"
+      ALLOW_REGISTRATION: "false"
+      ALLOW_SOCIAL_LOGIN: "true"
+      ALLOW_SOCIAL_REGISTRATION: "true"
+      # Real HTTPS issuer: discovery goes to the public URL (the container must reach it through the proxy);
+      # no insecure-HTTP patch, no oidc-forward (OIDC_LOCAL_PORT unset).
+      OPENID_ISSUER: ${PUBLIC_AUTH_URL:-https://rogatka-auth.b.solvro.pl}/realms/acl
+      OPENID_ALLOW_INSECURE_HTTP: "false"
+      OPENID_CLIENT_ID: librechat
+      OPENID_CLIENT_SECRET: ${KC_LIBRECHAT_SECRET:?set KC_LIBRECHAT_SECRET}
+      OPENID_CALLBACK_URL: /oauth/openid/callback
+      OPENID_SCOPE: openid profile email
+      OPENID_REUSE_TOKENS: "true"
+      OPENID_USE_PKCE: "true"
+      OPENID_BUTTON_LABEL: Sign in with company SSO
+      OPENID_AUTO_REDIRECT: "false"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  policy:
+  audit:
+  seed_insights:
+  feed_state:
+  librechat_mongo:

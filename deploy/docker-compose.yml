@@ -38,6 +38,10 @@ services:
       KC_PANEL_SECRET: ${KC_PANEL_SECRET:?run `make env`}
       KC_LIBRECHAT_SECRET: ${KC_LIBRECHAT_SECRET:?run `make env`}
       KC_AGENT_RESEARCH_BOT_SECRET: ${KC_AGENT_RESEARCH_BOT_SECRET:?run `make env`}
+      # Realm placeholders for the public deployment's redirect URIs (deploy/compose.coolify.yml); locally they
+      # repeat the localhost values already in the realm file.
+      PUBLIC_PANEL_URL: http://localhost:3000
+      PUBLIC_CHAT_URL: http://localhost:3080
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
