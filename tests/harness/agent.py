@@ -163,8 +163,12 @@ class AgentTrace:
 
     @property
     def blocked(self) -> bool:
-        """The gateway refused a turn (4xx policy refusal, not auth or rate limiting)."""
-        return self.stop_reason == "error" and self.status_code in (400, 403, 409, 422, 451)
+        """The gateway refused a turn (4xx policy refusal incl. a budget 429; not auth or plain rate limiting)."""
+        if self.stop_reason != "error":
+            return False
+        if self.status_code == 429:
+            return "budget_exceeded" in self.error_text()
+        return self.status_code in (400, 403, 409, 422, 451)
 
     @property
     def tool_names(self) -> list[str]:

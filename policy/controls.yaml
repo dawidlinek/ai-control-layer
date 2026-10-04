@@ -382,7 +382,7 @@ signatures:
       description: 'Ray Jobs API (ShadowRay): unauthenticated job submission.'
       owasp: ['LLM06:2025']
       cve: ['CVE-2023-48022']
-      source: cisa-kev
+      source: nvd
     - id: SIG-URL-RAY-DASHBOARD-01
       type: url_path
       pattern: '(?i):8265(?:/|$)'
