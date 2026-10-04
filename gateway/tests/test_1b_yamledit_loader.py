@@ -115,7 +115,7 @@ def test_loader_locates_schema_errors() -> None:
 def test_loader_locates_cross_reference_errors() -> None:
     texts = read_policy_dir(POLICY_DIR)
     texts["groups.yaml"] = texts["groups.yaml"].replace(
-        "models: [auto, local, smart, smart-pro]", "models: [auto, nope/model]", 1
+        "models: [auto, local, bielik, smart, smart-pro]", "models: [auto, nope/model]", 1
     )
     (cross,) = _errors(texts)
     assert cross.file == "groups.yaml" and cross.path == "groups[admins].models" and "nope/model" in cross.message
