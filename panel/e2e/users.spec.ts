@@ -6,8 +6,8 @@ test.describe("users & groups", () => {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/users");
     await expect(page.getByRole("heading", { level: 1, name: "Users & groups" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "People 41" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Groups 4" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /People\s*41/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /Groups\s*4/ })).toBeVisible();
 
     await page.getByRole("table", { name: "People" }).getByText("Piotr Zieliński").click();
     await expect(page).toHaveURL(/sel=p\.zielinski/);

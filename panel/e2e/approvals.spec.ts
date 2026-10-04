@@ -17,8 +17,8 @@ test.describe("approvals", () => {
     const side = page.getByRole("complementary", { name: "Approval request" });
     await expect(side.getByText(/auto-deny in \d:\d\d/)).toBeVisible();
     await expect(side.getByText("git push origin feature/loan-calc")).toBeVisible();
-    await expect(side.getByText("not a company remote")).toBeVisible();
-    await expect(side.getByText("secret found")).toBeVisible();
+    await expect(side.getByText("not a company remote", { exact: true })).toBeVisible();
+    await expect(side.getByText("secret found", { exact: true })).toBeVisible();
     await expect(side.getByText('SCORING_API_KEY = "‹SECRET:api_key›"')).toBeVisible();
     await expect(side.getByRole("list", { name: "Reasons" }).getByRole("listitem")).toHaveCount(3);
     await expect(side.getByRole("link", { name: "Open full session s_9e21 →" })).toHaveAttribute("href", "/sessions/s_9e21");
@@ -43,7 +43,7 @@ test.describe("approvals", () => {
 
     await page.goto("/approvals?sel=apr-0193");
     await side.getByLabel("Reason (required to approve)").fill("checked the remote with Jan");
-    await side.getByRole("button", { name: "5m" }).click();
+    await side.getByRole("button", { name: "5m", exact: true }).click();
     await side.getByRole("button", { name: "Approve for 5 minutes" }).click();
     await expect(side.getByText("It shows as an elevation on Jan Kowalski’s access page.", { exact: false })).toBeVisible();
   });
