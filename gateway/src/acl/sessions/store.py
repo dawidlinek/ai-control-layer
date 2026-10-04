@@ -24,7 +24,10 @@ def merge_labels(a: SessionLabels, b: SessionLabels) -> SessionLabels:
     conf = max(a.confidentiality, b.confidentiality, key=lambda c: DATA_CLASS_ORDER[c])
     taint = list(dict.fromkeys([*a.taint, *b.taint]))
     sources = list(dict.fromkeys([*a.sources, *b.sources]))[-50:]
-    return SessionLabels(integrity=integrity, confidentiality=conf, taint=taint, sources=sources)
+    # `since` = when the current confidentiality was first reached: the earliest stamp among the inputs at that level
+    stamps = [x.since for x in (a, b) if x.confidentiality == conf and x.since is not None]
+    since = min(stamps) if stamps else None
+    return SessionLabels(integrity=integrity, confidentiality=conf, taint=taint, sources=sources, since=since)
 
 
 class SessionStore(Protocol):

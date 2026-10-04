@@ -239,10 +239,10 @@ def test_usage_cost_and_gpu_estimates() -> None:
 
     cloud = compute_usage(models["gemini/flash"], UpstreamUsage(input_tokens=1000, output_tokens=2000))
     assert cloud.usd == pytest.approx(0.0003 + 2 * 0.0025) and cloud.gpu_seconds == 0
-    local_est = compute_usage(models["local/general"], UpstreamUsage(input_tokens=500, output_tokens=500))
+    local_est = compute_usage(models["local/qwen3.8-27b"], UpstreamUsage(input_tokens=500, output_tokens=500))
     assert local_est.gpu_seconds == pytest.approx(0.5)  # gpu_seconds_per_1k_tokens estimate
     assert local_est.usd == pytest.approx(0.5 * 0.0006)
-    local_real = compute_usage(models["local/general"], UpstreamUsage(output_tokens=1, gpu_seconds=10.0))
+    local_real = compute_usage(models["local/qwen3.8-27b"], UpstreamUsage(output_tokens=1, gpu_seconds=10.0))
     assert local_real.gpu_seconds == 10.0  # upstream timings win over the estimate
 
 
@@ -271,9 +271,10 @@ def test_registry_unset_env_makes_models_unavailable_not_an_error() -> None:
         }
     )
     table = reg.table_for(loaded.policy, loaded.version)
-    assert table.model_problem("local/general") is None
-    assert table.models["local/general"].upstream_model == "qwen3:8b"
-    assert "LOCAL_PL_MODEL" in (table.model_problem("local/pl") or "")  # model env unset
+    assert table.model_problem("local/qwen3.8-27b") is None
+    assert table.models["local/qwen3.8-27b"].upstream_model == "qwen3:8b"
+    assert "LOCAL_JUDGE_MODEL" in (table.model_problem("local/judge") or "")  # model env unset
+    assert "GEMINI_PRO_MODEL" in (table.models["gemini/pro"].unavailable or "")
     assert "GEMINI_API_KEY" in (table.model_problem("gemini/flash") or "")  # cloud connector without a key
     assert isinstance(table.connectors["local"].connector, OpenAICompatibleConnector)  # local works without a key
     assert table.connectors["gemini"].connector is None
@@ -290,7 +291,7 @@ def test_registry_kill_switch_survives_new_tables_and_reuses_instances() -> None
         t2.connector_problem("gemini") == "kill switch engaged"
         and t1.connector_problem("gemini") == "kill switch engaged"
     )
-    assert t2.model_problem("gemini/flash") == "kill switch engaged" and t2.model_problem("local/general") is None
+    assert t2.model_problem("gemini/flash") == "kill switch engaged" and t2.model_problem("local/qwen3.8-27b") is None
     assert t1.connectors["gemini"].connector is t2.connectors["gemini"].connector  # instance reused
     reg.set_kill_switch("gemini", False, "ok")
     assert t2.connector_problem("gemini") is None
@@ -300,7 +301,7 @@ def test_registry_disabled_connector_and_model() -> None:
     loaded = load_policy_dir(POLICY_DIR)
     policy = loaded.policy.model_copy(deep=True)
     policy.connectors["gemini"].enabled = False
-    policy.models[-1].enabled = False
+    next(m for m in policy.models if m.id == "gemini/flash").enabled = False
     reg = ConnectorRegistry(deterministic=True)
     table = reg.table_for(policy, "x")
     assert table.connector_problem("gemini") == "connector disabled"

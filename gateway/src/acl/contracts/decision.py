@@ -92,10 +92,10 @@ class Verdict(StrictModel):
 
 class RouteInfo(StrictModel):
     model_requested: str | None = None
-    model: str = Field(description="Resolved public model id, e.g. `local/general`.")
+    model: str = Field(description="Resolved public model id, e.g. `local/qwen3.8-27b`.")
     connector: str
     tier: ConnectorTier
-    reason: str = Field(examples=["auto → local/loan-memo-pl: task=loan_memo (0.91), data=confidential → local"])
+    reason: str = Field(examples=["auto → local/loan-memo: task=loan_memo (0.91), data=confidential → local"])
     degraded: bool = False
     factors: dict[str, Any] = Field(default_factory=dict)
 

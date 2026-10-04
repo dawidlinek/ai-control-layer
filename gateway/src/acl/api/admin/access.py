@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
 from acl.api.deps import ERROR_RESPONSES, Admin, Analyst, PrincipalDep, Viewer, not_implemented
+from acl.audit import queries as audit_queries
 from acl.contracts.admin import (
     ApiKey,
     ApiKeyCreate,
@@ -20,10 +22,14 @@ from acl.contracts.admin import (
     GrantChange,
     GrantCreate,
     Group,
+    GroupSettingsPreview,
+    GroupSettingsUpdate,
+    PolicyStatus,
+    UsageStats,
     User,
 )
 from acl.contracts.audit import EventType
-from acl.contracts.common import GrantResourceType, Severity
+from acl.contracts.common import GrantResourceType, Preset, Severity
 from acl.contracts.inspection import Principal
 from acl.identity.access import AccessUnavailable, preset_rank
 from acl.identity.apikeys import key_from_row
@@ -31,6 +37,10 @@ from acl.identity.db_models import UserRow
 from acl.identity.grants import GrantAlreadyRevoked, GrantNotFound
 from acl.identity.users import principal_from_row, user_from_row
 from acl.identity.wiring import IdentityServices
+from acl.policy import groups_edit
+from acl.policy.errors import ValidationFailed
+from acl.policy.service import PolicyService
+from acl.policy.writer import PolicyWriter
 
 log = logging.getLogger(__name__)
 
@@ -73,17 +83,42 @@ async def _audit_key_event(request: Request, actor: Principal, what: str, key: A
         log.exception("failed to record api key audit event")
 
 
+async def _preset_of(svc: IdentityServices, row: UserRow) -> Preset | None:
+    try:
+        return await svc.access.effective_preset(principal_from_row(row))
+    except AccessUnavailable:
+        return None
+
+
+async def _stats_7d(request: Request, subjects: list[str]) -> dict[str, UsageStats]:
+    sessions = getattr(request.app.state, "db", None)
+    if sessions is None:
+        return {}
+    return await audit_queries.user_stats(sessions, subjects, window="7d")
+
+
 @router.get("/users", response_model=list[User], operation_id="listUsers")
 async def list_users(
     request: Request, p: Viewer, q: str | None = None, group: str | None = None, limit: int = 100
 ) -> list[User]:
-    rows = await _svc(request).users.list(q=q, group=group, limit=limit)
-    return [user_from_row(r) for r in rows]
+    svc = _svc(request)
+    rows = await svc.users.list(q=q, group=group, limit=limit)
+    stats = await _stats_7d(request, [r.subject for r in rows])
+    presets = await asyncio.gather(*(_preset_of(svc, r) for r in rows))
+    return [
+        user_from_row(r).model_copy(update={"preset": preset, "stats_7d": stats.get(r.subject)})
+        for r, preset in zip(rows, presets, strict=True)
+    ]
 
 
 @router.get("/users/{user_id}", response_model=User, operation_id="getUser")
 async def get_user(request: Request, user_id: str, p: Viewer) -> User:
-    return user_from_row(await _user_or_404(_svc(request), user_id))
+    svc = _svc(request)
+    row = await _user_or_404(svc, user_id)
+    stats = await _stats_7d(request, [row.subject])
+    return user_from_row(row).model_copy(
+        update={"preset": await _preset_of(svc, row), "stats_7d": stats.get(row.subject)}
+    )
 
 
 @router.get("/users/{user_id}/effective-access", response_model=EffectiveAccess, operation_id="getEffectiveAccess")
@@ -95,8 +130,21 @@ async def effective_access(request: Request, user_id: str, p: Viewer) -> Effecti
 
 
 @router.get("/users/{user_id}/activity", response_model=list[EventSummary], operation_id="getUserActivity")
-async def activity(user_id: str, p: Analyst, since: datetime | None = None, limit: int = 100) -> list[EventSummary]:
-    not_implemented("user activity")  # needs the 1A event store
+async def activity(
+    request: Request, user_id: str, p: Analyst, since: datetime | None = None, limit: int = 100
+) -> list[EventSummary]:
+    row = await _user_or_404(_svc(request), user_id)
+    sessions = getattr(request.app.state, "db", None)
+    if sessions is None:
+        raise HTTPException(503, detail="database not ready")
+    engine = getattr(request.app.state, "engine", None)
+    return await audit_queries.list_events(
+        sessions,
+        since=since,
+        subject=row.subject,
+        limit=limit,
+        policy=engine.policy if engine is not None else None,
+    )
 
 
 @router.post("/users/{user_id}/breakglass", response_model=BreakGlassResponse, operation_id="breakGlass")
@@ -105,27 +153,83 @@ async def break_glass(user_id: str, body: BreakGlassRequest, p: Admin) -> BreakG
     not_implemented("break-glass")  # needs the 1A event store
 
 
+def _policy_writer(request: Request) -> tuple[PolicyService, PolicyWriter]:
+    service = getattr(request.app.state, "policy_service", None)
+    writer = getattr(request.app.state, "policy_writer", None)
+    if service is None or writer is None:
+        raise HTTPException(503, detail="policy service is not running")
+    return service, writer
+
+
+def _policy_group(service: PolicyService, name: str) -> None:
+    """404 unless `name` is a group of the loaded policy (Keycloak-only groups are not editable)."""
+    loaded = service.loaded
+    if loaded is None:
+        raise HTTPException(503, detail="policy not loaded yet")
+    if name not in loaded.policy.groups:
+        raise HTTPException(404, detail="group not found in policy (Keycloak-only groups are not editable)")
+
+
 @router.get("/groups", response_model=list[Group], operation_id="listGroups")
 async def list_groups(request: Request, p: Viewer) -> list[Group]:
     # Policy groups ∪ Keycloak groups seen in tokens (read-only: Keycloak owns membership).
     svc = _svc(request)
     counts = await svc.users.all_group_counts()
     engine = getattr(request.app.state, "engine", None)
-    policy_groups = dict(engine.policy.groups) if engine is not None else {}
-    out: list[Group] = []
-    for name in sorted(set(policy_groups) | set(counts)):
-        gp = policy_groups.get(name)
-        source = "both" if gp is not None and name in counts else "policy" if gp is not None else "keycloak"
-        out.append(
-            Group(
-                name=name,
-                description=gp.description if gp else "",
-                preset=gp.preset if gp else None,
-                members=counts.get(name, 0),
-                source=source,  # type: ignore[arg-type]
-            )
-        )
-    return out
+    policy = engine.policy if engine is not None else None
+    policy_groups = dict(policy.groups) if policy is not None else {}
+    stats = await groups_edit.stats_today(getattr(request.app.state, "db", None))
+    service = getattr(request.app.state, "policy_service", None)
+    groups_text = groups_edit.read_groups_text(service) if service is not None else None
+    return [
+        groups_edit.group_model(name, policy, counts.get(name, 0), stats, groups_text)
+        for name in sorted(set(policy_groups) | set(counts))
+    ]
+
+
+@router.get("/groups/{name:path}/detail", response_model=Group, operation_id="getGroup")
+async def get_group(request: Request, name: str, p: Viewer) -> Group:
+    svc = _svc(request)
+    counts = await svc.users.all_group_counts()
+    engine = getattr(request.app.state, "engine", None)
+    policy = engine.policy if engine is not None else None
+    if (policy is None or name not in policy.groups) and name not in counts:
+        raise HTTPException(404, detail="group not found")
+    stats = await groups_edit.stats_today(getattr(request.app.state, "db", None))
+    service = getattr(request.app.state, "policy_service", None)
+    groups_text = groups_edit.read_groups_text(service) if service is not None else None
+    return groups_edit.group_model(name, policy, counts.get(name, 0), stats, groups_text)
+
+
+@router.post(
+    "/groups/{name:path}/settings/preview", response_model=GroupSettingsPreview, operation_id="previewGroupSettings"
+)
+async def preview_group_settings(
+    request: Request, name: str, body: GroupSettingsUpdate, p: Analyst
+) -> GroupSettingsPreview:
+    """Draft → validate → impact (dry-run on recent traffic). Writes nothing."""
+    service, writer = _policy_writer(request)
+    _policy_group(service, name)
+    return await groups_edit.preview_settings(service, writer, name, body.settings)
+
+
+@router.put("/groups/{name:path}/settings", response_model=PolicyStatus, operation_id="updateGroupSettings")
+async def update_group_settings(request: Request, name: str, body: GroupSettingsUpdate, p: Admin) -> PolicyStatus:
+    """Save group settings through the policy writer as a new policy version (validated, hot-reloaded)."""
+    service, writer = _policy_writer(request)
+    _policy_group(service, name)
+    writer.check_policy_version(body.base_version)  # stale -> 409 before any validation
+    loaded = service.loaded
+    assert loaded is not None
+    try:
+        texts = {n: f.content for n, f in service.current_files().items()}
+        plan = groups_edit.plan_edit(loaded.policy, name, body.settings, texts)
+    except groups_edit.GroupSettingsInvalid as exc:
+        raise ValidationFailed(exc.errors) from exc
+    if plan.empty:
+        return await service.status()
+    message = body.message.strip() or f"group {name}: " + ", ".join(plan.changes)
+    return await writer.patch_files(plan.edits, p, base_version=body.base_version, message=message[:500])
 
 
 @router.get("/grants", response_model=list[Grant], operation_id="listGrants")

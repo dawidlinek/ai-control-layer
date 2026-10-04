@@ -72,10 +72,10 @@
   ],
   "route": {
     "model_requested": "auto",
-    "model": "local/pl",
+    "model": "local/qwen3.8-27b",
     "connector": "local",
     "tier": "local",
-    "reason": "auto → local/pl: data=confidential → local_only (LOCK-01)",
+    "reason": "auto → local/qwen3.8-27b: data=confidential → local_only (LOCK-01)",
     "degraded": false,
     "factors": {}
   },
@@ -88,7 +88,8 @@
     ],
     "sources": [
       "SEC-PII-01"
-    ]
+    ],
+    "since": null
   },
   "taxonomy": {
     "owasp_llm": [

@@ -50,7 +50,8 @@
       "integrity": "trusted",
       "confidentiality": "public",
       "taint": [],
-      "sources": []
+      "sources": [],
+      "since": null
     },
     "step": 0,
     "tool_depth": 0,

@@ -188,6 +188,17 @@ controls:
     timeout_ms: 10
     taxonomy: {owasp_llm: ["LLM01:2025"], owasp_agentic: ["ASI01"]}
 
+  - id: SEC-SESSION-01
+    type: session_label
+    enabled: true
+    description: Once a session's high-water mark reaches the threshold, every later request in it is served by local models only
+    stages: [ingress, embeddings]
+    cost_tier: deterministic
+    timeout_ms: 10
+    taxonomy: {owasp_llm: ["LLM02:2025"]}
+    params:
+      threshold: confidential        # confidential | restricted
+
   - id: SEC-BUDGET-01
     type: budget
     enabled: true

@@ -19,88 +19,85 @@ connectors:
     timeout_s: 60
 
 models:
-  - id: local/general
-    connector: local
-    upstream_model: env:LOCAL_GENERAL_MODEL
-    aliases: [local, fast]
-    capabilities: [chat, tools]
-    data_classes: [public, internal, confidential, restricted]
-    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
-
-  - id: local/pl
-    connector: local
-    upstream_model: env:LOCAL_PL_MODEL
-    aliases: [local-pl]
-    tags: {lang: pl}
-    data_classes: [public, internal, confidential, restricted]
-    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.6}
-
-  - id: local/coder
-    connector: local
-    upstream_model: env:LOCAL_CODER_MODEL
-    aliases: [local-coder]
-    tags: {task: code}
-    capabilities: [chat, tools]
-    data_classes: [public, internal, confidential, restricted]
-    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
-
+  # Model lineup (HANDOFF §7.1): Gemini Flash = fast cloud (default for normal work), Gemini Pro = strong cloud
+  # (`auto` picks it for complex requests), Qwen3.8-27B on the local GPU = everything confidential.
   # Models whose weights come from a file (our own fine-tunes, Hugging Face downloads) can carry an artifact reference:
   #     artifact: {sha256: "<64 hex of the model file>", scan_id: art-0123456789ab}    # scan_id is optional
-  # The model is then only available while a passing artifact scan with that sha256 exists
+  # The model is then only available while the newest artifact scan of that sha256 passed
   # (POST /admin/v1/artifacts/scan; SEC-ART-01 allows only safetensors/GGUF unless an exception is granted).
-
-  # Prompt-configured specialist stand-in (fine-tuning is out of scope): same upstream as
-  # local/pl with a fixed system prompt; `auto` routes here for task=loan_memo.
-  - id: local/loan-memo-pl
+  - id: local/qwen3.8-27b
     connector: local
-    upstream_model: env:LOCAL_PL_MODEL
-    tags: {task: loan_memo, lang: pl}
+    upstream_model: env:LOCAL_GENERAL_MODEL     # e.g. the Ollama / vLLM tag of Qwen3.8-27B
+    aliases: [local, fast]
+    tags: {role: "local, all confidential work", family: qwen}
+    capabilities: [chat, tools]
+    data_classes: [public, internal, confidential, restricted]
+    pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.5}
+
+  # Prompt-configured specialist stand-in (no fine-tuned model in the demo): same Qwen upstream with a fixed system
+  # prompt; `auto` routes here for task=loan_memo, which keeps the auto → specialist mechanism exercised.
+  - id: local/loan-memo
+    connector: local
+    upstream_model: env:LOCAL_GENERAL_MODEL
+    tags: {role: "specialist (prompt-configured on Qwen)", task: loan_memo}
     data_classes: [public, internal, confidential]
     pricing: {usd_per_gpu_second: 0.0006, gpu_seconds_per_1k_tokens: 0.3}
     specialist:
       task: loan_memo
       min_confidence: 0.8
       examples:
-        - "Podsumuj wniosek kredytowy klienta i przygotuj notatkę kredytową."
-        - "Przygotuj memo kredytowe na podstawie wniosku o kredyt hipoteczny."
         - "Summarise this loan application into a credit memo."
+        - "Prepare a credit memo from this mortgage application."
+        - "Podsumuj wniosek kredytowy klienta i przygotuj notatkę kredytową."
     system_prompt: >-
-      Jesteś analitykiem kredytowym. Na podstawie wniosku przygotuj zwięzłą notatkę kredytową
-      po polsku: wnioskodawca (pseudonim), kwota, cel, dochód, zobowiązania, DTI, ryzyka, rekomendacja.
+      You are a credit analyst. From the application, write a concise credit memo in English: applicant
+      (pseudonym), amount, purpose, income, liabilities, DTI, risks, recommendation.
 
   - id: local/embed
     connector: local
     upstream_model: env:LOCAL_EMBED_MODEL
+    tags: {role: "embeddings (similarity, insights)"}
     capabilities: [embeddings]
     data_classes: [public, internal, confidential, restricted]
 
   - id: local/judge
     connector: local
-    upstream_model: env:LOCAL_JUDGE_MODEL
+    upstream_model: env:LOCAL_JUDGE_MODEL       # the L2 judge reuses the local Qwen with judge prompts
+    tags: {role: judge}
     data_classes: [public, internal, confidential, restricted]
 
   - id: gemini/flash
     connector: gemini
     upstream_model: env:GEMINI_MODEL
     aliases: [smart]
+    tags: {role: fast cloud}
     capabilities: [chat, tools]
     data_classes: [public, internal]   # confidential/restricted never go to the cloud (LOCK-01)
     pricing: {in_per_1k: 0.0003, out_per_1k: 0.0025}   # illustrative
 
+  - id: gemini/pro
+    connector: gemini
+    upstream_model: env:GEMINI_PRO_MODEL
+    aliases: [smart-pro]
+    tags: {role: strong cloud}
+    capabilities: [chat, tools]
+    data_classes: [public, internal]
+    pricing: {in_per_1k: 0.00125, out_per_1k: 0.01}    # illustrative
+
 aliases:
   auto:
     strategy: specialist_then_rules
-    description: Specialist by task, else sensitivity × complexity × budget rules
+    description: Specialist by task, else sensitivity × complexity × budget rules (Flash by default, Pro when complex)
 
 skills:
   skill/loan-memo-summary:
-    description: Turn a loan application into a structured credit memo (Polish)
-    template: "Przygotuj notatkę kredytową dla poniższego wniosku:\n\n{application}"
+    description: Turn a loan application into a structured credit memo
+    template: "Write a credit memo for the following application:\n\n{application}"
     input_schema:
       type: object
       properties: {application: {type: string, maxLength: 20000}}
       required: [application]
       additionalProperties: false
-    model: local/loan-memo-pl
+    model: local/loan-memo
     preset: strict
     data_classes: [public, internal, confidential]

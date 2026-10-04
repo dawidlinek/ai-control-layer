@@ -7,6 +7,7 @@ Findings are reduced to `AuditFinding` (entity type, location, salted hash, rule
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -92,8 +93,8 @@ def payload_texts(ctx: InspectionContext) -> str:
     return "\n".join(t for _, t in iter_texts(ctx.payload))
 
 
-def redacted_text(ctx: InspectionContext, verdicts: list[Verdict]) -> str:
-    """The inspected text with EVERY detected span masked (enforced or not), safe to store.
+def redacted_pairs(ctx: InspectionContext, verdicts: list[Verdict]) -> list[tuple[str, str]]:
+    """(field path, text) pairs of the inspected payload with EVERY detected span masked (enforced or not).
 
     Spans without a control-provided replacement get `[REDACTED:<ENTITY>]`. Offsets refer to the
     payload as inspected (the normalised payload when a normaliser published one).
@@ -118,8 +119,35 @@ def redacted_text(ctx: InspectionContext, verdicts: list[Verdict]) -> str:
         else:
             masks.append(f)
     masked, _ = apply_replacements(payload, masks)
-    text = "\n".join(t for _, t in iter_texts(masked))
+    return iter_texts(masked)
+
+
+def _capped(text: str) -> str:
     return text if len(text) <= MAX_REDACTED_CHARS else text[:MAX_REDACTED_CHARS] + "…[truncated]"
+
+
+def redacted_text(ctx: InspectionContext, verdicts: list[Verdict]) -> str:
+    """The inspected text with EVERY detected span masked (enforced or not), safe to store."""
+    return _capped("\n".join(t for _, t in redacted_pairs(ctx, verdicts)))
+
+
+_MESSAGE_TEXT = re.compile(r"^messages\[(\d+)\]\.content(?:\[\d+\]\.text)?$")
+
+
+def last_message_text(pairs: list[tuple[str, str]]) -> str | None:
+    """Masked text of the LAST chat message only (the new turn), from `redacted_pairs` of a chat payload."""
+    last = -1
+    texts: list[str] = []
+    for field, text in pairs:
+        m = _MESSAGE_TEXT.match(field)
+        if m is None:
+            continue
+        idx = int(m.group(1))
+        if idx > last:
+            last, texts = idx, []
+        if idx == last:
+            texts.append(text)
+    return _capped("\n".join(texts)) if last >= 0 else None
 
 
 def build_event(
@@ -145,6 +173,13 @@ def build_event(
     elif payload.kind == "mcp":
         server = payload.server
     texts = payload_texts(ctx)
+    detail: dict[str, Any] = {}
+    if redacted_payload is not None and payload.kind == "chat" and decision.point == InspectionPoint.ingress:
+        # Only when redacted payload storage is on for this event: the masked text of the new user turn, for the
+        # session transcript (the full `redacted_payload` repeats the whole history on every request).
+        turn = last_message_text(redacted_pairs(ctx, decision.verdicts))
+        if turn is not None:
+            detail["turn_text"] = turn
     return AuditEvent(
         event_id=decision.decision_id or str(uuid.uuid4()),
         seq=0,
@@ -187,6 +222,7 @@ def build_event(
         latency=latency,
         seed=ctx.seed,
         redacted_payload=redacted_payload,
+        detail=detail,
         prev_hash=GENESIS_HASH,
         hash=GENESIS_HASH,
     )

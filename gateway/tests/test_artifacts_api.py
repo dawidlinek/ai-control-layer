@@ -131,6 +131,15 @@ def audit_lines(app: Any) -> list[dict[str, Any]]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
+@pytest.fixture
+def private_tempdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Uploads land in a per-test temp dir: other xdist workers' in-flight uploads must not be counted."""
+    d = tmp_path / "uploads"
+    d.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(d))
+    return d
+
+
 def leftover_temp_files() -> set[str]:
     return {p.name for p in Path(tempfile.gettempdir()).glob("acl-artifact-*")}
 
@@ -264,7 +273,7 @@ def test_feed_signature_with_the_scanner_applying_it_too(app: Any) -> None:
     assert {"SIG-OPCODE-POSIX", "ART-PICKLE-01"} <= {f["rule_id"] for f in body["findings"]}
 
 
-def test_temp_file_is_removed_after_the_scan(app: Any) -> None:
+def test_temp_file_is_removed_after_the_scan(app: Any, private_tempdir: Path) -> None:
     before = leftover_temp_files()
     assert upload(app, "pickle_os_system").status_code == 200
     assert upload(app, "benign_safetensors").status_code == 200
@@ -287,7 +296,9 @@ def test_filename_with_path_components_is_sanitised(app: Any) -> None:
     assert ev["detail"]["filename"] == "model.safetensors"
 
 
-def test_oversize_upload_is_rejected_with_413_and_nothing_is_stored(make_app: AppFactory) -> None:
+def test_oversize_upload_is_rejected_with_413_and_nothing_is_stored(
+    make_app: AppFactory, private_tempdir: Path
+) -> None:
     app = make_app(art_params={"max_file_bytes": 64})
     before = leftover_temp_files()
     r = upload(app, data=b"\x00" * 200, filename="big.safetensors")
@@ -408,8 +419,8 @@ def test_model_with_unscanned_artifact_is_unavailable_until_a_passing_scan_exist
     info = admin_model(app, "local/scanned")
     assert info["artifact_status"] == "unscanned" and info["available"] is False
     assert problem(app, "local/scanned") == f"artifact {sha[:12]} has no passing scan"
-    assert admin_model(app, "local/general")["artifact_status"] == "n/a"
-    assert problem(app, "local/general") is None
+    assert admin_model(app, "local/qwen3.8-27b")["artifact_status"] == "n/a"
+    assert problem(app, "local/qwen3.8-27b") is None
 
     # scanning the matching file makes it available without a policy reload
     scan_id = upload(app, "benign_safetensors").json()["id"]

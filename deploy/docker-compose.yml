@@ -7,6 +7,7 @@ name: acl
 include:
   - compose.mcp.yml
   - compose.clients.yml
+  - compose.panel.yml
 
 services:
   postgres:
@@ -93,11 +94,10 @@ services:
       ACL_API_KEY_PEPPER: ${ACL_API_KEY_PEPPER:?run `make env`}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      GEMINI_PRO_MODEL: ${GEMINI_PRO_MODEL:-gemini-pro-latest}
       LOCAL_LLM_BASE_URL: ${LOCAL_LLM_BASE_URL:-}
       LOCAL_LLM_API_KEY: ${LOCAL_LLM_API_KEY:-}
       LOCAL_GENERAL_MODEL: ${LOCAL_GENERAL_MODEL:-}
-      LOCAL_PL_MODEL: ${LOCAL_PL_MODEL:-}
-      LOCAL_CODER_MODEL: ${LOCAL_CODER_MODEL:-}
       LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-}
       LOCAL_JUDGE_MODEL: ${LOCAL_JUDGE_MODEL:-}
     extra_hosts:

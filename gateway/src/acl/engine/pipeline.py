@@ -73,7 +73,9 @@ class Pipeline:
             # e.g. SEC-FLOW-01 sees a PESEL inside the very tool call it is judging. Label updates that describe what
             # a call will bring back (SEC-TAINT-01 on a reads_untrusted tool) are excluded: they apply after the call.
             ctx.attributes["labels_so_far"] = raise_labels(
-                ctx.session.labels, [v.model_copy(update={"labels": None}) for v in verdicts if v.data_class]
+                ctx.session.labels,
+                [v.model_copy(update={"labels": None}) for v in verdicts if v.data_class],
+                ctx.timestamp,
             )
             if any(v.final and v.action == Action.block for v in results):
                 break

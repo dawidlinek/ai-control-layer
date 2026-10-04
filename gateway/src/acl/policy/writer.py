@@ -13,7 +13,7 @@ edits through ruamel.yaml round-trip (see `yamledit`).
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from acl.contracts.admin import PolicyError, PolicyStatus
 from acl.contracts.inspection import Principal
@@ -89,6 +89,43 @@ class PolicyWriter:
             await self._commit(candidate, (), "panel", principal, message)
         return await self.service.status()
 
+    async def patch_files(
+        self,
+        edits: Mapping[str, Sequence[PathOp]],
+        principal: Principal | None,
+        base_version: str | None = None,
+        message: str = "",
+    ) -> PolicyStatus:
+        """Atomic multi-file structured edit: every file is patched (comments preserved), the whole candidate set
+        is validated and committed as ONE new policy version, or nothing changes.
+
+        `base_version` is the POLICY version (`PolicyStatus.version`), not a file hash; a mismatch raises
+        `StaleVersion`. `None` skips the check."""
+        for name in edits:
+            self._check_name(name)
+        async with self.service.lock:
+            self.check_policy_version(base_version)
+            disk = self.service.current_files()
+            candidate = {n: f.content for n, f in disk.items()}
+            candidate.update(self._patched(disk, edits))
+            await self._commit(candidate, (), "panel", principal, message)
+        return await self.service.status()
+
+    def preview_patch(self, edits: Mapping[str, Sequence[PathOp]]) -> dict[str, str]:
+        """Read-only: the texts of the files `edits` would change (patched from what is on disk). No write, no swap."""
+        for name in edits:
+            self._check_name(name)
+        return self._patched(self.service.current_files(), edits)
+
+    def check_policy_version(self, base_version: str | None) -> None:
+        """`StaleVersion` unless `base_version` is the version in force (`None` = no check)."""
+        if base_version is None:
+            return
+        loaded = self.service.loaded
+        current = loaded.version if loaded is not None else ""
+        if base_version != current:
+            raise StaleVersion("policy", current)
+
     async def rollback(self, version_id: int, principal: Principal | None, message: str = "") -> PolicyStatus:
         """Restore the files of a stored version (files that were part of the running set but are not in the
         target are removed; unrelated files on disk are left alone)."""
@@ -110,6 +147,18 @@ class PolicyWriter:
         return await self.service.status()
 
     # ------------------------------------------------------------ internals
+
+    @staticmethod
+    def _patched(disk: dict, edits: Mapping[str, Sequence[PathOp]]) -> dict[str, str]:
+        out: dict[str, str] = {}
+        for name, ops in edits.items():
+            if name not in disk:
+                raise FileNotFound("policy file")
+            try:
+                out[name] = patch_text(disk[name].content, ops)
+            except PatchError as exc:
+                raise ValidationFailed([PolicyError(file=name, message=f"cannot apply edit: {exc}")]) from exc
+        return out
 
     @staticmethod
     def _check_name(name: str) -> None:

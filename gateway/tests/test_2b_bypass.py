@@ -45,7 +45,7 @@ def ask_model(
     app: Any, tool: str, args: dict[str, Any], session: str = "oc-b", who: dict[str, str] = ANNA
 ) -> dict[str, Any]:
     body = {
-        "model": "local-coder",
+        "model": "local",
         "messages": [{"role": "user", "content": f"[[mock:tool {tool} {json.dumps(args)}]]"}],
     }
     r = app.state.test_client.post("/v1/chat/completions", json=body, headers={**who, "X-Session-Id": session})
@@ -65,7 +65,7 @@ def send_result(
     ]
     r = app.state.test_client.post(
         "/v1/chat/completions",
-        json={"model": "local-coder", "messages": msgs},
+        json={"model": "local", "messages": msgs},
         headers={**who, "X-Session-Id": session},
     )
     assert r.status_code == 200, r.text

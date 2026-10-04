@@ -13,6 +13,7 @@ Invariants (tested in gateway/tests/test_engine_decide.py):
      update and detected data class (shadow verdicts included — they observe real data). A data class of
      confidential or above adds the `sensitive` taint; an untrusted-integrity update adds `untrusted`.
      Content that was blocked (or held for approval) never reached the model, so it raises nothing.
+     `since` is set to the request time whenever confidentiality rises (it never moves otherwise).
 
 Phase 0: primary action = most severe verdict action. Graded risk scoring (§6.5) is added in
 Phase 2B/3A as a separate factor-composition step feeding the same invariants.
@@ -21,6 +22,7 @@ Phase 2B/3A as a separate factor-composition step feeding the same invariants.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from acl.contracts.common import (
     ACTION_SEVERITY,
@@ -53,7 +55,7 @@ def _merge_taxonomy(verdicts: list[Verdict]) -> Taxonomy:
     return merged
 
 
-def _raise_labels(base: SessionLabels, verdicts: list[Verdict]) -> SessionLabels:
+def _raise_labels(base: SessionLabels, verdicts: list[Verdict], at: datetime | None = None) -> SessionLabels:
     labels = base.model_copy(deep=True)
     taint = list(labels.taint)
     sources = list(labels.sources)
@@ -69,6 +71,7 @@ def _raise_labels(base: SessionLabels, verdicts: list[Verdict]) -> SessionLabels
                 changed = True
             if upd.confidentiality and DATA_CLASS_ORDER[upd.confidentiality] > DATA_CLASS_ORDER[labels.confidentiality]:
                 labels.confidentiality = upd.confidentiality
+                labels.since = at
                 changed = True
             for flag in upd.taint:
                 if flag in TaintFlag.__members__.values() and TaintFlag(flag) not in taint:
@@ -77,6 +80,7 @@ def _raise_labels(base: SessionLabels, verdicts: list[Verdict]) -> SessionLabels
         dc = v.data_class
         if dc is not None and DATA_CLASS_ORDER[dc] > DATA_CLASS_ORDER[labels.confidentiality]:
             labels.confidentiality = dc
+            labels.since = at
             changed = True
         sensitive = dc is not None and DATA_CLASS_ORDER[dc] >= DATA_CLASS_ORDER[DataClass.confidential]
         if sensitive and TaintFlag.sensitive not in taint:
@@ -165,7 +169,7 @@ def compose_decision(
         labels_after=(
             ctx.session.labels.model_copy(deep=True)
             if action in (Action.block, Action.require_approval)
-            else _raise_labels(ctx.session.labels, verdicts)
+            else _raise_labels(ctx.session.labels, verdicts, ctx.timestamp)
         ),
         taxonomy=_merge_taxonomy(enforced),
         versions=ctx.versions,

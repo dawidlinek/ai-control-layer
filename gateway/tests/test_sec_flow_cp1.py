@@ -49,7 +49,7 @@ def _loaded():  # type: ignore[no-untyped-def]
 
 
 def _headers(user: str, **extra: str) -> dict[str, str]:
-    return {"X-ACL-Dev-User": user, "X-ACL-Dev-Groups": "developers", **extra}
+    return {"X-ACL-Dev-User": user, "X-ACL-Dev-Groups": "operations", **extra}
 
 
 @pytest.fixture
@@ -334,7 +334,7 @@ def test_email_in_tool_description_is_inspected_and_kept_local(app: Any) -> None
     body = {"model": "smart", "messages": [{"role": "user", "content": "hi"}], "tools": [_tool(f"mail {EMAIL}")]}
     r = _chat(app, body)
     assert r.status_code == 200, r.text
-    assert r.headers["x-acl-model"] == "local/general"  # confidential data never goes to the cloud (LOCK-01)
+    assert r.headers["x-acl-model"] == "local/qwen3.8-27b"  # confidential data never goes to the cloud (LOCK-01)
     assert not _calls(app, "gemini")
     sent = _calls(app, "local")[-1]["request"]
     assert EMAIL not in json.dumps(sent) and "<EMAIL_1>" in sent["tools"][0]["function"]["description"]
@@ -348,7 +348,7 @@ def test_pesel_in_tool_parameter_description_is_inspected_and_kept_local(app: An
     }
     r = _chat(app, body)
     assert r.status_code == 200, r.text
-    assert r.headers["x-acl-model"] == "local/general"
+    assert r.headers["x-acl-model"] == "local/qwen3.8-27b"
     assert not _calls(app, "gemini") and PESEL not in _upstream_blob(app)
     assert PESEL not in app.state.settings.audit_path.read_text(encoding="utf-8")
     records = [rec for rec in _audit(app) if rec.get("point") == "ingress"]
@@ -371,6 +371,7 @@ def test_secret_in_params_or_message_name_is_blocked(app: Any, body_extra: dict,
     body = {"model": "smart", "messages": [{"role": "user", "content": "hi", **message_extra}], **body_extra}
     r = _chat(app, body)
     assert r.status_code == 403, r.text
+    assert r.json()["error"]["code"] == "SEC-SECRET-01"  # blocked by the secret control, not by model access
     assert not _calls(app, "gemini") and not _calls(app, "local")
 
 
@@ -481,11 +482,11 @@ async def test_runtime_failover_honours_force_local() -> None:
     req = RouteRequest(requested="smart", usable=usable, force_local=True, force_reason="route_local")
     assert router.degraded_route(primary, req, "HTTP 503") is None
     # a cloud primary may still fail over to a (local) degraded target
-    policy.routing.targets.degraded = "local/general"
+    policy.routing.targets.degraded = "local/qwen3.8-27b"
     router, _ = _router(policy, "v-degraded-local")
     cloud = router.route(RouteRequest(requested="smart", usable=usable))
     fb = router.degraded_route(cloud, RouteRequest(requested="smart", usable=usable), "HTTP 503")
-    assert fb is not None and fb.info.model == "local/general" and fb.info.degraded
+    assert fb is not None and fb.info.model == "local/qwen3.8-27b" and fb.info.degraded
 
 
 def test_flow_degraded_cloud_target_returns_503_for_local_only_data(tmp_path: Path) -> None:
@@ -493,7 +494,7 @@ def test_flow_degraded_cloud_target_returns_503_for_local_only_data(tmp_path: Pa
     shutil.copytree(POLICY_DIR, policy_dir)
     routing = policy_dir / "routing.yaml"
     routing.write_text(
-        routing.read_text(encoding="utf-8").replace("degraded: local/general", "degraded: gemini/flash"),
+        routing.read_text(encoding="utf-8").replace("degraded: local/qwen3.8-27b", "degraded: gemini/flash"),
         encoding="utf-8",
         newline="\n",
     )

@@ -78,7 +78,7 @@ def audit_lines(app: Any) -> list[dict[str, Any]]:
 
 
 def test_forbidden_local_tool_is_blocked_with_rule_id(app) -> None:
-    r = decide(app, "opencode.bash", {"command": "git status"}, who=JAN)  # credit-analysts have no OpenCode tools
+    r = decide(app, "opencode.write", {"filePath": "a.py", "content": "x"}, who=JAN)  # credit-analysts: no `write`
     assert r["action"] == "block" and "SEC-TOOL-01" in r["rule_ids"]
     assert r["decision_id"] and r["trace_id"] and r["policy_version"]
     deny = decide(app, "opencode.webfetch", {"url": "https://example.org/"})  # developers: tier deny

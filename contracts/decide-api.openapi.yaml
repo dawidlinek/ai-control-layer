@@ -450,6 +450,13 @@ components:
           type: array
           title: Sources
           description: Rule ids that raised the labels.
+        since:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+          description: When `confidentiality` rose to its current level (the high-water mark time).
       additionalProperties: false
       type: object
       title: SessionLabels

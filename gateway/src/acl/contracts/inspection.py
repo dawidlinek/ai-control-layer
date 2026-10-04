@@ -196,6 +196,9 @@ class SessionLabels(StrictModel):
     confidentiality: DataClass = DataClass.public
     taint: list[TaintFlag] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list, description="Rule ids that raised the labels.")
+    since: datetime | None = Field(
+        default=None, description="When `confidentiality` rose to its current level (the high-water mark time)."
+    )
 
 
 class SessionState(StrictModel):

@@ -37,8 +37,8 @@ async def test_unknown_tool_is_blocked_final(engine) -> None:
 
 
 async def test_ungranted_tool_is_blocked_with_the_access_rule_id(engine) -> None:
-    # credit-analysts have no OpenCode tools at all
-    d = await decide(engine, "opencode.bash", {"command": "git status"}, groups=["credit-analysts"])
+    # credit-analysts hold opencode.read/edit/bash only: `write` is not granted to them
+    d = await decide(engine, "opencode.write", {"filePath": "a.py", "content": "x"}, groups=["credit-analysts"])
     assert d.action == Action.block and d.final and RULE in d.rule_ids
 
 
@@ -808,7 +808,9 @@ async def test_missing_access_service_fails_closed_or_falls_back_to_policy() -> 
 
     fallback = Engine.build(with_mode("policy_only"), "t", deps=ControlDeps())  # group policy + org locks, no DB grants
     assert (await fallback.evaluate(tool_ctx("opencode.read", {"filePath": "a.py"}))).action == Action.allow
-    denied = await fallback.evaluate(tool_ctx("opencode.bash", {"command": "ls"}, groups=["credit-analysts"]))
+    denied = await fallback.evaluate(
+        tool_ctx("opencode.write", {"filePath": "a.py", "content": "x"}, groups=["credit-analysts"])
+    )
     assert denied.action == Action.block
 
 

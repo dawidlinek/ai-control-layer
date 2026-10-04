@@ -8,6 +8,7 @@ budgets:
   groups:
     developers: {tokens_day: 2000000, usd_day: 5}
     credit-analysts: {tokens_day: 1000000, usd_day: 2}
+    operations: {tokens_day: 1000000, usd_day: 1}
   # Per-user overrides (key = username). `budget-probe-user` is a test fixture: it never matches a real
   # user, and tests/cases/budgets.yaml uses it to hit a small per-session cap with a short prompt.
   users:
