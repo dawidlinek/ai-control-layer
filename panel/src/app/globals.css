@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+/*
+ * Rogatka Dashboard design tokens (docs/ux/HANDOFF.md section 4).
+ * Dark is the default theme; `:root[data-theme="light"]` switches to light.
+ * The theme attribute is set before first paint by the inline script in app/layout.tsx.
+ */
+:root {
+  --bg: #0e1013;
+  --surface: #15181c;
+  --raised: #1c2025;
+  --inset: #101215;
+  --border: #272c33;
+  --border-strong: #3a414a;
+  --text: #e7e9ec;
+  --muted: #9ba4ae;
+  --accent: #4c8dff;
+  --on-accent: #0e1013;
+  --accent-soft: rgb(76 141 255 / 0.16);
+  --accent-line: rgb(76 141 255 / 0.7);
+
+  /* tint strengths for decision / severity chips (dark | light) */
+  --tint-bg: 14%;
+  --tint-bd: 32%;
+
+  --dec-allow: #4ade80;
+  --dec-monitor: #a3b1c2;
+  --dec-redact: #d8a4fe;
+  --dec-pseudonymise: #b4a0ff;
+  --dec-sanitize: #2dd4bf;
+  --dec-downgrade: #fbbf24;
+  --dec-route-local: #7cb4ff;
+  --dec-require-approval: #fb923c;
+  --dec-block: #f87171;
+  --sev-critical: #fb7185;
+  --sev-high: #f87171;
+  --sev-medium: #fbbf24;
+  --sev-low: #a3b1c2;
+
+  --radius-chip: 4px;
+  --radius-control: 6px;
+  --radius-card: 8px;
+
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --raised: #f6f7f9;
+  --inset: #eceef1;
+  --border: #dce0e5;
+  --border-strong: #c3c9d1;
+  --text: #14171b;
+  --muted: #56606b;
+  --accent: #3460ad;
+  --on-accent: #ffffff;
+  --accent-soft: rgb(76 141 255 / 0.12);
+  --accent-line: rgb(76 141 255 / 0.8);
+
+  --tint-bg: 10%;
+  --tint-bd: 30%;
+
+  --dec-allow: #15803d;
+  --dec-monitor: #475569;
+  --dec-redact: #7e22ce;
+  --dec-pseudonymise: #6d28d9;
+  --dec-sanitize: #0f766e;
+  --dec-downgrade: #a16207;
+  --dec-route-local: #1d4ed8;
+  --dec-require-approval: #c2410c;
+  --dec-block: #b91c1c;
+  --sev-critical: #be123c;
+  --sev-high: #b91c1c;
+  --sev-medium: #a16207;
+  --sev-low: #475569;
+
+  --shadow-pop: 0 12px 32px rgb(20 23 27 / 0.16);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-inset: var(--inset);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+
+  --color-dec-allow: var(--dec-allow);
+  --color-dec-monitor: var(--dec-monitor);
+  --color-dec-redact: var(--dec-redact);
+  --color-dec-pseudonymise: var(--dec-pseudonymise);
+  --color-dec-sanitize: var(--dec-sanitize);
+  --color-dec-downgrade: var(--dec-downgrade);
+  --color-dec-route-local: var(--dec-route-local);
+  --color-dec-require-approval: var(--dec-require-approval);
+  --color-dec-block: var(--dec-block);
+  --color-sev-critical: var(--sev-critical);
+  --color-sev-high: var(--sev-high);
+  --color-sev-medium: var(--sev-medium);
+  --color-sev-low: var(--sev-low);
+
+  --radius-chip: 4px;
+  --radius-control: 6px;
+  --radius-card: 8px;
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    background: var(--bg);
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: inherit;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+}
+
+/* Tinted chip: set `--c` to a decision/severity colour, add `.tint`. */
+.tint {
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) var(--tint-bg), transparent);
+  border: 1px solid color-mix(in srgb, var(--c) var(--tint-bd), transparent);
+}
+
+/* Radix menu / dialog animation (kept tiny, respects reduced motion) */
+@keyframes rogatka-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes rogatka-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+[data-state="open"].rg-pop {
+  animation: rogatka-pop-in 0.12s ease-out;
+}
+[data-state="open"].rg-fade {
+  animation: rogatka-fade-in 0.12s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-state="open"].rg-pop,
+  [data-state="open"].rg-fade {
+    animation: none;
+  }
+}
+
+/* Thin scrollbars inside table boxes */
+.rg-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
