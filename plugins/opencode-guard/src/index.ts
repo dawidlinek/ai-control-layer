@@ -10,7 +10,7 @@
  * Verified against @opencode-ai/plugin 1.18.x (see deploy/README-clients.md).
  */
 import type { Hooks, Plugin, PluginModule } from "@opencode-ai/plugin";
-import { loadConfig, type GuardConfig } from "./config.js";
+import { loadConfig, stripSlash, type GuardConfig } from "./config.js";
 import { GuardError } from "./errors.js";
 import { GatewayClient } from "./gateway.js";
 import { Guard } from "./guard.js";
@@ -27,6 +27,25 @@ export { resolveTool } from "./tools.js";
 
 type McpEntry = { type?: string; url?: string; headers?: Record<string, string>; oauth?: unknown; enabled?: boolean };
 
+/**
+ * True when `url` is exactly the gateway's proxy for server `name`: same origin as `ACL_GATEWAY_URL` (scheme, host
+ * and port, so https://gw and http://gw differ), path `<gateway path>/mcp/<name>`, no credentials, query or fragment.
+ * The server name in the URL must equal the config key, so `/v1/decide` sees the server the proxy actually serves.
+ */
+export function isGatewayMcpUrl(cfg: GuardConfig, name: string, url: string): boolean {
+  if (!cfg.gatewayUrl || !/^[A-Za-z0-9._-]+$/.test(name)) return false;
+  let u: URL;
+  let gw: URL;
+  try {
+    u = new URL(url);
+    gw = new URL(cfg.gatewayUrl);
+  } catch {
+    return false;
+  }
+  if (u.username || u.password || u.search || u.hash) return false;
+  return u.origin === gw.origin && u.pathname === `${stripSlash(gw.pathname)}/mcp/${name}`;
+}
+
 /** Keep only MCP servers that point at the gateway's /mcp/<server> proxy; attach the user's token to those. */
 export function governMcp(
   cfg: GuardConfig,
@@ -41,7 +60,7 @@ export function governMcp(
       cfg.problems.length === 0 &&
       entry?.type === "remote" &&
       typeof entry.url === "string" &&
-      entry.url.startsWith(`${cfg.gatewayUrl}/mcp/`);
+      isGatewayMcpUrl(cfg, name, entry.url);
     if (!ok) {
       delete mcp[name];
       governed.delete(name);

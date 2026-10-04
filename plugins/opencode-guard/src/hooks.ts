@@ -32,6 +32,14 @@ function toHeaders(init?: RequestInit): Headers {
   return headers;
 }
 
+function originOf(url: string): string | undefined {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Provider-level fetch installed by the auth loader: refreshes the token when needed and sets Authorization.
  * Only requests to the gateway origin get the token; anything else is refused (fail closed).
@@ -43,7 +51,8 @@ export function makeGuardedFetch(
 ) {
   return async (request: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = request instanceof Request ? request.url : request.toString();
-    if (cfg.problems.length > 0 || new URL(url).origin !== new URL(cfg.gatewayUrl).origin) {
+    // Exact origin match (scheme + host + port): https://gateway and http://gateway, or a look-alike host, differ.
+    if (cfg.problems.length > 0 || originOf(url) === undefined || originOf(url) !== originOf(cfg.gatewayUrl)) {
       throw new GuardError("misconfigured", "model requests may only go to the company gateway");
     }
     const headers = toHeaders(init ?? (request instanceof Request ? { headers: request.headers } : undefined));
