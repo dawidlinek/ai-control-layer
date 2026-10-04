@@ -26,6 +26,7 @@ dependencies = [
   "google-re2>=1.1",
   "yara-python>=4.5",
   "jsonschema>=4.23",
+  "scikit-learn>=1.5",
 ]
 
 [build-system]
