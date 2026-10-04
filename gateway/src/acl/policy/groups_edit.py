@@ -74,11 +74,12 @@ class GroupEditPlan:
 
 def cloud_model_refs(policy: Policy, refs: Sequence[str]) -> list[str]:
     """The entries of `refs` that resolve to at least one cloud-tier model (ids, aliases, fixed aliases,
-    `connector:<id>`). Routed aliases (`auto`) and skills do not count."""
+    `connector:<id>`). Routed aliases (`auto`) count when a routing target is a cloud model: `auto` sends public /
+    internal data to the cloud, so a group holding it does not have "no cloud". Skills do not count."""
     idx = PolicyIndex(policy)
     out: list[str] = []
     for ref in refs:
-        if ref in policy.skills or ref in idx.routed_aliases:
+        if ref in policy.skills:
             continue
         if any(idx.tier(idx.models[mid]) == ConnectorTier.cloud for mid in idx.expand(ref) if mid in idx.models):
             out.append(ref)

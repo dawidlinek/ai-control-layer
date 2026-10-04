@@ -184,6 +184,10 @@ def test_read_mapping_matches_the_policy_files(stack: Stack) -> None:
         refs[m["id"]] = m["id"]
         for a in m.get("aliases", []):
             refs[a] = m["id"]
+    # `auto` routes to the routing targets: it is a cloud route whenever one of them is a cloud model
+    targets = stack.yaml("routing.yaml")["routing"]["targets"]
+    if any(targets.get(k) in cloud_ids for k in ("ext_small", "ext_large")):
+        refs["auto"] = next(iter(cloud_ids))
     listed = {g["name"]: g for g in stack.client.get(f"{BASE}/groups", headers=stack.viewer).json()}
     for name, gp in groups.items():
         s = listed[name]["settings"]
