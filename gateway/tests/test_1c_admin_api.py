@@ -211,11 +211,13 @@ def test_groups_union_policy_and_keycloak(stack: Stack) -> None:
     assert groups["agents/research-bot"]["source"] == "policy" and groups["agents/research-bot"]["members"] == 0
 
 
-def test_pending_event_store_endpoints_stay_501(stack: Stack) -> None:
+def test_user_activity_is_analyst_only_and_breakglass_stays_501(stack: Stack) -> None:
     c = stack.client
-    assert c.get(f"{BASE}/users/jan/activity", headers=stack.viewer).status_code in (403, 501)
+    provision(stack)
+    assert c.get(f"{BASE}/users/jan/activity", headers=stack.viewer).status_code == 403
     analyst = stack.token("sub-ola", "ola", ["security-analysts"], ["acl-analyst"])
-    assert c.get(f"{BASE}/users/jan/activity", headers=analyst).status_code == 501
+    assert c.get(f"{BASE}/users/jan/activity", headers=analyst).status_code == 200
+    assert c.get(f"{BASE}/users/nobody/activity", headers=analyst).status_code == 404
     body = {"event_id": "e1", "reason": "investigating incident 42"}
     assert c.post(f"{BASE}/users/jan/breakglass", headers=stack.admin, json=body).status_code == 501
 
