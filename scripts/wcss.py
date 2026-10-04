@@ -3,9 +3,10 @@
     uv run python scripts/wcss.py account                 # list SLURM accounts you can bill
     uv run python scripts/wcss.py push    -A <account>    # copy job scripts + API key (mode 600) to the cluster
     uv run python scripts/wcss.py setup   -A <account>    # CPU job: build vLLM archive + download weights (once)
-    uv run python scripts/wcss.py serve   -A <account>    # GPU job: vLLM server (4 h, 1x H100)
+    uv run python scripts/wcss.py fetch   -A <account>    # CPU job: HF checkpoints into a shared HF cache
+    uv run python scripts/wcss.py serve   -A <account>    # GPU job: one or two vLLM servers on 1x H100
     uv run python scripts/wcss.py status  -A <account>    # queue, endpoint, log tail
-    uv run python scripts/wcss.py tunnel  -A <account>    # forward 127.0.0.1:8001 -> <node>:8000 (foreground)
+    uv run python scripts/wcss.py tunnel  -A <account>    # one forward per endpoint line: 127.0.0.1:8001, :8002, ...
 
 Safety (see github.com/dawidlinek/slurm-wcss-skill): every SSH call is non-interactive (BatchMode, no password
 prompts: three failed logins lock the account for 24 h), one connection per command, never retried in a loop.
@@ -43,6 +44,7 @@ SSH_OPTS = [
     *(["-J", JUMP] if JUMP else []),
 ]
 ACCOUNT_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+TIME_RE = re.compile(r"(\d-)?\d{1,2}:\d{2}:\d{2}")
 
 
 def env_value(name: str) -> str | None:
@@ -86,7 +88,7 @@ def cmd_push(args: argparse.Namespace) -> None:
         raise SystemExit("LOCAL_LLM_API_KEY is empty: run `uv run python scripts/dev.py env` first")
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w") as tar:
-        for name in ("setup.sbatch", "serve.sbatch"):
+        for name in ("setup.sbatch", "fetch.sbatch", "serve.sbatch"):
             data = (ROOT / "deploy" / "wcss" / name).read_bytes().replace(b"\r\n", b"\n")
             info = tarfile.TarInfo(name)
             info.size, info.mode = len(data), 0o750
@@ -109,6 +111,10 @@ def _submit(args: argparse.Namespace, script: str) -> None:
             raise SystemExit(f"--export {kv!r} looks like a Windows path; rerun with MSYS_NO_PATHCONV=1")
     # one --export flag: sbatch keeps only the last one when given several
     extra = shlex.quote("--export=ALL," + ",".join(args.export)) if args.export else ""
+    if args.time:
+        if not TIME_RE.fullmatch(args.time):
+            raise SystemExit(f"--time {args.time!r}: expected [D-]HH:MM:SS")
+        extra += f" --time={args.time}"
     preflight = f"~/wcss-slurm/scripts/preflight.sh {script} -A {account} 2>&1 | tail -5; " if args.preflight else ""
     out = ssh(f"cd ~/{REMOTE_DIR} && {preflight}sbatch --parsable -A {account} {extra} {script}")
     print(out, end="")
@@ -116,6 +122,10 @@ def _submit(args: argparse.Namespace, script: str) -> None:
 
 def cmd_setup(args: argparse.Namespace) -> None:
     _submit(args, "setup.sbatch")
+
+
+def cmd_fetch(args: argparse.Namespace) -> None:
+    _submit(args, "fetch.sbatch")
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
@@ -135,28 +145,36 @@ def cmd_status(args: argparse.Namespace) -> None:
 
 def cmd_tunnel(args: argparse.Namespace) -> None:
     account = _account(args)
-    endpoint = ssh(f"cat {pd(account)}/serve/endpoint").split()
-    if len(endpoint) < 2 or not re.fullmatch(r"[a-z0-9-]+", endpoint[0]) or not endpoint[1].isdigit():
-        raise SystemExit(f"unexpected endpoint file content: {endpoint!r}")
-    node, port = endpoint[0], endpoint[1]
-    local = args.local_port
-    print(f"tunnel 127.0.0.1:{local} -> {node}:{port} via {HOST} (Ctrl+C to stop)", flush=True)
-    print(f"gateway: LOCAL_LLM_BASE_URL=http://host.docker.internal:{local}/v1", flush=True)
-    cmd = ["ssh", *SSH_OPTS, "-o", "ExitOnForwardFailure=yes", "-N", "-L", f"127.0.0.1:{local}:{node}:{port}", HOST]
+    lines = [ln.split() for ln in ssh(f"cat {pd(account)}/serve/endpoint").splitlines() if ln.strip()]
+    forwards: list[str] = []
+    for i, endpoint in enumerate(lines):
+        if len(endpoint) < 2 or not re.fullmatch(r"[a-z0-9-]+", endpoint[0]) or not endpoint[1].isdigit():
+            raise SystemExit(f"unexpected endpoint file line: {endpoint!r}")
+        node, port = endpoint[0], endpoint[1]
+        name = endpoint[3] if len(endpoint) > 3 and re.fullmatch(r"[A-Za-z0-9._-]+", endpoint[3]) else "?"
+        local = args.local_port + i
+        forwards += ["-L", f"127.0.0.1:{local}:{node}:{port}"]
+        print(f"tunnel 127.0.0.1:{local} -> {node}:{port} ({name}) via {HOST}", flush=True)
+        print(f"  gateway base URL: http://host.docker.internal:{local}/v1", flush=True)
+    if not forwards:
+        raise SystemExit("endpoint file is empty: is a serve job running? (`wcss.py status`)")
+    print("Ctrl+C to stop", flush=True)
+    cmd = ["ssh", *SSH_OPTS, "-o", "ExitOnForwardFailure=yes", "-N", *forwards, HOST]
     raise SystemExit(subprocess.call(cmd))
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("account", "push", "setup", "serve", "status", "tunnel"):
+    for name in ("account", "push", "setup", "fetch", "serve", "status", "tunnel"):
         p = sub.add_parser(name)
         p.add_argument("-A", "--account")
-        if name in ("setup", "serve"):
+        if name in ("setup", "fetch", "serve"):
             p.add_argument("--export", action="append", help="KEY=VALUE passed to the job (e.g. MODEL_DIR=...)")
+            p.add_argument("--time", help="wall-clock limit for this job, [D-]HH:MM:SS (overrides the script)")
             p.add_argument("--preflight", action="store_true", help="run the skill's preflight.sh before sbatch")
         if name == "tunnel":
-            p.add_argument("--local-port", type=int, default=8001)
+            p.add_argument("--local-port", type=int, default=8001, help="first local port; next lines get +1, +2")
     args = ap.parse_args()
     globals()[f"cmd_{args.cmd}"](args)
 
