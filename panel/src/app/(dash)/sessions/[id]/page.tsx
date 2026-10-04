@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
-import { PlaceholderScreen } from "@/components/shell/placeholder-screen";
+import { Suspense } from "react";
+import { SessionScreen } from "@/features/sessions/session-screen";
 
 export const metadata: Metadata = { title: "Session" };
 
-// Thin route file: the screen lives in src/features/sessions/ (owned by the Traffic screen agent).
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <PlaceholderScreen title={`Session ${id}`} />;
+  let sessionId = id;
+  try {
+    sessionId = decodeURIComponent(id);
+  } catch {
+    /* keep the raw segment */
+  }
+  return (
+    <Suspense>
+      <SessionScreen id={sessionId} />
+    </Suspense>
+  );
 }

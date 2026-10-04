@@ -37,15 +37,17 @@ test.describe("shell", () => {
       page.on("pageerror", (e) => errors.push(e.message));
       await page.goto(route);
       await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-      await expect(page.getByText(`${title} — being built`)).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: title })).toHaveAttribute("aria-current", "page");
       expect(errors).toEqual([]);
     });
   }
 
   test("a session page loads", async ({ page }) => {
-    await page.goto("/sessions/s_9e21");
-    await expect(page.getByText("Session s_9e21 — being built")).toBeVisible();
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/sessions/c_51a8");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(errors).toEqual([]);
   });
 
   test("navigates by clicking the sidebar", async ({ page }) => {
