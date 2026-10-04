@@ -58,7 +58,7 @@ function changeSentence(v: PolicyVersion): string {
     case "panel":
       return `${what}. Published from the panel by ${authorOf(v)}${files}.`;
     case "rollback":
-      return `${what}. ${authorOf(v)} rolled the policy back from the panel; the history was not rewritten.`;
+      return `${what}. ${authorOf(v)} rolled the policy back from the panel${v.reason ? ` because ${v.reason}` : ""}; the history was not rewritten.`;
     default:
       return `${what}.`;
   }
@@ -95,7 +95,14 @@ function Diff({ diff }: { diff: string }) {
   );
 }
 
-const reasonSchema = z.object({ reason: z.string().trim().min(1, "Write why you are rolling back.") });
+const reasonSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, "Write why you are rolling back.")
+    .min(3, "Use at least 3 characters.")
+    .max(500, "Keep the reason under 500 characters."),
+});
 
 function RollbackDialog({
   version,
@@ -114,8 +121,8 @@ function RollbackDialog({
   const versions = usePolicyVersions();
   const form = useForm<{ reason: string }>({ resolver: zodResolver(reasonSchema), defaultValues: { reason: "" } });
   const label = labelOf(version);
-  const submit = form.handleSubmit(() =>
-    rollback.mutate(version.id, {
+  const submit = form.handleSubmit(({ reason }) =>
+    rollback.mutate({ id: version.id, reason }, {
       onSuccess: (s) => {
         onDone(versionLabel(s.version, versions.data));
         form.reset();
@@ -191,6 +198,7 @@ function VersionSidebar({ version, live, next }: { version: PolicyVersion; live:
             { label: "When", value: whenOf(version), mono: true },
             { label: "Files", value: version.files_changed.join(", ") || "—", mono: true },
             { label: "How", value: SOURCE_TEXT[version.source] },
+            ...(version.reason ? [{ label: "Reason", value: version.reason }] : []),
             { label: "Status", value: live ? "live now" : "not live" },
           ]}
         />
@@ -271,7 +279,14 @@ export function HistoryTab() {
         meta: { className: "w-[150px]" },
       },
       { id: "source", header: "Source", cell: ({ row }) => <SourceChip source={row.original.source} />, meta: { className: "w-[90px]" } },
-      { id: "change", header: "Change", cell: ({ row }) => <Truncate>{row.original.message || row.original.files_changed.join(", ")}</Truncate>, meta: { className: "max-w-[420px]" } },
+      {
+        id: "change",
+        header: "Change",
+        cell: ({ row: { original: v } }) => (
+          <Truncate>{v.reason ? `Rolled back: ${v.reason}` : v.message || v.files_changed.join(", ")}</Truncate>
+        ),
+        meta: { className: "max-w-[420px]" },
+      },
       { id: "go", header: "", cell: () => <span aria-hidden className="text-muted">›</span>, meta: { className: "w-[14px]" } },
     ],
     [liveVersion],

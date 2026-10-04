@@ -303,6 +303,7 @@ describe("Policies: History", () => {
     expect(within(v8).getByText("file")).toBeInTheDocument();
     expect(v8).toHaveTextContent("live");
     expect(within(table).getByText("v5").closest("tr")).toHaveTextContent("rollback");
+    expect(within(table).getByText("v5").closest("tr")).toHaveTextContent("Rolled back: the routing change sent too much to the local model");
 
     const side = await screen.findByRole("complementary", { name: "Version" });
     expect(side).toHaveTextContent("Injection threshold 0.75 → 0.80 to cut false alarms. Published from the panel by m.zielinska (controls.yaml).");
@@ -314,6 +315,13 @@ describe("Policies: History", () => {
     expect(within(side).getByRole("link", { name: "First requests on v7 →" })).toHaveAttribute("href", "/traffic?q=v7");
   });
 
+  it("shows the rollback reason of a version in its sidebar", async () => {
+    renderApp(<PoliciesScreen />, { searchParams: "?tab=history&sel=5" });
+    const side = await screen.findByRole("complementary", { name: "Version" });
+    expect(side).toHaveTextContent("k.wojcik rolled the policy back from the panel because the routing change sent too much to the local model");
+    expect(within(side).getByText("Reason")).toBeInTheDocument();
+  });
+
   it("rolls back to a version after a confirmation with a reason", async () => {
     const { user } = renderApp(<PoliciesScreen />, { searchParams: "?tab=history&sel=6" });
     const side = await screen.findByRole("complementary", { name: "Version" });
@@ -322,6 +330,10 @@ describe("Policies: History", () => {
     expect(dialog).toHaveTextContent("This creates a new version (v9) with the same files as v6.");
     await user.click(within(dialog).getByRole("button", { name: "Roll back to v6" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Write why you are rolling back.");
+    await user.type(within(dialog).getByRole("textbox", { name: "Reason (required)" }), "ab");
+    await user.click(within(dialog).getByRole("button", { name: "Roll back to v6" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Use at least 3 characters.");
+    await user.clear(within(dialog).getByRole("textbox", { name: "Reason (required)" }));
     await user.type(within(dialog).getByRole("textbox", { name: "Reason (required)" }), "Threshold change raised false alarms");
     await user.click(within(dialog).getByRole("button", { name: "Roll back to v6" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -330,6 +342,8 @@ describe("Policies: History", () => {
     await waitFor(() => expect(live()).toHaveTextContent("live v9 · rolled back just now by you"));
     const v9 = (await within(screen.getByRole("table", { name: "Versions" })).findByText("v9")).closest("tr")!;
     expect(v9).toHaveTextContent("rollback");
+    expect(v9).toHaveTextContent("Rolled back: Threshold change raised false alarms");
+    expect(policyDb.versions.at(-1)!.reason).toBe("Threshold change raised false alarms");
     expect(currentFiles()["controls.yaml"]).toContain("injection_threshold: 0.75");
   });
 

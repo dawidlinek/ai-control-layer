@@ -63,3 +63,6 @@ export type TranscriptTurn = Resp<S["TranscriptTurn"]>;
 export type SessionLabelInfo = Resp<S["SessionLabelInfo"]>;
 export type ClientRef = Resp<S["ClientRef"]>;
 export type Usage = Resp<S["Usage"]>;
+export type IncidentEvidence = NonNullable<Incident["evidence"]>;
+export type ApprovalPreview = NonNullable<Approval["preview"]>;
+export type PolicyRollbackRequest = S["PolicyRollbackRequest"];

@@ -57,9 +57,12 @@ function useActions(i: Incident): Built {
   }
 
   const kind = incidentKind(i);
-  switch (kind) {
+  const rug = rugPullOf(i);
+  const breaker = breakerOf(i);
+  // The evidence of a rug pull / breach can degrade to a generic one: then there is nothing to act on but closing.
+  switch (kind === "mcp_rug_pull" && !rug ? "" : kind === "budget_breach" && !breaker ? "" : kind) {
     case "mcp_rug_pull": {
-      const ev = rugPullOf(i)!;
+      const ev = rug!;
       return {
         actions: [
           {
@@ -78,7 +81,7 @@ function useActions(i: Incident): Built {
       };
     }
     case "budget_breach": {
-      const ev = breakerOf(i)!;
+      const ev = breaker!;
       return {
         actions: [
           ev.breakerId

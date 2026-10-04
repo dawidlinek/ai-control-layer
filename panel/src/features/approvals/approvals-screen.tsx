@@ -80,7 +80,7 @@ const columns: ColumnDef<ApprovalRow>[] = [
     id: "why",
     header: "Why it was held",
     meta: { className: "max-w-[220px] text-muted" },
-    cell: ({ row: { original: r } }) => <Truncate>{r.reason.short}</Truncate>,
+    cell: ({ row: { original: r } }) => <Truncate>{r.reasons[0]}</Truncate>,
   },
   {
     id: "approver",

@@ -133,7 +133,7 @@ describe("rules", () => {
 });
 
 describe("helpers", () => {
-  const versions = [{ id: 8, version: "3f2a9c1b7d4e", created_at: new Date().toISOString(), author: "k.wojcik", source: "panel", message: "", files_changed: [] }] as PolicyVersion[];
+  const versions = [{ id: 8, version: "3f2a9c1b7d4e", created_at: new Date().toISOString(), author: "k.wojcik", source: "panel", message: "", reason: null, files_changed: [] }] as PolicyVersion[];
 
   it("labels hash versions by their sequence id", () => {
     expect(versionLabel("v8")).toBe("v8");

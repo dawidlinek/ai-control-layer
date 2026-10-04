@@ -24,7 +24,7 @@ import { formatClock, formatCountdown, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDecideApproval } from "./api";
 import type { ApprovalRow } from "./model";
-import { approvalSentence, promptOf, riskLabel, ruleSentence, sourceDecision, targetOf, clientApp } from "./readers";
+import { approvalSentence, clientApp, previewOf, promptOf, riskLabel, ruleTitle, targetOf } from "./readers";
 
 const ELEVATIONS = [5, 15, 60] as const;
 type Elevation = (typeof ELEVATIONS)[number];
@@ -46,13 +46,13 @@ function AutoDenyPill({ until }: { until: string }) {
 }
 
 export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecided: (id: string) => void }) {
-  const { a, parsed, reason, who } = row;
+  const { a, parsed, reasons, who } = row;
+  const preview = previewOf(a);
   const pending = a.status === "pending";
   const sessionLabel = who.isAgent
     ? `${a.requested_by} run ${a.session_id}`
     : [`${clientApp(a) ?? a.server ?? ""} ${a.session_id}`.trim(), parsed.device].filter(Boolean).join(" · ");
   const rule = a.rule_ids[0];
-  const hasWhy = !!rule || reason.sources.length > 0;
 
   return (
     <>
@@ -71,12 +71,12 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
         <div>
           <DecisionBadge decision="require_approval" size="md" />
         </div>
-        <PlainSentence>{approvalSentence(a, parsed, reason, who)}</PlainSentence>
+        <PlainSentence>{approvalSentence(a, parsed, reasons, who)}</PlainSentence>
         <FactsGrid
           facts={[
             { label: "Session", value: sessionLabel },
             { label: "Risk score", value: riskLabel(a.risk_score), mono: true },
-            { label: "Data class", value: parsed.dataClass ?? "not recorded" },
+            { label: "Data class", value: a.data_class ?? "not recorded" },
             {
               label: "Trace",
               mono: true,
@@ -94,6 +94,15 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
         <div className="rg-scroll overflow-x-auto whitespace-nowrap rounded-[6px] border border-border bg-inset px-3 py-2.5 font-mono text-[13px]">
           <span className="text-muted">{promptOf(a)}</span> <span data-testid="approval-command">{parsed.command || "—"}</span>
         </div>
+        {a.flags.length > 0 && (
+          <ul aria-label="Red flags" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+            {a.flags.map((f) => (
+              <li key={f} className="tint rounded-[10px] px-[7px] text-[11.5px]" style={tintStyle(DECISION_VAR.require_approval)}>
+                {f}
+              </li>
+            ))}
+          </ul>
+        )}
         {parsed.details.length > 0 && (
           <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-[5px] text-[12.5px]">
             {parsed.details.map((d) => (
@@ -111,48 +120,38 @@ export function ApprovalSidebar({ row, onDecided }: { row: ApprovalRow; onDecide
             ))}
           </dl>
         )}
-        {parsed.preview && <DiffBox title={parsed.preview.title} lines={parsed.preview.lines} ariaLabel="Preview" />}
+        {preview && <DiffBox title={preview.title} lines={preview.lines} ariaLabel="Preview" />}
       </SidebarSection>
 
-      {hasWhy && (
-        <SidebarSection title="Why it was held">
+      <SidebarSection title="Why it was held">
+        {rule && (
           <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
-            {rule && <RuleChip ruleId={rule} />}
-            <span>{ruleSentence(rule, reason)}</span>
+            <RuleChip ruleId={rule} />
+            {ruleTitle(rule) && <span>{ruleTitle(rule)}</span>}
           </div>
-          {reason.sources.length > 0 && (
-            <ol className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Reasons">
-              {reason.sources.map((s) => {
-                const v = DECISION_VAR[sourceDecision(s.flag)];
-                const href = s.traceId ? `/traffic?sel=${encodeURIComponent(s.traceId)}` : `/traffic?q=${encodeURIComponent(a.session_id)}`;
-                return (
-                  <li
-                    key={s.n}
-                    className="tint grid grid-cols-[22px_92px_minmax(0,1fr)_max-content] items-center gap-2 rounded-[6px] px-2.5 py-[7px] text-[12.5px]"
-                    style={tintStyle(v)}
-                  >
-                    <span
-                      aria-hidden
-                      className="inline-flex size-5 items-center justify-center rounded-full border-[1.5px] text-[11px] font-semibold"
-                      style={{ borderColor: v }}
-                    >
-                      {s.n}
-                    </span>
-                    <span className="font-mono text-[12px]">{s.flag}</span>
-                    <span className="min-w-0 text-text">{s.text}</span>
-                    <Link href={href} className="font-mono text-[11.5px] text-accent">
-                      {s.at ? formatTime(s.at) : "now"}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-          <Link href={`/sessions/${encodeURIComponent(a.session_id)}`} className="self-start text-[12.5px] text-accent">
-            Open full session {a.session_id} →
-          </Link>
-        </SidebarSection>
-      )}
+        )}
+        <ol className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Reasons">
+          {reasons.map((text, i) => (
+            <li
+              key={text}
+              className="tint grid grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-[6px] px-2.5 py-[7px] text-[12.5px]"
+              style={tintStyle(DECISION_VAR.require_approval)}
+            >
+              <span
+                aria-hidden
+                className="inline-flex size-5 items-center justify-center rounded-full border-[1.5px] text-[11px] font-semibold"
+                style={{ borderColor: DECISION_VAR.require_approval }}
+              >
+                {i + 1}
+              </span>
+              <span className="min-w-0 text-text">{text}</span>
+            </li>
+          ))}
+        </ol>
+        <Link href={`/sessions/${encodeURIComponent(a.session_id)}`} className="self-start text-[12.5px] text-accent">
+          Open full session {a.session_id} →
+        </Link>
+      </SidebarSection>
 
       <DecisionPanel row={row} onDecided={onDecided} />
     </>

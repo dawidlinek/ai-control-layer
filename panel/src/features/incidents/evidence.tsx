@@ -5,7 +5,7 @@ import { DiffBox, Meter, RuleChip, SidebarSection, useNow } from "@/components/r
 import { DECISION_VAR } from "@/lib/decisions";
 import { formatClock, formatCountdown, formatDay } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { shortHash, type BreakerEvidence, type BreakerStateName, type RugPullEvidence } from "./readers";
+import { shortHash, type BreakerEvidence, type BreakerStateName, type FactsEvidence, type RugPullEvidence } from "./readers";
 
 const tint = (v: string) => ({ "--c": v }) as React.CSSProperties;
 
@@ -78,6 +78,7 @@ function HalfOpenIn({ at }: { at: string }) {
 export function BreakerSection({ ev, ruleId }: { ev: BreakerEvidence; ruleId?: string }) {
   return (
     <SidebarSection title="Circuit breaker">
+      {ev.state && (
       <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
         <ol aria-label="Breaker states" className="m-0 flex list-none items-center gap-1.5 p-0">
           {STATES.map((s, i) => {
@@ -106,6 +107,7 @@ export function BreakerSection({ ev, ruleId }: { ev: BreakerEvidence; ruleId?: s
           </span>
         )}
       </div>
+      )}
       {ev.used !== null && ev.limit !== null && (
         <div className="flex flex-col gap-1">
           <div className="flex justify-between text-[12px]">
@@ -130,6 +132,34 @@ export function BreakerSection({ ev, ruleId }: { ev: BreakerEvidence; ruleId?: s
         <div className="text-[12.5px]">
           Cause: {ruleId && <RuleChip ruleId={ruleId} />} {ev.cause}
         </div>
+      )}
+    </SidebarSection>
+  );
+}
+
+/** Evidence of the kinds without a dedicated section: labelled rows and tags, no raw values. */
+export function FactsSection({ ev }: { ev: FactsEvidence }) {
+  if (ev.rows.length === 0 && ev.tags.length === 0) return null;
+  return (
+    <SidebarSection title={ev.title}>
+      {ev.rows.length > 0 && (
+        <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12.5px]">
+          {ev.rows.map((r) => (
+            <React.Fragment key={r.label}>
+              <dt className="text-muted">{r.label}</dt>
+              <dd className={cn("m-0 min-w-0 break-words", r.mono && "font-mono")}>{r.value}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      )}
+      {ev.tags.length > 0 && (
+        <ul aria-label={ev.tagsLabel ?? "Tags"} className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+          {ev.tags.map((t) => (
+            <li key={t} className="tint rounded-[10px] px-2 py-px text-[11.5px]" style={tint(DECISION_VAR.block)}>
+              {t}
+            </li>
+          ))}
+        </ul>
       )}
     </SidebarSection>
   );

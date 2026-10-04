@@ -304,13 +304,14 @@ function dryRun(body: S["DryRunRequest"]): S["DryRunResponse"] {
 
 const fileInfo = (name: string) => policyDb.files.find((f) => f.name === name);
 
-const toVersion = ({ id, version, created_at, author, source, message, files_changed }: (typeof policyDb.versions)[number]): S["PolicyVersion"] => ({
+const toVersion = ({ id, version, created_at, author, source, message, reason, files_changed }: (typeof policyDb.versions)[number]): S["PolicyVersion"] => ({
   id,
   version,
   created_at,
   author,
   source,
   message,
+  reason,
   files_changed,
 });
 
@@ -368,15 +369,23 @@ export const policyHandlers: HttpHandler[] = [
     return v ? HttpResponse.json(v) : errorResponse(404, "not_found", "policy version not found");
   }),
 
-  http.post(adminPath("/policy/versions/:id/rollback"), ({ params }) => {
+  http.post(adminPath("/policy/versions/:id/rollback"), async ({ params, request }) => {
     const v = policyDb.versions.find((x) => x.id === Number(params.id));
     if (!v) return errorResponse(404, "not_found", "policy version not found");
+    // The body is optional; when given, `reason` is 3 to 500 characters after trimming (like the gateway).
+    const text = await request.text();
+    const body = text ? (JSON.parse(text) as Partial<components["schemas"]["PolicyRollbackRequest"]> | null) : null;
+    const reason = body?.reason?.trim() ?? null;
+    if (body && (reason === null || reason.length < 3 || reason.length > 500)) {
+      return errorResponse(422, "validation_error", "reason must be 3 to 500 characters");
+    }
     const target = v.files;
     const live = currentFiles();
     if (Object.keys(target).every((n) => target[n] === live[n])) {
       return errorResponse(409, "no_change", `${v.version} has the same content as the live version`);
     }
-    commitPolicyVersion({ ...live, ...target }, "rollback", MOCK_USER, `Rolled back to ${v.version}`);
+    const note = `rollback to version #${v.id} (${v.version})`;
+    commitPolicyVersion({ ...live, ...target }, "rollback", MOCK_USER, reason ? `${note}: ${reason}` : note, reason);
     return HttpResponse.json(policyStatus);
   }),
 ];

@@ -411,6 +411,8 @@ interface SeedVersion {
   author: string | null;
   source: PolicyVersionDetail["source"];
   message: string;
+  /** Rollback reason given by the admin (source `rollback`). */
+  reason?: string;
   knobs: Partial<Knobs>;
 }
 
@@ -420,7 +422,7 @@ function seedVersions(): PolicyVersionDetail[] {
     { at: daysBefore(5, "10:12:00"), author: null, source: "file", message: "SEC-MCP-01 now quarantines MCP tools whose description changed", knobs: { onDrift: "quarantine" } },
     { at: daysBefore(4, "15:48:00"), author: "m.zielinska", source: "panel", message: "Operations can use the smart model", knobs: { opsSmart: true } },
     { at: daysBefore(3, "09:10:00"), author: "m.zielinska", source: "panel", message: "Send the simplest requests to the local model", knobs: { localMax: "0.2" } },
-    { at: daysBefore(3, "09:40:00"), author: "k.wojcik", source: "rollback", message: "Rolled back to v3 after a bad routing change", knobs: { localMax: "0.0" } },
+    { at: daysBefore(3, "09:40:00"), author: "k.wojcik", source: "rollback", message: "rollback to version #3 (v3): the routing change sent too much to the local model", reason: "the routing change sent too much to the local model", knobs: { localMax: "0.0" } },
     { at: daysBefore(2, "11:05:00"), author: "m.zielinska", source: "panel", message: "credit-analysts moved to the strict preset", knobs: { creditPreset: "strict" } },
     { at: daysBefore(1, "16:20:00"), author: "m.zielinska", source: "panel", message: "Injection threshold 0.75 → 0.80 to cut false alarms", knobs: { threshold: "0.80" } },
     { at: demoClock("14:02:00"), author: null, source: "file", message: "SEC-EXFIL-01 now also strips links in tool results", knobs: { scanToolResults: true } },
@@ -439,6 +441,7 @@ function seedVersions(): PolicyVersionDetail[] {
       author: s.author,
       source: s.source,
       message: s.message,
+      reason: s.reason ?? null,
       files_changed: i === 0 ? Object.keys(files) : changed,
       diff: i === 0 ? "" : diff,
       files,
@@ -501,7 +504,13 @@ export function currentFiles(): Record<string, string> {
  * Commit a new policy version (panel write, rollback or an edit on disk): writes the files, snapshots a version
  * and updates the status. Returns the new version.
  */
-export function commitPolicyVersion(next: Record<string, string>, source: PolicyVersionDetail["source"], author: string | null, message: string): PolicyVersionDetail {
+export function commitPolicyVersion(
+  next: Record<string, string>,
+  source: PolicyVersionDetail["source"],
+  author: string | null,
+  message: string,
+  reason: string | null = null,
+): PolicyVersionDetail {
   const before = currentFiles();
   const { diff, changed } = diffFiles(before, next);
   const at = new Date().toISOString();
@@ -520,6 +529,7 @@ export function commitPolicyVersion(next: Record<string, string>, source: Policy
     author,
     source,
     message,
+    reason,
     files_changed: changed,
     diff,
     files: currentFiles(),

@@ -107,8 +107,13 @@ export function useWritePolicyFile() {
 export function useRollbackPolicy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) =>
-      unwrap(await api.POST("/admin/v1/policy/versions/{version_id}/rollback", { params: { path: { version_id: id } } })),
+    mutationFn: async (v: { id: number; reason: string }) =>
+      unwrap(
+        await api.POST("/admin/v1/policy/versions/{version_id}/rollback", {
+          params: { path: { version_id: v.id } },
+          body: { reason: v.reason.trim() },
+        }),
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: P }),
   });
 }

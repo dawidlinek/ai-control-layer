@@ -19,10 +19,11 @@ import type { Incident } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { usePatchIncident } from "./api";
 import { IncidentActions } from "./actions";
-import { BreakerSection, RugPullSection } from "./evidence";
+import { BreakerSection, FactsSection, RugPullSection } from "./evidence";
 import {
   STATUS_LABEL,
   breakerOf,
+  factsOf,
   rugPullOf,
   summaryOf,
   timelineOf,
@@ -187,6 +188,7 @@ function NotesAndTimeline({ incident }: { incident: Incident }) {
 export function IncidentSidebar({ incident, onChanged }: { incident: Incident; onChanged: (id: string) => void }) {
   const rug = rugPullOf(incident);
   const breaker = breakerOf(incident);
+  const facts = factsOf(incident);
   const traces = tracesOf(incident);
 
   return (
@@ -209,6 +211,7 @@ export function IncidentSidebar({ incident, onChanged }: { incident: Incident; o
 
       {rug && <RugPullSection ev={rug} />}
       {breaker && <BreakerSection ev={breaker} ruleId={incident.rule_ids[0]} />}
+      {facts && <FactsSection ev={facts} />}
 
       <IncidentActions key={incident.id} incident={incident} onChanged={onChanged} />
 
