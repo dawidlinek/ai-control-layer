@@ -98,7 +98,7 @@ export function DataTable<T>({
   }, [keyboardNav, rows, cursor, selectedId, onRowClick]);
 
   return (
-    <div className={cn("rg-scroll overflow-x-auto rounded-[8px] border border-border bg-surface", className)}>
+    <div className={cn("rg-scroll relative overflow-x-auto rounded-[8px] border border-border bg-surface", className)}>
       <table aria-label={ariaLabel} className="w-full border-separate border-spacing-0 text-[12.5px]" style={{ minWidth }}>
         <thead>
           {table.getHeaderGroups().map((hg) => (
