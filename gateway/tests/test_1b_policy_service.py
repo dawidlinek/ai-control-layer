@@ -431,7 +431,7 @@ async def test_stale_base_version_is_409(stack: Stack) -> None:
 
 async def test_invalid_content_is_422_and_nothing_is_written(stack: Stack) -> None:
     f = await stack.file("routing.yaml")
-    bad = f["content"].replace("local_max: 0.3", "local_max: 5", 1)
+    bad = f["content"].replace("local_max: 0.0", "local_max: 5", 1)
     r = await stack.put("routing.yaml", bad, f["version"])
     assert r.status_code == 422
     body = r.json()

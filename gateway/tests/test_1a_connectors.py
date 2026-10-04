@@ -273,7 +273,8 @@ def test_registry_unset_env_makes_models_unavailable_not_an_error() -> None:
     table = reg.table_for(loaded.policy, loaded.version)
     assert table.model_problem("local/qwen3.8-27b") is None
     assert table.models["local/qwen3.8-27b"].upstream_model == "qwen3:8b"
-    assert "LOCAL_PL_MODEL" in (table.model_problem("local/pl") or "")  # model env unset
+    assert "LOCAL_JUDGE_MODEL" in (table.model_problem("local/judge") or "")  # model env unset
+    assert "GEMINI_PRO_MODEL" in (table.models["gemini/pro"].unavailable or "")
     assert "GEMINI_API_KEY" in (table.model_problem("gemini/flash") or "")  # cloud connector without a key
     assert isinstance(table.connectors["local"].connector, OpenAICompatibleConnector)  # local works without a key
     assert table.connectors["gemini"].connector is None
@@ -300,7 +301,7 @@ def test_registry_disabled_connector_and_model() -> None:
     loaded = load_policy_dir(POLICY_DIR)
     policy = loaded.policy.model_copy(deep=True)
     policy.connectors["gemini"].enabled = False
-    policy.models[-1].enabled = False
+    next(m for m in policy.models if m.id == "gemini/flash").enabled = False
     reg = ConnectorRegistry(deterministic=True)
     table = reg.table_for(policy, "x")
     assert table.connector_problem("gemini") == "connector disabled"

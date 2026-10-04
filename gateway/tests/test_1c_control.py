@@ -54,10 +54,10 @@ def test_repo_policy_enables_the_control(policy: Policy) -> None:
 
 async def test_allowed_model_passes(policy: Policy) -> None:
     engine = build(policy, access=DefaultAccessResolver(lambda: (policy, "t1")))
-    d = await engine.evaluate(ctx("smart", ["developers"]))
+    d = await engine.evaluate(ctx("smart", ["operations"]))
     assert d.action == Action.allow and d.rule_ids == []
     v = next(v for v in d.verdicts if v.control_id == "SEC-MODEL-01")
-    assert v.reason == "allowed by group developers"
+    assert v.reason == "allowed by group operations"
 
 
 async def test_forbidden_model_is_final_block_with_rule_id(policy: Policy) -> None:
@@ -76,15 +76,17 @@ async def test_org_lock_rule_id_is_propagated(policy: Policy) -> None:
 
     p = patch_policy(policy, lock)
     engine = build(p, access=DefaultAccessResolver(lambda: (p, "t1")))
-    d = await engine.evaluate(ctx("smart", ["developers"]))
+    d = await engine.evaluate(ctx("smart", ["operations"]))
     assert d.action == Action.block and "LOCK-05" in d.rule_ids and "SEC-MODEL-01" in d.rule_ids
 
 
 async def test_embeddings_stage_is_checked(policy: Policy) -> None:
     engine = build(policy, access=DefaultAccessResolver(lambda: (policy, "t1")))
-    assert (await engine.evaluate(ctx("local-pl", ["developers"], InspectionPoint.embeddings))).action == Action.block
     assert (
-        await engine.evaluate(ctx("local-pl", ["credit-analysts"], InspectionPoint.embeddings))
+        await engine.evaluate(ctx("local/loan-memo", ["developers"], InspectionPoint.embeddings))
+    ).action == Action.block
+    assert (
+        await engine.evaluate(ctx("local/loan-memo", ["credit-analysts"], InspectionPoint.embeddings))
     ).action == Action.allow
 
 

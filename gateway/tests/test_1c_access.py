@@ -70,6 +70,10 @@ def jan() -> Principal:
     return make_principal("jan", ["credit-analysts"])
 
 
+def olga() -> Principal:
+    return make_principal("olga", ["operations"])
+
+
 async def grant(env: Env, **kw: Any):
     body = GrantCreate(
         **{
@@ -89,22 +93,28 @@ async def grant(env: Env, **kw: Any):
 
 async def test_group_policy_allows_and_default_denies(env: Env) -> None:
     r = env.resolver
-    ok = await r.check_model(anna(), "smart")
-    assert ok.allowed and ok.source == "group:developers" and ok.rule_id is None
+    ok = await r.check_model(olga(), "smart")  # operations hold the cloud alias
+    assert ok.allowed and ok.source == "group:operations" and ok.rule_id is None
     assert (await r.check_model(anna(), "auto")).allowed
+    assert (await r.check_model(anna(), "local")).allowed
     no = await r.check_model(jan(), "smart")  # credit-analysts have no `smart`
     assert not no.allowed and no.rule_id == "SEC-MODEL-01" and no.source == "default"
     assert "secret" not in no.reason.lower()
+    dev = await r.check_model(anna(), "smart")  # developers have no cloud model unless granted
+    assert not dev.allowed and dev.rule_id == "SEC-MODEL-01" and dev.source == "default"
 
 
 async def test_concrete_id_not_granted_by_alias_but_alias_follows_id(env: Env) -> None:
     r = env.resolver
-    # developers hold alias `local-coder`, not the concrete id: picking the id directly is refused
-    assert not (await r.check_model(anna(), "local/coder")).allowed
+    # developers hold alias `local`, not the concrete id: picking the id directly is refused
+    assert (await r.check_model(anna(), "local")).allowed
+    assert not (await r.check_model(anna(), "local/qwen3.8-27b")).allowed
     # a concrete-model grant also covers that model's aliases
-    await grant(env, subject="anna", resource_type=GrantResourceType.model, resource="local/pl")
-    assert (await r.check_model(anna(), "local/pl")).allowed
-    assert (await r.check_model(anna(), "local-pl")).allowed
+    assert not (await r.check_model(anna(), "smart")).allowed
+    await grant(env, subject="anna", resource_type=GrantResourceType.model, resource="gemini/flash")
+    assert (await r.check_model(anna(), "gemini/flash")).allowed
+    assert (await r.check_model(anna(), "smart")).allowed
+    assert not (await r.check_model(anna(), "smart-pro")).allowed  # a different model: not covered
 
 
 async def test_unknown_names_and_skills(env: Env) -> None:
@@ -126,11 +136,11 @@ async def test_child_group_inherits_parent_policy(env: Env) -> None:
     assert expand_groups(["agents/research-bot", "/developers"]) == ["agents/research-bot", "agents", "developers"]
 
     def add_parent(d: dict[str, Any]) -> None:
-        d["groups"]["agents"] = {"models": ["local-pl"]}
+        d["groups"]["agents"] = {"models": ["smart"]}
 
     env.engine.policy = patch_policy(env.policy, add_parent)
     bot = make_principal("bot", ["agents/research-bot"])
-    assert (await env.resolver.check_model(bot, "local-pl")).allowed
+    assert (await env.resolver.check_model(bot, "smart")).allowed  # inherited from `agents`
     assert (await env.resolver.check_model(bot, "local")).allowed  # its own group
 
 
@@ -141,19 +151,19 @@ async def test_disabled_model_denied(env: Env) -> None:
                 m["enabled"] = False
 
     env.engine.policy = patch_policy(env.policy, disable)
-    c = await env.resolver.check_model(anna(), "smart")
+    c = await env.resolver.check_model(olga(), "smart")
     assert not c.allowed and "disabled" in c.reason
-    assert "gemini/flash" not in await env.resolver.usable_models(anna())
+    assert "gemini/flash" not in await env.resolver.usable_models(olga())
 
 
 async def test_policy_is_read_at_call_time(env: Env) -> None:
-    assert (await env.resolver.check_model(anna(), "smart")).allowed
+    assert (await env.resolver.check_model(olga(), "smart")).allowed
 
     def drop_smart(d: dict[str, Any]) -> None:
-        d["groups"]["developers"]["models"].remove("smart")
+        d["groups"]["operations"]["models"].remove("smart")
 
     env.engine.policy = patch_policy(env.policy, drop_smart)  # hot swap
-    assert not (await env.resolver.check_model(anna(), "smart")).allowed
+    assert not (await env.resolver.check_model(olga(), "smart")).allowed
 
 
 async def test_no_policy_loaded_fails_closed() -> None:
@@ -179,20 +189,20 @@ async def test_deny_resource_lock_beats_group_grant_and_user_grant(env: Env) -> 
         )
 
     env.engine.policy = patch_policy(env.policy, lock_smart)
-    c = await env.resolver.check_model(anna(), "smart")
+    c = await env.resolver.check_model(olga(), "smart")
     assert not c.allowed and c.rule_id == "LOCK-09" and c.source == "org_lock:LOCK-09"
-    await grant(env, subject="anna", resource="smart")  # a user grant cannot lift a lock
-    assert (await env.resolver.check_model(anna(), "smart")).rule_id == "LOCK-09"
+    await grant(env, subject="olga", resource="smart")  # a user grant cannot lift a lock
+    assert (await env.resolver.check_model(olga(), "smart")).rule_id == "LOCK-09"
     # the concrete id is locked through its connector too
-    assert (await env.resolver.check_model(anna(), "gemini/flash")).rule_id == "LOCK-09"
+    assert (await env.resolver.check_model(olga(), "gemini/flash")).rule_id == "LOCK-09"
     # exempt group
     adam = make_principal("adam", ["admins"])
     assert (await env.resolver.check_model(adam, "smart")).allowed
-    assert "smart" not in await env.resolver.visible_names(anna())
+    assert "smart" not in await env.resolver.visible_names(olga())
 
 
 async def test_tier_lock_caps_group_cloud_access_to_ceiling(env: Env) -> None:
-    usable = await env.resolver.usable_models(anna())
+    usable = await env.resolver.usable_models(olga())
     assert usable["gemini/flash"] == [DataClass.public, DataClass.internal]  # max_external_data_class + LOCK-01
     assert usable["local/qwen3.8-27b"] == [
         DataClass.public,
@@ -262,14 +272,14 @@ async def test_expiry_is_journalled_once(env: Env) -> None:
 
 
 async def test_deny_grant_removes_group_access(env: Env) -> None:
-    assert (await env.resolver.check_model(anna(), "smart")).allowed
-    g = await grant(env, subject="anna", resource="smart", effect="deny", reason="incident 42")
-    c = await env.resolver.check_model(anna(), "smart")
+    assert (await env.resolver.check_model(olga(), "smart")).allowed
+    g = await grant(env, subject="olga", resource="smart", effect="deny", reason="incident 42")
+    c = await env.resolver.check_model(olga(), "smart")
     assert not c.allowed and c.source == f"grant:{g.id}" and c.rule_id == "SEC-MODEL-01"
-    assert "smart" not in await env.resolver.visible_names(anna())
-    assert "gemini/flash" not in await env.resolver.usable_models(anna())  # also gone from routing candidates
-    assert (await env.resolver.check_model(anna(), "local")).allowed  # unrelated access untouched
-    eff = await env.resolver.effective_access(anna())
+    assert "smart" not in await env.resolver.visible_names(olga())
+    assert "gemini/flash" not in await env.resolver.usable_models(olga())  # also gone from routing candidates
+    assert (await env.resolver.check_model(olga(), "local")).allowed  # unrelated access untouched
+    eff = await env.resolver.effective_access(olga())
     assert any(i.effect == "deny" and i.source_ref == g.id for i in eff.items)
 
 
@@ -282,7 +292,7 @@ async def test_deny_beats_allow_across_user_and_group_grants(env: Env) -> None:
 async def test_group_grant_from_db(env: Env) -> None:
     await grant(env, subject_type="group", subject="credit-analysts", resource="smart")
     assert (await env.resolver.check_model(jan(), "smart")).allowed
-    assert not (await env.resolver.check_model(anna(), "local-pl")).allowed
+    assert not (await env.resolver.check_model(anna(), "smart")).allowed  # another group is not affected
 
 
 async def test_revocation_is_effective_on_the_next_call_despite_cache(env: Env) -> None:
@@ -365,13 +375,18 @@ async def test_list_filters(env: Env) -> None:
 
 async def test_visible_names_and_usable_models_for_developers(env: Env) -> None:
     names = await env.resolver.visible_names(anna())
-    assert names == ["auto", "local", "local-coder", "smart"]
+    assert names == ["auto", "local"]  # no cloud alias by default
     usable = await env.resolver.usable_models(anna())
-    assert set(usable) == {
-        "local/qwen3.8-27b",
-        "local/coder",
-        "gemini/flash",
-    }  # auto → routing targets, aliases resolved
+    # `auto` expands to the routing targets (local, Flash, Pro): the cloud models are reachable only through `auto`
+    assert set(usable) == {"local/qwen3.8-27b", "gemini/flash", "gemini/pro"}
+    assert usable["gemini/pro"] == [DataClass.public, DataClass.internal]  # still capped by LOCK-01
+    assert not (await env.resolver.check_model(anna(), "smart")).allowed  # but not selectable by name
+    assert not (await env.resolver.check_model(anna(), "smart-pro")).allowed
+    # a personal grant (demo story F4) adds the explicit cloud alias
+    await grant(env, subject="anna", resource="smart")
+    assert await env.resolver.visible_names(anna()) == ["auto", "local", "smart"]
+    assert (await env.resolver.check_model(anna(), "smart")).allowed
+    assert not (await env.resolver.check_model(anna(), "smart-pro")).allowed
 
 
 async def test_visible_names_follow_grants(env: Env) -> None:
@@ -418,7 +433,7 @@ async def test_tools_from_group_and_server_grants(env: Env) -> None:
     assert c.allowed and c.source == "group:developers"
     assert not (await r.check_tool(anna(), "opencode.webfetch")).allowed  # group tier: deny → not granted
     assert (await r.check_tool(anna(), "mail.send")).allowed
-    bad = await r.check_tool(jan(), "opencode.bash")
+    bad = await r.check_tool(jan(), "opencode.write")  # credit-analysts: read/edit/bash only
     assert not bad.allowed and bad.rule_id == "SEC-TOOL-01" and bad.source == "default"
     assert (await r.check_tool(jan(), "bank.query")).allowed
     assert not (await r.check_tool(jan(), "no.such-tool")).allowed
@@ -431,8 +446,9 @@ async def test_server_grant_covers_its_tools_and_user_tool_grant(env: Env) -> No
     assert (await r.check_tool(jan(), "mail.read")).source == f"grant:{g.id}"
     assert (await r.check_tool(jan(), "mail.anything-new")).allowed  # unlisted tool of a granted server
     assert (await r.check_mcp_server(jan(), "mail")).allowed
-    await grant(env, subject="jan", resource_type=GrantResourceType.tool, resource="opencode.bash")
-    assert (await r.check_tool(jan(), "opencode.bash")).allowed
+    assert not (await r.check_tool(jan(), "opencode.write")).allowed
+    await grant(env, subject="jan", resource_type=GrantResourceType.tool, resource="opencode.write")
+    assert (await r.check_tool(jan(), "opencode.write")).allowed
 
 
 async def test_user_tool_deny_and_revocation(env: Env) -> None:

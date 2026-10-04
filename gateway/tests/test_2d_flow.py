@@ -26,7 +26,7 @@ ADMIN = {"X-ACL-Dev-Roles": "acl-admin"}
 
 
 def _headers(user: str = "anna", **extra: str) -> dict[str, str]:
-    return {"X-ACL-Dev-User": user, "X-ACL-Dev-Groups": "developers", **extra}
+    return {"X-ACL-Dev-User": user, "X-ACL-Dev-Groups": "operations", **extra}
 
 
 def policy_copy(tmp: Path, patch: Callable[[dict[str, Any]], None]) -> Path:
@@ -158,8 +158,8 @@ def test_exhausted_budget_blocks_by_default_and_the_breaker_is_visible_and_reset
     assert by_id["org"]["level"] == "org" and by_id["org"]["limits"]["usd_month"] == 100
     user = by_id["user:anna"]
     assert user["level"] == "user" and user["limits"]["tokens_day"] == 100 and user["usage"]["tokens_day"] >= 200
-    assert user["breaker"]["state"] == "open" and user["parent"] == "group:developers"
-    assert by_id["group:developers"]["parent"] == "org" and by_id["group:developers"]["usage"]["tokens_day"] >= 200
+    assert user["breaker"]["state"] == "open" and user["parent"] == "group:operations"
+    assert by_id["group:operations"]["parent"] == "org" and by_id["group:operations"]["usage"]["tokens_day"] >= 200
     session = next(n for n in tree if n["level"] == "session")
     assert session["parent"] == "user:anna" and session["limits"]["gpu_seconds_session"] == 120
 
@@ -232,7 +232,7 @@ def test_usage_is_reconciled_once_per_call_and_requests_are_counted(make_client)
     assert ledger.value("user:anna", "output_tokens_day") == 90
     assert ledger.value("user:anna", "requests_minute") == 3
     assert ledger.value("org", "gpu_seconds_day") == pytest.approx(0.09)  # mock: 1 ms of GPU per output token
-    assert ledger.value("group:developers", "usd_day") > 0
+    assert ledger.value("group:operations", "usd_day") > 0
 
 
 def test_rate_limit_blocks_the_burst(make_client) -> None:  # type: ignore[no-untyped-def]

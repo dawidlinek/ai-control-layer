@@ -108,13 +108,13 @@
   input: {tool: opencode.webfetch, arguments: {url: "https://example.org/"}}
   expect: {action: block, rule_id: SEC-TOOL-01}
 
-- id: tool-bash-not-granted-to-credit-analysts
+- id: tool-write-not-granted-to-credit-analysts
   control: SEC-TOOL-01
   kind: negative
   pair: tool-grant
   point: tool_call
   principal: {username: jan, groups: [credit-analysts]}
-  input: {tool: opencode.bash, arguments: {command: "git status"}, workspace_root: /work/proj, cwd: /work/proj}
+  input: {tool: opencode.write, arguments: {filePath: src/app.py, content: "x"}, workspace_root: /work/proj, cwd: /work/proj}
   expect: {action: block, rule_id: SEC-TOOL-01}
 
 - id: tool-unknown-tool-name

@@ -106,7 +106,7 @@ def _errors(texts: dict[str, str]) -> list:
 
 def test_loader_locates_schema_errors() -> None:
     texts = read_policy_dir(POLICY_DIR)
-    texts["routing.yaml"] = texts["routing.yaml"].replace("local_max: 0.3", "local_max: 9", 1)
+    texts["routing.yaml"] = texts["routing.yaml"].replace("local_max: 0.0", "local_max: 9", 1)
     (route,) = _errors(texts)
     assert route.file == "routing.yaml" and route.path and "local_max" in route.path
     assert route.line == texts["routing.yaml"][: texts["routing.yaml"].index("local_max")].count("\n") + 1
@@ -114,7 +114,9 @@ def test_loader_locates_schema_errors() -> None:
 
 def test_loader_locates_cross_reference_errors() -> None:
     texts = read_policy_dir(POLICY_DIR)
-    texts["groups.yaml"] = texts["groups.yaml"].replace("models: [auto, local, smart]", "models: [auto, nope/model]", 1)
+    texts["groups.yaml"] = texts["groups.yaml"].replace(
+        "models: [auto, local, smart, smart-pro]", "models: [auto, nope/model]", 1
+    )
     (cross,) = _errors(texts)
     assert cross.file == "groups.yaml" and cross.path == "groups[admins].models" and "nope/model" in cross.message
     assert cross.line == texts["groups.yaml"][: texts["groups.yaml"].index("nope/model")].count("\n") + 1
