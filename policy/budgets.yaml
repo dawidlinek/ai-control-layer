@@ -13,8 +13,13 @@ budgets:
   # user, and tests/cases/budgets.yaml uses it to hit a small per-session cap with a short prompt.
   users:
     budget-probe-user: {tokens_session: 400}
+    # research-bot authenticates as this Keycloak service account (client credentials); its user node would
+    # otherwise get the human default (500k/day). The e2e runaway-agent scenario (CP2 #7) runs as this agent and
+    # charges ~125k tokens per run, so the daily allowance is raised to the `developers` level.
+    service-account-agent-research-bot: {tokens_day: 2000000}
   agents:
     research-bot: {tokens_session: 50000, gpu_seconds_session: 120, tool_calls_session: 40}
+    # (the agent's Keycloak service-account user, below, carries the agent's daily budget)
     # Test fixture (agent ids come from verified identity, so nobody can claim this one): tiny caps so the
     # YAML cases in tests/cases/budgets.yaml can trip token / GPU-second / tool-call limits without state.
     ci-budget-probe: {tokens_session: 400, gpu_seconds_session: 0.1, tool_calls_session: 2}

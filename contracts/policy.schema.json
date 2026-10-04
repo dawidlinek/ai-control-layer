@@ -1358,6 +1358,19 @@
           ],
           "default": null,
           "title": "Max Output Tokens"
+        },
+        "request_defaults": {
+          "additionalProperties": true,
+          "description": "Upstream request parameters set when the client did not send them (e.g. `reasoning_effort: low` for Gemini's OpenAI endpoint).",
+          "title": "Request Defaults",
+          "type": "object"
+        },
+        "reasoning_headroom_tokens": {
+          "default": 0,
+          "description": "Reasoning models count hidden thinking tokens against max_tokens: this many tokens are added to the client's max_tokens / max_completion_tokens upstream so a short answer is not cut off mid-thought.",
+          "minimum": 0,
+          "title": "Reasoning Headroom Tokens",
+          "type": "integer"
         }
       },
       "required": [

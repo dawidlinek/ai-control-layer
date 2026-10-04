@@ -11,7 +11,7 @@
       "severity": "critical",
       "action": "block",
       "stages": [],
-      "description": "Backdoored LiteLLM 1.82.7 / 1.82.8 on PyPI (Mar 2026). No CVE id recorded: verify against the advisory.",
+      "description": "Backdoored LiteLLM 1.82.7 / 1.82.8 on PyPI (Mar 2026). No CVE exists for the backdoored releases (NVD lists only code vulnerabilities of litellm); malicious-package advisory, see feed-server/bundles/README.",
       "atlas_technique": [
         "AML.T0010"
       ],
@@ -129,7 +129,7 @@
       "stages": [
         "tool_call"
       ],
-      "description": "Ray Jobs API (ShadowRay): unauthenticated job submission.",
+      "description": "Ray Jobs API (ShadowRay): unauthenticated job submission (CVE-2023-48022; disputed by the vendor, not in CISA KEV).",
       "atlas_technique": [],
       "owasp": [
         "LLM06:2025"
@@ -137,7 +137,7 @@
       "cve": [
         "CVE-2023-48022"
       ],
-      "source": "cisa-kev",
+      "source": "nvd",
       "expires": null,
       "metadata": {}
     },

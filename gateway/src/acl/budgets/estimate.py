@@ -67,7 +67,8 @@ def requested_output(payload: Payload, cap: int, model: ModelEntry | None, defau
     for key in ("max_tokens", "max_completion_tokens"):
         value = payload.params.get(key)
         if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
-            return min(value, cap)
+            # hidden thinking tokens are billed too: the connector adds this headroom upstream (request_options)
+            return min(value, cap) + (model.reasoning_headroom_tokens if model is not None and value > 0 else 0)
     return min(default, cap) if default is not None else cap
 
 

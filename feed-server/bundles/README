@@ -1,0 +1,27 @@
+Seed bundle CVE verification
+============================
+
+Bundle: 0001-seed.json. Checked on 2026-10-04 against the NVD CVE API 2.0
+(https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=<id>, no API key, one request per 7 s).
+
+CVE id          NVD status  Matches the entry                                         Entries
+--------------  ----------  --------------------------------------------------------  -----------------------------
+CVE-2025-3248   Analyzed    Yes. Langflow < 1.3.0, unauthenticated code injection in   SIG-URL-LANGFLOW-VALIDATE-01
+                            /api/v1/validate/code. In CISA KEV (added 2025-05-05),
+                            so source "cisa-kev" is right.
+CVE-2023-48022  Modified    Yes. Anyscale Ray 2.6.3 / 2.8.0, RCE via the job           SIG-URL-RAY-JOBS-01,
+                            submission API (ShadowRay). Vendor-disputed. NOT in CISA   SIG-URL-RAY-DASHBOARD-01
+                            KEV, so SIG-URL-RAY-JOBS-01 had the wrong source
+                            ("cisa-kev"); changed to "nvd".
+CVE-2024-37032  Analyzed    Yes. Ollama < 0.1.34, digest not validated (path           SIG-URL-OLLAMA-ADMIN-01
+                            traversal, "Probllama"); reached through /api/pull,
+                            /api/push, /api/create and the blob endpoints.
+
+No id was wrong or missing in NVD. SIG-PKG-LITELLM-01 (backdoored litellm 1.82.7 / 1.82.8) carries no CVE on
+purpose: an NVD keyword search for "litellm" returns only code vulnerabilities of the proxy (for example
+CVE-2026-35029, CVE-2026-40217), none about the malicious releases. That incident belongs to a malicious-package
+advisory (OSV / GHSA), which this check did not look up; keep source "osv" and confirm the advisory id when
+the feed is wired to a real source.
+
+Note: policy/controls.yaml `signatures:` still repeats SIG-URL-RAY-JOBS-01 with source "cisa-kev"; the
+orchestrator should align it (metadata only, no behaviour depends on it).

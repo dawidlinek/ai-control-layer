@@ -209,6 +209,17 @@ class ModelEntry(StrictModel):
     enabled: bool = True
     context_window: int | None = Field(default=None, ge=1)
     max_output_tokens: int | None = Field(default=None, ge=1)
+    request_defaults: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Upstream request parameters set when the client did not send them "
+        "(e.g. `reasoning_effort: low` for Gemini's OpenAI endpoint).",
+    )
+    reasoning_headroom_tokens: int = Field(
+        default=0,
+        ge=0,
+        description="Reasoning models count hidden thinking tokens against max_tokens: this many tokens are added "
+        "to the client's max_tokens / max_completion_tokens upstream so a short answer is not cut off mid-thought.",
+    )
 
 
 class AliasConfig(StrictModel):

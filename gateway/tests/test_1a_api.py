@@ -347,6 +347,19 @@ def test_model_system_prompt_is_prepended(harness) -> None:  # type: ignore[no-u
     assert sent[-1]["content"] == "podsumuj"
 
 
+def test_gemini_reasoning_defaults_and_headroom_reach_the_upstream(harness) -> None:  # type: ignore[no-untyped-def]
+    client, app, _ = harness
+    r = chat(client, "short answer please", model="gemini/flash", max_tokens=400)
+    assert r.status_code == 200
+    sent = app.state.connectors.get("gemini").calls[-1]["request"]
+    assert sent["reasoning_effort"] == "low" and sent["max_tokens"] == 400 + 1024
+    chat(client, "no cap asked", model="gemini/flash")
+    assert "max_tokens" not in app.state.connectors.get("gemini").calls[-1]["request"]
+    chat(client, "local model", model="local/qwen3.8-27b", max_tokens=400)
+    sent = app.state.connectors.get("local").calls[-1]["request"]
+    assert sent["max_tokens"] == 400 and "reasoning_effort" not in sent
+
+
 # ------------------------------------------------------------------ enforcement
 
 

@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from acl.budgets.estimate import Estimate, estimate_request
 from acl.budgets.ledger import Breach
+from acl.budgets.retry import breaker_retry_after_s, retry_after_s
 from acl.budgets.service import BudgetService
 from acl.contracts.common import Action, InspectionPoint, Phase
 from acl.contracts.decision import Verdict
@@ -77,7 +78,10 @@ class BudgetControl(Control):
                 rule_ids=[self.id, f"{self.id}.BREAKER"],
                 reason=f"circuit breaker {v.state.replace('_', '-')} on {v.node_id}: "
                 f"{v.reason or 'budget exhausted'}{wait}",
-                outputs={"budget_report": {"hard": [], "soft": [], "probe_nodes": [], "action": "block"}},
+                outputs={
+                    "budget_report": {"hard": [], "soft": [], "probe_nodes": [], "action": "block"},
+                    "retry_after_s": breaker_retry_after_s(v.cooldown_until, svc.clock()),  # HTTP 429 Retry-After
+                },
             )
         probe_nodes = [v.node_id for v in views if v.state == "half_open" and v.probe_available]
 
@@ -108,7 +112,7 @@ class BudgetControl(Control):
                 final=True,
                 rule_ids=[self.id],
                 reason=f"budget exceeded: {detail}",
-                outputs={"budget_report": report},
+                outputs={"budget_report": report, "retry_after_s": retry_after_s(hard, svc.clock())},
             )
         if soft:
             detail = "; ".join(b.describe() for b in soft)

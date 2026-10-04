@@ -1,4 +1,4 @@
-"""Admin: users, groups, grants, effective access, API keys, break-glass. Owner: Phase 1C."""
+"""Admin: users, groups, grants, effective access, API keys (break-glass: `breakglass.py`). Owner: Phase 1C."""
 
 from __future__ import annotations
 
@@ -8,14 +8,12 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 
-from acl.api.deps import ERROR_RESPONSES, Admin, Analyst, PrincipalDep, Viewer, not_implemented
+from acl.api.deps import ERROR_RESPONSES, Admin, Analyst, PrincipalDep, Viewer
 from acl.audit import queries as audit_queries
 from acl.contracts.admin import (
     ApiKey,
     ApiKeyCreate,
     ApiKeyCreated,
-    BreakGlassRequest,
-    BreakGlassResponse,
     EffectiveAccess,
     EventSummary,
     Grant,
@@ -145,12 +143,6 @@ async def activity(
         limit=limit,
         policy=engine.policy if engine is not None else None,
     )
-
-
-@router.post("/users/{user_id}/breakglass", response_model=BreakGlassResponse, operation_id="breakGlass")
-async def break_glass(user_id: str, body: BreakGlassRequest, p: Admin) -> BreakGlassResponse:
-    """View raw content of one event. Requires a reason; audited as its own `breakglass` event."""
-    not_implemented("break-glass")  # needs the 1A event store
 
 
 def _policy_writer(request: Request) -> tuple[PolicyService, PolicyWriter]:
