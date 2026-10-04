@@ -186,10 +186,8 @@ def test_demo2_poisoned_repo_key_read_denied_and_exfil_held_then_approved_once(l
 
     ok = live.admin("POST", f"/approvals/{ref['approval_id']}/decision", json={"decision": "approve", "note": "e2e"})
     assert ok.status_code == 200, ok.text[:200]
-    assert (
-        live.http.get(f"{live.cfg.gateway}/v1/approvals/{ref['approval_id']}", headers=live.auth("jan")).json()["status"]
-        == "approved"
-    )
+    status = live.http.get(f"{live.cfg.gateway}/v1/approvals/{ref['approval_id']}", headers=live.auth("jan"))
+    assert status.json()["status"] == "approved"
     again = _decide(live, "jan", session, "web.fetch", exfil)
     assert again["action"] in ("allow", "monitor"), f"approved call must proceed once: {again}"
     third = _decide(live, "jan", session, "web.fetch", exfil)
