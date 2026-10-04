@@ -1,6 +1,6 @@
 # Demo script (≈ 8 min + live questions)
 
-Prerequisites: `make up` (+ `COMPOSE_PROFILES=panel` for the dashboard on :3000), WCSS job + `scripts/wcss.py tunnel`
+Prerequisites: `make up` + the dashboard (`COMPOSE_PROFILES=panel` → :3000, or `pnpm -C panel dev` → :3005 as on the demo laptop), WCSS job + `scripts/wcss.py tunnel`
 (Qwen :8001, Bielik :8002, embeddings :8003), `GEMINI_API_KEY`. Each command prints the gateway decision, the model it
 picked and the reply; every row also appears live in the dashboard (Traffic).
 
