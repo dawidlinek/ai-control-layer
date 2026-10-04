@@ -2226,6 +2226,46 @@ components:
       - block
       title: Action
       description: Decision actions (concept §6.3).
+    AdaptiveTierSummary:
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        variants:
+          type: integer
+          title: Variants
+        detection:
+          anyOf:
+          - $ref: '#/components/schemas/RateWithCI'
+          - type: 'null'
+        by_technique:
+          additionalProperties:
+            $ref: '#/components/schemas/RateWithCI'
+          type: object
+          title: By Technique
+        by_control:
+          additionalProperties:
+            $ref: '#/components/schemas/RateWithCI'
+          type: object
+          title: By Control
+        by_preset:
+          additionalProperties:
+            $ref: '#/components/schemas/RateWithCI'
+          type: object
+          title: By Preset
+        layer_attribution:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Layer Attribution
+      additionalProperties: false
+      type: object
+      required:
+      - generated_at
+      - variants
+      title: AdaptiveTierSummary
+      description: Detection of deterministic variants (paraphrase, encodings, Polish, split) of the attack cases.
     ApiKey:
       properties:
         id:
@@ -2500,6 +2540,18 @@ components:
         message:
           type: string
           title: Message
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Detail
+          description: 'Technical detail: opcode listing excerpt, header dump (never raw file content).'
+        cve:
+          items:
+            type: string
+          type: array
+          title: Cve
+          description: Related advisories (verified ids only).
       additionalProperties: false
       type: object
       required:
@@ -2541,6 +2593,37 @@ components:
           type: string
           format: date-time
           title: Scanned At
+        source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source
+          examples:
+          - upload
+          - hf:org/repo@<40-hex revision sha>
+        exception:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exception
+          description: Policy exception that admitted a blocked format.
+        model_ids:
+          items:
+            type: string
+          type: array
+          title: Model Ids
+          description: Registered models whose artifact ref is this file.
+        decision_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decision Id
+          description: Decision of the `artifact_load` inspection.
+        scanned_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Scanned By
       additionalProperties: false
       type: object
       required:
@@ -4142,6 +4225,14 @@ components:
           - type: number
           - type: 'null'
           title: Shadow Miss Rate
+        mutation:
+          anyOf:
+          - $ref: '#/components/schemas/MutationCoverage'
+          - type: 'null'
+        adaptive:
+          anyOf:
+          - $ref: '#/components/schemas/AdaptiveTierSummary'
+          - type: 'null'
         extra:
           additionalProperties: true
           type: object
@@ -4670,6 +4761,75 @@ components:
       - connector
       - tier
       title: ModelInfo
+    MutantResult:
+      properties:
+        control_id:
+          type: string
+          title: Control Id
+        enabled:
+          type: boolean
+          title: Enabled
+          description: Enabled in policy; disabled controls cannot be mutated (reported, not scored).
+        killed:
+          type: boolean
+          title: Killed
+          description: At least one test failed with this control switched off.
+        failing_cells:
+          type: integer
+          title: Failing Cells
+          default: 0
+        failing_examples:
+          items:
+            type: string
+          type: array
+          title: Failing Examples
+      additionalProperties: false
+      type: object
+      required:
+      - control_id
+      - enabled
+      - killed
+      title: MutantResult
+    MutationCoverage:
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        suite:
+          type: string
+          title: Suite
+        controls_mutated:
+          type: integer
+          title: Controls Mutated
+        controls_killed:
+          type: integer
+          title: Controls Killed
+        score:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Score
+        survivors:
+          items:
+            type: string
+          type: array
+          title: Survivors
+        results:
+          items:
+            $ref: '#/components/schemas/MutantResult'
+          type: array
+          title: Results
+      additionalProperties: false
+      type: object
+      required:
+      - generated_at
+      - suite
+      - controls_mutated
+      - controls_killed
+      - score
+      title: MutationCoverage
+      description: 'Mutation testing: every enabled control is switched off in turn; the suite must notice.'
     OverviewSummary:
       properties:
         generated_at:
