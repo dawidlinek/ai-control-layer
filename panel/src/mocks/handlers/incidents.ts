@@ -2,7 +2,7 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 import { incidents } from "../db/incidents";
 import type { components } from "@/lib/api/schema";
-import { adminPath, intParam, MOCK_USER, problem, queryOf } from "./helpers";
+import { adminPath, intParam, listResponse, MOCK_USER, problem, queryOf } from "./helpers";
 
 type Patch = components["schemas"]["IncidentPatch"];
 
@@ -10,11 +10,10 @@ export const incidentsHandlers: HttpHandler[] = [
   http.get(adminPath("/incidents"), ({ request }) => {
     const q = queryOf(request);
     const status = q.get("status");
-    const list = incidents.items
+    const matching = incidents.items
       .filter((i) => (status ? i.status === status : true))
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-      .slice(0, intParam(q, "limit", 100));
-    return HttpResponse.json(list);
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    return listResponse(matching.slice(0, intParam(q, "limit", 100)), matching.length);
   }),
 
   http.get(adminPath("/incidents/:id"), ({ params }) => {

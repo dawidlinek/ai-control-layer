@@ -7,7 +7,7 @@ import { server } from "@/mocks/server";
 import { adminPath } from "@/mocks/handlers/helpers";
 import { pushMockEvent } from "@/mocks/handlers/events";
 import { makeEvent } from "@/mocks/db/events";
-import { ApiError, api, unwrap } from "./client";
+import { ApiError, api, unwrap, unwrapWithTotal } from "./client";
 import { queryKeys, useIncidents, useNavCounts, usePolicyStatus } from "./hooks";
 import { useEventStream } from "./sse";
 import type { EventSummary } from "./types";
@@ -50,10 +50,43 @@ describe("hooks", () => {
     await waitFor(() => expect(result.current.data).toHaveLength(2));
   });
 
-  it("useNavCounts: 7 open incidents (open + triaged), 3 pending approvals", async () => {
+  it("useNavCounts reads /metrics/counts: 7 open incidents, 3 pending approvals", async () => {
     const { W } = wrapper();
     const { result } = renderHook(() => useNavCounts(), { wrapper: W });
-    await waitFor(() => expect(result.current).toEqual({ incidents: 7, approvals: 3 }));
+    await waitFor(() => expect(result.current).toMatchObject({ incidents: 7, approvals: 3 }));
+    expect(result.current.quarantinedTools).toBeGreaterThanOrEqual(0);
+  });
+
+  it("useNavCounts refetches when the incidents or approvals caches are invalidated", async () => {
+    let open = 7;
+    server.use(
+      http.get(adminPath("/metrics/counts"), () => HttpResponse.json({ open_incidents: open, pending_approvals: 3, quarantined_tools: 1 })),
+    );
+    const { client, W } = wrapper();
+    const { result } = renderHook(() => useNavCounts(), { wrapper: W });
+    await waitFor(() => expect(result.current.incidents).toBe(7));
+    // The incidents query must exist in the cache for its invalidation to be reported.
+    await client.prefetchQuery({ queryKey: queryKeys.incidents.list(), queryFn: () => [] });
+    open = 6;
+    await client.invalidateQueries({ queryKey: queryKeys.incidents.all });
+    await waitFor(() => expect(result.current.incidents).toBe(6));
+  });
+
+  it("useIncidents exposes X-Total-Count as total", async () => {
+    server.use(http.get(adminPath("/incidents"), () => HttpResponse.json([], { headers: { "X-Total-Count": "340" } })));
+    const { W } = wrapper();
+    const { result } = renderHook(() => useIncidents("open"), { wrapper: W });
+    await waitFor(() => expect(result.current.total).toBe(340));
+    expect(result.current.data).toEqual([]);
+  });
+
+  it("unwrapWithTotal reads X-Total-Count and falls back to the number of rows", async () => {
+    server.use(http.get(adminPath("/users"), () => HttpResponse.json([{ id: "a" }, { id: "b" }])));
+    expect(unwrapWithTotal(await api.GET("/admin/v1/users")).total).toBe(2);
+    server.use(http.get(adminPath("/users"), () => HttpResponse.json([{ id: "a" }], { headers: { "X-Total-Count": "57" } })));
+    const paged = unwrapWithTotal(await api.GET("/admin/v1/users"));
+    expect(paged.total).toBe(57);
+    expect(paged.items).toHaveLength(1);
   });
 
   it("surfaces errors", async () => {

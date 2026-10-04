@@ -35,6 +35,16 @@ describe("IncidentsScreen list", () => {
     expect(within(t).getByText("Triaged")).toBeInTheDocument();
   });
 
+  it("uses X-Total-Count for the All tab and says when the list was cut off", async () => {
+    server.use(
+      http.get(adminPath("/incidents"), () => HttpResponse.json(incidents.items.slice(0, 3), { headers: { "X-Total-Count": "340" } })),
+    );
+    renderApp(<IncidentsScreen />);
+    await table();
+    expect(await screen.findByRole("tab", { name: /All\s*340/ })).toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 340 incidents/)).toBeInTheDocument();
+  });
+
   it("switches tabs, filters by severity, searches and narrows to my incidents", async () => {
     const { user } = renderApp(<IncidentsScreen />);
     const t = await table();

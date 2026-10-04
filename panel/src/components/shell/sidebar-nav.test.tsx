@@ -58,7 +58,7 @@ describe("SidebarNav", () => {
   });
 
   it("hides a badge when the count is zero", async () => {
-    server.use(http.get(adminPath("/approvals"), () => HttpResponse.json([])));
+    server.use(http.get(adminPath("/metrics/counts"), () => HttpResponse.json({ open_incidents: 7, pending_approvals: 0, quarantined_tools: 0 })));
     renderApp(<SidebarNav />);
     expect(await screen.findByLabelText("7 open")).toBeInTheDocument();
     expect(screen.queryByLabelText(/pending/)).not.toBeInTheDocument();

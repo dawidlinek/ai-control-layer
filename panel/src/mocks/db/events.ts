@@ -33,6 +33,7 @@ export function makeEvent(e: Partial_): EventSummary {
     tier: null,
     session_label: null,
     client_ref: null,
+    tool_preview: null,
     groups: [],
     rule_ids: [],
     applied: [],
@@ -652,6 +653,14 @@ function withClientRefs(list: EventSummary[]): EventSummary[] {
 
 const BACKGROUND_TEXT: Record<string, string> = {};
 
+/** Like the gateway's `EventSummary.tool_preview`: "bash: git push origin main", cut from the call's command / target. */
+function previewOf(e: { event_id: string; tool?: string | null; point?: string | null }): string | null {
+  if (!e.tool || e.point !== "tool_call") return null;
+  const raw = BACKGROUND_TEXT[e.event_id] ?? EXTRAS[e.event_id]?.detail?.command;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  return `${e.tool}: ${raw.startsWith(`${e.tool} `) ? raw.slice(e.tool.length + 1) : raw}`;
+}
+
 function seed(): EventSummary[] {
   const specs = [...demoEvents(), ...backgroundEvents()];
   for (const s of specs) {
@@ -660,7 +669,7 @@ function seed(): EventSummary[] {
     delete (s as Spec & { _text?: string })._text;
   }
   specs.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
-  const list = specs.map((s, i) => makeEvent({ ...s, seq: 1000 + i }));
+  const list = specs.map((s, i) => makeEvent({ ...s, seq: 1000 + i, tool_preview: s.tool_preview ?? previewOf(s) }));
   return withClientRefs(list).sort((a, b) => b.seq - a.seq);
 }
 

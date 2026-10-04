@@ -12,7 +12,7 @@ import { grantChanges, liveGrantsFor } from "../db/grants";
 import { policyStatus } from "../db/policy";
 import type { EffectiveAccess, GroupSettings } from "../db/types";
 import { findGroup, findUser, groups, MODEL_CATALOGUE, users } from "../db/users";
-import { adminPath, intParam, problem, queryOf } from "./helpers";
+import { adminPath, intParam, listResponse, problem, queryOf } from "./helpers";
 
 type GroupSettingsUpdate = components["schemas"]["GroupSettingsUpdate"];
 type Item = EffectiveAccess["items"][number];
@@ -140,11 +140,10 @@ export const usersHandlers: HttpHandler[] = [
     const q = queryOf(request);
     const text = q.get("q")?.toLowerCase();
     const group = q.get("group")?.replace(/^\//, "");
-    const list = users.items
+    const matching = users.items
       .filter((u) => (group ? u.groups.includes(group) : true))
-      .filter((u) => (text ? [u.username, u.display_name, u.email].some((v) => v?.toLowerCase().includes(text)) : true))
-      .slice(0, intParam(q, "limit", 100));
-    return HttpResponse.json(list);
+      .filter((u) => (text ? [u.username, u.display_name, u.email].some((v) => v?.toLowerCase().includes(text)) : true));
+    return listResponse(matching.slice(0, intParam(q, "limit", 100)), matching.length);
   }),
 
   http.get(adminPath("/users/:id/effective-access"), ({ params }) => {

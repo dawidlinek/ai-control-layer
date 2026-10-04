@@ -3,7 +3,7 @@ import { http, HttpResponse, type HttpHandler } from "msw";
 import { approvals } from "../db/approvals";
 import type { Approval } from "../db/types";
 import type { components } from "@/lib/api/schema";
-import { adminPath, MOCK_USER, problem, queryOf } from "./helpers";
+import { adminPath, listResponse, MOCK_USER, problem, queryOf } from "./helpers";
 
 type Decision = components["schemas"]["ApprovalDecisionRequest"];
 
@@ -25,7 +25,7 @@ export const approvalsHandlers: HttpHandler[] = [
     const list = approvals.items
       .filter((a) => (status ? a.status === status : true))
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
-    return HttpResponse.json(list);
+    return listResponse(list);
   }),
 
   http.get(adminPath("/approvals/:id"), ({ params }) => {

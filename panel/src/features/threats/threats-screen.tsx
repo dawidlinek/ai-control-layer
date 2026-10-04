@@ -1,36 +1,36 @@
 "use client";
 
-import * as React from "react";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { debounce, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   DataTable,
   DecisionBadge,
+  FilterMenuButton,
   FilterRow,
   FilterSpacer,
   ListWithSidebar,
   PageHeader,
+  SearchInput,
   SegmentedTabs,
   Truncate,
   useSelectedId,
 } from "@/components/rogatka";
 import { Button } from "@/components/ui/button";
+import { RequireRole, useHasRole } from "@/lib/auth/user-context";
 import { formatNumber } from "@/lib/format";
-import type { ArtifactScanResult, EventSummary } from "@/lib/api/types";
-import { useArtifacts, useEvents24h, useFeedStatus } from "./api";
+import type { ArtifactScanResult, FeedSignature, FeedTarget } from "@/lib/api/types";
+import { AddRuleForm } from "./add-rule";
+import { useArtifacts, useSignatures } from "./api";
 import { fileResult, findingLabel } from "./artifact-copy";
 import { FeedBar } from "./feed-bar";
-import { SIGNATURES, type Signature } from "./signatures";
+import { LOOKS_AT, looksAt } from "./signatures";
 import { FileSidebar, ResultLabel, SignatureSidebar } from "./sidebars";
 
 const TABS = ["signatures", "files"] as const;
 
-type SigRow = Signature & { hits: number | undefined };
+const TARGETS = Object.keys(LOOKS_AT) as FeedTarget[];
 
-const ADD_RULE_GAP =
-  "Not available in the admin API yet: add the rule on the feed server, then use Sync now. The panel cannot list or publish signatures.";
-
-const sigColumns: ColumnDef<SigRow>[] = [
+const sigColumns: ColumnDef<FeedSignature>[] = [
   { id: "id", header: "Rule", meta: { className: "w-[130px] font-mono text-[12px] whitespace-nowrap" }, cell: ({ row }) => row.original.id },
   {
     id: "what",
@@ -38,18 +38,18 @@ const sigColumns: ColumnDef<SigRow>[] = [
     meta: { className: "max-w-[320px]" },
     cell: ({ row: { original: s } }) => (
       <div className="flex min-w-0 flex-col">
-        <Truncate>{s.what}</Truncate>
-        <Truncate className="text-[12px] text-muted">{s.source}</Truncate>
+        <Truncate>{s.title}</Truncate>
+        <Truncate className="text-[12px] text-muted">{s.source || (s.origin === "policy" ? "offline baseline" : "")}</Truncate>
       </div>
     ),
   },
-  { id: "looks", header: "Looks at", meta: { className: "w-[130px] text-muted" }, cell: ({ row }) => row.original.looksAt },
+  { id: "looks", header: "Looks at", meta: { className: "w-[130px] text-muted" }, cell: ({ row }) => looksAt(row.original.target) },
   { id: "action", header: "Action", meta: { className: "w-[110px]" }, cell: ({ row }) => <DecisionBadge decision={row.original.action} /> },
   {
     id: "hits",
     header: "Hits 24 h",
     meta: { className: "w-[72px] text-right font-mono", headerClassName: "text-right" },
-    cell: ({ row: { original: s } }) => (s.hits === undefined ? "—" : formatNumber(s.hits)),
+    cell: ({ row: { original: s } }) => (s.hits_24h === null ? "—" : formatNumber(s.hits_24h)),
   },
   { id: "go", header: () => <span className="sr-only">Open</span>, meta: { className: "w-[14px] text-muted" }, cell: () => <span aria-hidden>›</span> },
 ];
@@ -74,22 +74,17 @@ const fileColumns: ColumnDef<ArtifactScanResult>[] = [
 
 export function ThreatsScreen() {
   const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("signatures"));
+  const [target, setTarget] = useQueryState("target", parseAsStringLiteral(TARGETS));
+  const [q, setQ] = useQueryState("q", parseAsString.withDefault("").withOptions({ limitUrlUpdates: debounce(300) }));
   const [sel, setSel] = useSelectedId();
-  const feed = useFeedStatus();
-  const events = useEvents24h();
+  const isAdmin = useHasRole("admin");
+  const signatures = useSignatures({ target: target ?? undefined, q });
   const artifacts = useArtifacts();
 
-  const hitsByRule = React.useMemo(() => {
-    if (!events.data) return undefined;
-    const m = new Map<string, EventSummary[]>();
-    for (const e of events.data) for (const r of e.rule_ids) m.set(r, [...(m.get(r) ?? []), e]);
-    return m;
-  }, [events.data]);
-
-  const sigRows: SigRow[] = SIGNATURES.map((s) => ({ ...s, hits: hitsByRule ? (hitsByRule.get(s.id)?.length ?? 0) : undefined }));
+  const sigs = signatures.data ?? [];
   const files = artifacts.data ?? [];
-
-  const selectedSig = tab === "signatures" ? sigRows.find((s) => s.id === sel) : undefined;
+  const adding = tab === "signatures" && sel === "new" && isAdmin;
+  const selectedSig = tab === "signatures" && !adding ? sigs.find((s) => s.id === sel) : undefined;
   const selectedFile = tab === "files" ? files.find((f) => f.id === sel) : undefined;
 
   return (
@@ -105,42 +100,68 @@ export function ThreatsScreen() {
             void setTab(v === "signatures" ? null : v);
           }}
           tabs={[
-            { value: "signatures", label: "Signatures", count: sigRows.length },
+            { value: "signatures", label: "Signatures", count: signatures.total },
             { value: "files", label: "Model files", count: artifacts.data ? files.length : undefined },
           ]}
         />
+        {tab === "signatures" && (
+          <>
+            <FilterMenuButton
+              label="Looks at"
+              multiple={false}
+              options={TARGETS.map((t) => ({ value: t, label: LOOKS_AT[t] }))}
+              selected={target ? [target] : []}
+              onChange={(v) => void setTarget((v[0] as FeedTarget | undefined) ?? null)}
+            />
+            <SearchInput value={q} onChange={(v) => void setQ(v || null)} placeholder="Search rules" ariaLabel="Search signatures" />
+          </>
+        )}
         <FilterSpacer />
         {tab === "signatures" && (
-          <Button variant="primary" size="lg" disabled title={ADD_RULE_GAP}>
-            + Add rule
-          </Button>
+          <RequireRole
+            min="admin"
+            fallback={
+              <Button variant="primary" size="lg" disabled title="Only admins can add rules">
+                + Add rule
+              </Button>
+            }
+          >
+            <Button variant="primary" size="lg" onClick={() => void setSel("new")}>
+              + Add rule
+            </Button>
+          </RequireRole>
         )}
       </FilterRow>
       {tab === "signatures" ? (
         <ListWithSidebar
-          open={!!selectedSig}
+          open={!!selectedSig || adding}
           onClose={() => void setSel(null)}
-          sidebarLabel="Signature"
+          sidebarLabel={adding ? "New rule" : "Signature"}
           list={
             <>
               <DataTable
                 ariaLabel="Signatures"
-                data={sigRows}
+                data={sigs}
                 columns={sigColumns}
                 getRowId={(s) => s.id}
                 selectedId={sel}
                 onRowClick={(s) => void setSel(s.id)}
                 keyboardNav
                 minWidth={660}
+                loading={signatures.isPending}
+                error={signatures.error}
+                onRetry={() => void signatures.refetch()}
+                emptyTitle={q || target ? "No signature matches" : "No signatures in the active bundle"}
+                emptyMessage={q || target ? "Try another search or clear the filter." : undefined}
               />
-              <p className="m-0 text-[12px] text-muted">
-                Headline rules of the seed bundle
-                {feed.data ? ` (the active bundle has ${formatNumber(feed.data.entries)} rules)` : ""}. The admin API does not list
-                signatures yet.
-              </p>
+              {signatures.total !== undefined && signatures.total > sigs.length && (
+                <p className="m-0 text-[12px] text-muted">
+                  Showing {formatNumber(sigs.length)} of {formatNumber(signatures.total)} signatures. Narrow the search to see the rest.
+                </p>
+              )}
             </>
           }
-          sidebar={selectedSig && <SignatureSidebar key={selectedSig.id} sig={selectedSig} hits={hitsByRule ? (hitsByRule.get(selectedSig.id) ?? []) : undefined} />}
+          sidebar={adding ? <AddRuleForm /> : selectedSig && <SignatureSidebar key={selectedSig.id} sig={selectedSig} />}
         />
       ) : (
         <ListWithSidebar

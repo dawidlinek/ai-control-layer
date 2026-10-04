@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { ListQuery } from "@/lib/api/hooks";
 import { parseAsInteger, useQueryState } from "nuqs";
 import {
   Avatar,
@@ -39,7 +39,7 @@ export function PeopleTab({
   group,
   risk,
 }: {
-  users: UseQueryResult<User[]>;
+  users: ListQuery<User>;
   groups: readonly Group[];
   q: string;
   group: string | null;

@@ -46,3 +46,18 @@ export function unwrap<T>(result: Result<T>): Resp<T> {
   }
   return result.data as Resp<T>;
 }
+
+/** A list response plus the server's `X-Total-Count` (rows matching the filters, ignoring `limit`). */
+export interface WithTotal<T> {
+  items: T;
+  /** `X-Total-Count`, or the number of rows received when the header is absent (older gateways, mocks). */
+  total: number;
+}
+
+/** Same as `unwrap()` for list endpoints, plus the `X-Total-Count` header. */
+export function unwrapWithTotal<T extends unknown[]>(result: Result<T>): WithTotal<Resp<T>> {
+  const items = unwrap(result);
+  const raw = result.response.headers.get("X-Total-Count");
+  const n = raw === null ? Number.NaN : Number(raw);
+  return { items, total: Number.isFinite(n) && n >= 0 ? Math.max(n, items.length) : items.length };
+}

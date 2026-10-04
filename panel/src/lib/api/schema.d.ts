@@ -660,6 +660,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/v1/metrics/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metric Counts */
+        get: operations["getMetricCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/v1/metrics/guard-quality": {
         parameters: {
             query?: never;
@@ -884,7 +901,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/v1/artifacts/scan": {
+    "/admin/v1/feed/signatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Feed Signatures */
+        get: operations["listFeedSignatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/feed/rules": {
         parameters: {
             query?: never;
             header?: never;
@@ -893,25 +927,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Scan Artifact */
-        post: operations["scanArtifact"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/v1/artifacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Artifacts */
-        get: operations["listArtifacts"];
-        put?: never;
-        post?: never;
+        /** Add Feed Rule */
+        post: operations["addFeedRule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -935,6 +952,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/v1/insights/clusters/{cluster_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Insight */
+        get: operations["getInsight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/v1/insights/clusters/{cluster_id}/publish": {
         parameters: {
             query?: never;
@@ -946,6 +980,143 @@ export interface paths {
         put?: never;
         /** Publish */
         post: operations["publishSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/clusters/{cluster_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dismiss */
+        post: operations["dismissInsight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/clusters/{cluster_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["previewInsightSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/recompute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recompute */
+        post: operations["recomputeInsights"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["getInsightsStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Skills */
+        get: operations["listInsightSkills"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["getInsightsSettings"];
+        /** Put Settings */
+        put: operations["updateInsightsSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mine */
+        get: operations["listMyInsights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/insights/opt-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Opt In */
+        put: operations["setInsightsOptIn"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1023,6 +1194,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/v1/artifacts/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scan Artifact */
+        post: operations["scanArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Artifacts */
+        get: operations["listArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/v1/artifacts/{scan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Artifact */
+        get: operations["getArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1033,6 +1255,36 @@ export interface components {
          * @enum {string}
          */
         Action: "allow" | "monitor" | "redact" | "pseudonymise" | "sanitize" | "route_local" | "downgrade" | "require_approval" | "block";
+        /**
+         * AdaptiveTierSummary
+         * @description Detection of deterministic variants (paraphrase, encodings, Polish, split) of the attack cases.
+         */
+        AdaptiveTierSummary: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Variants */
+            variants: number;
+            detection?: components["schemas"]["RateWithCI"] | null;
+            /** By Technique */
+            by_technique?: {
+                [key: string]: components["schemas"]["RateWithCI"];
+            };
+            /** By Control */
+            by_control?: {
+                [key: string]: components["schemas"]["RateWithCI"];
+            };
+            /** By Preset */
+            by_preset?: {
+                [key: string]: components["schemas"]["RateWithCI"];
+            };
+            /** Layer Attribution */
+            layer_attribution?: {
+                [key: string]: number;
+            };
+        };
         /** ApiKey */
         ApiKey: {
             /** Id */
@@ -1230,6 +1482,16 @@ export interface components {
             severity: components["schemas"]["Severity"];
             /** Message */
             message: string;
+            /**
+             * Detail
+             * @description Technical detail: opcode listing excerpt, header dump (never raw file content).
+             */
+            detail?: string | null;
+            /**
+             * Cve
+             * @description Related advisories (verified ids only).
+             */
+            cve?: string[];
         };
         /** ArtifactScanResult */
         ArtifactScanResult: {
@@ -1255,6 +1517,29 @@ export interface components {
              * Format: date-time
              */
             scanned_at: string;
+            /**
+             * Source
+             * @example upload
+             * @example hf:org/repo@<40-hex revision sha>
+             */
+            source?: string | null;
+            /**
+             * Exception
+             * @description Policy exception that admitted a blocked format.
+             */
+            exception?: string | null;
+            /**
+             * Model Ids
+             * @description Registered models whose artifact ref is this file.
+             */
+            model_ids?: string[];
+            /**
+             * Decision Id
+             * @description Decision of the `artifact_load` inspection.
+             */
+            decision_id?: string | null;
+            /** Scanned By */
+            scanned_by?: string | null;
         };
         /** AuditDecision */
         AuditDecision: {
@@ -1464,6 +1749,8 @@ export interface components {
         Body_scanArtifact: {
             /** File */
             file: string;
+            /** Source */
+            source?: string | null;
         };
         /** BreakGlassRequest */
         BreakGlassRequest: {
@@ -1762,6 +2049,11 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** DismissInsightRequest */
+        DismissInsightRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** DryRunChange */
         DryRunChange: {
             /** Event Id */
@@ -1976,6 +2268,12 @@ export interface components {
             };
             session_label?: components["schemas"]["SessionLabelInfo"] | null;
             client_ref?: components["schemas"]["ClientRef"] | null;
+            /**
+             * Tool Preview
+             * @description Short redacted preview of a tool call (tool_call / MCP tools/call points), e.g. `bash: git push origin main`. Secrets and detected sensitive spans are masked; null otherwise.
+             * @example bash: git push origin main
+             */
+            tool_preview?: string | null;
         };
         /**
          * EventTrace
@@ -2002,6 +2300,163 @@ export interface components {
          * @enum {string}
          */
         EventType: "decision" | "policy_change" | "policy_reload_failed" | "grant_change" | "incident" | "approval" | "breakglass" | "feed_update" | "feed_verify_failed" | "artifact_scan" | "mcp_drift" | "budget_breach" | "auth_failure" | "system_alert";
+        /** FeedRuleCreate */
+        FeedRuleCreate: {
+            /**
+             * Id
+             * @description Rule identifier (control id, or control id + sub-rule, or signature id).
+             * @example FEED-LOCAL-0001
+             */
+            id: string;
+            /** Description */
+            description: string;
+            /**
+             * Target
+             * @enum {string}
+             */
+            target: "package" | "domain" | "url" | "command" | "tool_description" | "prompt_text" | "answer_text" | "any_text";
+            /**
+             * Pattern
+             * @description domain: the domain (subdomains match); url / command / tool_description / prompt_text / answer_text / any_text: a regex. Not used for `package`.
+             */
+            pattern?: string | null;
+            /**
+             * Ecosystem
+             * @description `package` target only.
+             * @default pypi
+             * @enum {string}
+             */
+            ecosystem: "pypi" | "npm" | "other";
+            /**
+             * Package
+             * @description `package` target: package name.
+             */
+            package?: string | null;
+            /**
+             * Versions
+             * @description `package` target: exact versions; empty or `*` = every version.
+             */
+            versions?: string[];
+            /**
+             * Tools
+             * @description `command` target: only for tools matching these name globs (e.g. `*bash*`).
+             */
+            tools?: string[];
+            /** @default high */
+            severity: components["schemas"]["Severity"];
+            /** @default block */
+            action: components["schemas"]["Action"];
+            /** Expires */
+            expires?: string | null;
+            /** Cve */
+            cve?: string[];
+            /** Owasp */
+            owasp?: string[];
+            /** Atlas Technique */
+            atlas_technique?: string[];
+            /**
+             * Source
+             * @default panel
+             */
+            source: string;
+            /**
+             * Sync Now
+             * @description Ask the gateway to sync the feed right after adding.
+             * @default true
+             */
+            sync_now: boolean;
+        };
+        /** FeedRuleCreated */
+        FeedRuleCreated: {
+            rule: components["schemas"]["FeedSignature"];
+            /**
+             * Bundle Version
+             * @description Version of the bundle the feed server published.
+             */
+            bundle_version?: number | null;
+            /**
+             * Synced
+             * @description True when the gateway already runs a bundle that contains the rule.
+             */
+            synced: boolean;
+            feed: components["schemas"]["FeedStatus"];
+        };
+        /** FeedSignature */
+        FeedSignature: {
+            /**
+             * Id
+             * @description Rule identifier (control id, or control id + sub-rule, or signature id).
+             * @example SIG-PKG-LITELLM-01
+             * @example FEED-LOCAL-0001
+             */
+            id: string;
+            /**
+             * Title
+             * @description First sentence of the description (the id when there is none).
+             */
+            title: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Target
+             * @description What the rule looks at: package (pip/npm install), domain (IOC host), url (path of a URL), command (tool-call arguments), tool_description (MCP tool descriptions), prompt_text (user input), answer_text (model output), any_text (every stage), tool_hash / manifest_hash (MCP pins), yara, opcode.
+             * @enum {string}
+             */
+            target: "package" | "domain" | "url" | "command" | "tool_description" | "prompt_text" | "answer_text" | "any_text" | "tool_hash" | "manifest_hash" | "yara" | "opcode";
+            /** @description The matcher the feed bundle uses. */
+            type: components["schemas"]["SignatureType"];
+            /** Pattern */
+            pattern: string;
+            action: components["schemas"]["Action"];
+            severity: components["schemas"]["Severity"];
+            /**
+             * Stages
+             * @description Where it applies (the matcher's default stages when the entry has none).
+             */
+            stages?: components["schemas"]["InspectionPoint"][];
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /**
+             * Reference
+             * @description First CVE id, else null.
+             */
+            reference?: string | null;
+            /** Cve */
+            cve?: string[];
+            /** Owasp */
+            owasp?: string[];
+            /** Atlas Technique */
+            atlas_technique?: string[];
+            /**
+             * Origin
+             * @description `feed`: entry of the active bundle. `policy`: offline baseline in policy `signatures.local_rules`.
+             * @enum {string}
+             */
+            origin: "feed" | "policy";
+            /** Expires */
+            expires?: string | null;
+            /**
+             * Expired
+             * @default false
+             */
+            expired: boolean;
+            /**
+             * Hits 24H
+             * @description Decisions that cited this rule id in the last 24 h.
+             */
+            hits_24h?: number | null;
+            /**
+             * Last Hit At
+             * @description Latest such decision within the last 24 h.
+             */
+            last_hit_at?: string | null;
+        };
         /** FeedStatus */
         FeedStatus: {
             /** Source Url */
@@ -2322,6 +2777,8 @@ export interface components {
             };
             /** Shadow Miss Rate */
             shadow_miss_rate?: number | null;
+            mutation?: components["schemas"]["MutationCoverage"] | null;
+            adaptive?: components["schemas"]["AdaptiveTierSummary"] | null;
             /** Extra */
             extra?: {
                 [key: string]: unknown;
@@ -2464,6 +2921,284 @@ export interface components {
              * @enum {string}
              */
             status: "new" | "published" | "dismissed";
+            /**
+             * Scope
+             * @description `personal` suggestions are only ever shown to their owner.
+             * @default group
+             * @enum {string}
+             */
+            scope: "group" | "personal";
+            /** First Seen */
+            first_seen?: string | null;
+            /** Last Seen */
+            last_seen?: string | null;
+            /**
+             * Active Days
+             * @default 0
+             */
+            active_days: number;
+            /**
+             * Runs Per Active Day
+             * @default 0
+             */
+            runs_per_active_day: number;
+            /**
+             * Periodicity
+             * @description Share of workdays (or weeks) with a run.
+             * @default 0
+             */
+            periodicity: number;
+            /**
+             * Structural Similarity
+             * @description Mean cosine similarity of prompts to the centroid.
+             * @default 0
+             */
+            structural_similarity: number;
+            /** @default internal */
+            data_class: components["schemas"]["DataClass"];
+            /** Models Used */
+            models_used?: {
+                [key: string]: number;
+            };
+            cost?: components["schemas"]["InsightCost"] | null;
+            /**
+             * Draft Validation
+             * @description Why the LLM draft was rejected (the deterministic draft is shown instead).
+             */
+            draft_validation?: string[];
+            /** Published Skill */
+            published_skill?: string | null;
+            /** Published Groups */
+            published_groups?: string[];
+            /** Published At */
+            published_at?: string | null;
+            /** Published By */
+            published_by?: string | null;
+            /** Published Policy Version */
+            published_policy_version?: string | null;
+            /**
+             * Published Version Id
+             * @description Policy version number (`v9`).
+             */
+            published_version_id?: number | null;
+            /** Dismissed Reason */
+            dismissed_reason?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * InsightCost
+         * @description Observed cost of a repeated task over the mining window, and the counterfactual if it ran as a skill.
+         */
+        InsightCost: {
+            /**
+             * Runs
+             * @description Task runs (one person's requests for this task in one session).
+             * @default 0
+             */
+            runs: number;
+            /**
+             * Requests
+             * @default 0
+             */
+            requests: number;
+            /**
+             * Retries
+             * @description Requests that repeated the previous prompt of the same run.
+             * @default 0
+             */
+            retries: number;
+            /**
+             * Tokens In
+             * @default 0
+             */
+            tokens_in: number;
+            /**
+             * Tokens Out
+             * @default 0
+             */
+            tokens_out: number;
+            /**
+             * Usd
+             * @default 0
+             */
+            usd: number;
+            /**
+             * Gpu Seconds
+             * @default 0
+             */
+            gpu_seconds: number;
+            /**
+             * Wall Clock Minutes
+             * @description Time people spent on the runs (first request → read).
+             * @default 0
+             */
+            wall_clock_minutes: number;
+            /**
+             * Usd Per Run
+             * @default 0
+             */
+            usd_per_run: number;
+            /**
+             * Gpu Seconds Per Run
+             * @default 0
+             */
+            gpu_seconds_per_run: number;
+            /**
+             * Skill Model
+             * @description Model of the draft skill the counterfactual uses.
+             */
+            skill_model?: string | null;
+            /**
+             * Skill Usd Per Run
+             * @default 0
+             */
+            skill_usd_per_run: number;
+            /**
+             * Skill Gpu Seconds Per Run
+             * @default 0
+             */
+            skill_gpu_seconds_per_run: number;
+            /**
+             * Saving Usd Month
+             * @default 0
+             */
+            saving_usd_month: number;
+            /**
+             * Saving Gpu Seconds Month
+             * @default 0
+             */
+            saving_gpu_seconds_month: number;
+        };
+        /** InsightGroupSettings */
+        InsightGroupSettings: {
+            /** Group */
+            group: string;
+            /**
+             * Enabled
+             * @description Group opted in to mining (management view, k-anonymous).
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Personal
+             * @description Members may opt in to their own suggestions.
+             * @default false
+             */
+            personal: boolean;
+        };
+        /** InsightOptIn */
+        InsightOptIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** InsightSkill */
+        InsightSkill: {
+            /** Skill Id */
+            skill_id: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Model */
+            model: string;
+            preset: components["schemas"]["Preset"];
+            /**
+             * Groups
+             * @description Groups the skill is available to.
+             */
+            groups?: string[];
+            /**
+             * Runs 30D
+             * @default 0
+             */
+            runs_30d: number;
+            /**
+             * Cost Per Run Before Usd
+             * @description Observed before publishing.
+             */
+            cost_per_run_before_usd?: number | null;
+            /** Cost Per Run Now Usd */
+            cost_per_run_now_usd?: number | null;
+            /** Gpu Seconds Per Run Before */
+            gpu_seconds_per_run_before?: number | null;
+            /** Gpu Seconds Per Run Now */
+            gpu_seconds_per_run_now?: number | null;
+            /**
+             * Now Source
+             * @description `projected` until the skill has runs in the window.
+             */
+            now_source?: ("measured" | "projected") | null;
+            /** Source Cluster */
+            source_cluster?: string | null;
+            /** Published At */
+            published_at?: string | null;
+            /** Published By */
+            published_by?: string | null;
+        };
+        /** InsightsSettings */
+        InsightsSettings: {
+            /**
+             * K
+             * @description Minimum distinct users before management sees a cluster.
+             * @default 5
+             */
+            k: number;
+            /**
+             * Window Days
+             * @default 30
+             */
+            window_days: number;
+            /** Groups */
+            groups?: components["schemas"]["InsightGroupSettings"][];
+        };
+        /** InsightsStatus */
+        InsightsStatus: {
+            /**
+             * Running
+             * @default false
+             */
+            running: boolean;
+            /** Last Run At */
+            last_run_at?: string | null;
+            /** Last Duration Ms */
+            last_duration_ms?: number | null;
+            /** Last Trigger */
+            last_trigger?: ("startup" | "interval" | "admin") | null;
+            /**
+             * Prompts Scanned
+             * @default 0
+             */
+            prompts_scanned: number;
+            /**
+             * Seed Prompts
+             * @default 0
+             */
+            seed_prompts: number;
+            /**
+             * Clusters Visible
+             * @default 0
+             */
+            clusters_visible: number;
+            /**
+             * Clusters Hidden Below K
+             * @default 0
+             */
+            clusters_hidden_below_k: number;
+            /**
+             * Personal Suggestions
+             * @default 0
+             */
+            personal_suggestions: number;
+            /** Embeddings Model */
+            embeddings_model?: string | null;
+            /** Embeddings Mode */
+            embeddings_mode?: ("connector" | "deterministic") | null;
+            /** Drafter Model */
+            drafter_model?: string | null;
+            /** Last Error */
+            last_error?: string | null;
         };
         /**
          * InspectionPoint
@@ -2661,6 +3396,24 @@ export interface components {
             /** Description Diff */
             description_diff?: string | null;
         };
+        /** MetricCounts */
+        MetricCounts: {
+            /**
+             * Open Incidents
+             * @description Incidents in status open or triaged.
+             */
+            open_incidents: number;
+            /**
+             * Pending Approvals
+             * @description Approvals waiting for a decision (expired ones are not counted).
+             */
+            pending_approvals: number;
+            /**
+             * Quarantined Tools
+             * @description MCP tools hidden until an admin re-approves them.
+             */
+            quarantined_tools: number;
+        };
         /** ModelCost */
         ModelCost: {
             /** Model */
@@ -2761,6 +3514,51 @@ export interface components {
              * @default 0
              */
             gpu_seconds_day: number;
+        };
+        /** MutantResult */
+        MutantResult: {
+            /** Control Id */
+            control_id: string;
+            /**
+             * Enabled
+             * @description Enabled in policy; disabled controls cannot be mutated (reported, not scored).
+             */
+            enabled: boolean;
+            /**
+             * Killed
+             * @description At least one test failed with this control switched off.
+             */
+            killed: boolean;
+            /**
+             * Failing Cells
+             * @default 0
+             */
+            failing_cells: number;
+            /** Failing Examples */
+            failing_examples?: string[];
+        };
+        /**
+         * MutationCoverage
+         * @description Mutation testing: every enabled control is switched off in turn; the suite must notice.
+         */
+        MutationCoverage: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Suite */
+            suite: string;
+            /** Controls Mutated */
+            controls_mutated: number;
+            /** Controls Killed */
+            controls_killed: number;
+            /** Score */
+            score: number;
+            /** Survivors */
+            survivors?: string[];
+            /** Results */
+            results?: components["schemas"]["MutantResult"][];
         };
         /** OverviewSummary */
         OverviewSummary: {
@@ -3100,6 +3898,21 @@ export interface components {
             groups: string[];
             /** Reason */
             reason: string;
+            /**
+             * Description
+             * @description Overrides the draft when set.
+             */
+            description?: string | null;
+            /** Template */
+            template?: string | null;
+            /** Input Schema */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Tools */
+            tools?: string[] | null;
+            /** Data Classes */
+            data_classes?: components["schemas"]["DataClass"][] | null;
         };
         /** RateWithCI */
         RateWithCI: {
@@ -3244,6 +4057,25 @@ export interface components {
          * @enum {string}
          */
         Severity: "info" | "low" | "medium" | "high" | "critical";
+        /**
+         * SignatureType
+         * @enum {string}
+         */
+        SignatureType: "regex" | "yara" | "package_version" | "url_path" | "tool_desc_hash" | "manifest_hash" | "opcode" | "arg_pattern" | "ioc_domain";
+        /** SkillPreview */
+        SkillPreview: {
+            /** Prompt */
+            prompt?: string | null;
+            /** Errors */
+            errors?: string[];
+        };
+        /** SkillPreviewRequest */
+        SkillPreviewRequest: {
+            /** Inputs */
+            inputs?: {
+                [key: string]: unknown;
+            };
+        };
         /** StageLatency */
         StageLatency: {
             /** Phase */
@@ -4178,6 +5010,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Number of rows matching the filters, ignoring `limit`. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4653,6 +5487,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Number of rows matching the filters, ignoring `limit`. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5344,6 +6180,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Number of rows matching the filters, ignoring `limit`. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -5639,6 +6477,47 @@ export interface operations {
             };
         };
     };
+    getMetricCounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetricCounts"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getGuardQuality: {
         parameters: {
             query?: never;
@@ -5746,6 +6625,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Number of rows matching the filters, ignoring `limit`. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -6246,26 +7127,28 @@ export interface operations {
             };
         };
     };
-    scanArtifact: {
+    listFeedSignatures: {
         parameters: {
-            query?: never;
+            query?: {
+                target?: ("package" | "domain" | "url" | "command" | "tool_description" | "prompt_text" | "answer_text" | "any_text" | "tool_hash" | "manifest_hash" | "yara" | "opcode") | null;
+                q?: string | null;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_scanArtifact"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Number of rows matching the filters, ignoring `limit`. */
+                    "X-Total-Count"?: number;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ArtifactScanResult"];
+                    "application/json": components["schemas"]["FeedSignature"][];
                 };
             };
             /** @description Missing or invalid credentials */
@@ -6300,22 +7183,26 @@ export interface operations {
             };
         };
     };
-    listArtifacts: {
+    addFeedRule: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedRuleCreate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ArtifactScanResult"][];
+                    "application/json": components["schemas"]["FeedRuleCreated"];
                 };
             };
             /** @description Missing or invalid credentials */
@@ -6332,8 +7219,36 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description A rule with this id already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The rule is invalid (bad regex, missing field, ...) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Not implemented yet */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The feed server is unreachable or rejected the request */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rule editing is not configured */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6345,6 +7260,7 @@ export interface operations {
         parameters: {
             query?: {
                 group?: string | null;
+                status?: ("new" | "published" | "dismissed") | null;
             };
             header?: never;
             path?: never;
@@ -6359,6 +7275,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightCluster"][];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cluster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightCluster"];
                 };
             };
             /** @description Missing or invalid credentials */
@@ -6415,6 +7383,431 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsightCluster"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    dismissInsight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cluster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DismissInsightRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightCluster"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    previewInsightSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cluster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillPreview"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    recomputeInsights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsStatus"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getInsightsStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsStatus"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listInsightSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightSkill"][];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getInsightsSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsSettings"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateInsightsSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InsightsSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightsSettings"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listMyInsights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightCluster"][];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    setInsightsOptIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InsightOptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsightOptIn"];
                 };
             };
             /** @description Missing or invalid credentials */
@@ -6631,6 +8024,174 @@ export interface operations {
             };
             /** @description Insufficient role / forbidden resource */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scanArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_scanArtifact"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactScanResult"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description File larger than the scanner limit */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scanner unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listArtifacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactScanResult"][];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not implemented yet */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactScanResult"];
+                };
+            };
+            /** @description Missing or invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Insufficient role / forbidden resource */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown scan id */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -22,6 +22,7 @@ import {
 import { useUser } from "@/lib/auth/user-context";
 import { SEVERITIES } from "@/lib/decisions";
 import type { Incident } from "@/lib/api/types";
+import { LoadedOfTotal } from "@/lib/api/loaded-of-total";
 import { cn } from "@/lib/utils";
 import { useAllIncidents } from "./api";
 import { IncidentSidebar, statusClass } from "./incident-sidebar";
@@ -119,7 +120,8 @@ export function IncidentsScreen() {
   const counts = {
     open: all.filter((i) => !isClosed(i.status)).length,
     resolved: all.filter((i) => isClosed(i.status)).length,
-    all: all.length,
+    // X-Total-Count: more than the loaded page when the list was cut off at the request limit.
+    all: Math.max(all.length, incidents.total ?? 0),
   };
 
   const needle = q.trim().toLowerCase();
@@ -218,6 +220,7 @@ export function IncidentsScreen() {
               emptyMessage={mine ? undefined : "Nothing matches these filters."}
             />
             <Pagination page={current} pageCount={pageCount} pageSize={PAGE_SIZE} onPageChange={(p) => void setPage(p)} />
+            <LoadedOfTotal loaded={all.length} total={incidents.total} noun="incidents" />
           </>
         }
         sidebar={

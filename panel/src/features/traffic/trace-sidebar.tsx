@@ -28,7 +28,7 @@ import {
   clientLine,
   decisionsOf,
   isSensitiveLabel,
-  modelOrToolFull,
+  modelOrTool,
   pointLabel,
   riskLabel,
   RULE_ID_RE,
@@ -67,7 +67,7 @@ export function TraceSidebar({ id, row, nameOf }: { id: string; row?: EventSumma
       )}
       {event && (
         <>
-          <Summary event={event} trace={trace.data} nameOf={nameOf} />
+          <Summary event={event} nameOf={nameOf} />
           {trace.data?.model_saw && <ModelSaw text={trace.data.model_saw} note={trace.data.model_saw_note} />}
           <SidebarSection
             title="How the decision was made"
@@ -110,12 +110,12 @@ function fallbackSentence(e: EventSummary, nameOf: NameOf): string {
   return `${whoName(e, nameOf)}’s ${pointLabel(e.point)} was checked by Rogatka${d.length ? `: ${d.join(", ")}` : ""}.`;
 }
 
-function Summary({ event, trace, nameOf }: { event: EventSummary; trace?: EventTrace; nameOf: NameOf }) {
+function Summary({ event, nameOf }: { event: EventSummary; nameOf: NameOf }) {
   const facts = [
     { label: "Who", value: `${whoName(event, nameOf)} · ${clientLine(event)}` },
     { label: "When", value: `${formatDay(event.timestamp)} ${formatTime(event.timestamp)}`, mono: true },
     { label: "Point", value: pointLabel(event.point) },
-    { label: "Model / tool", value: modelOrToolFull(event, trace), mono: true },
+    { label: "Model / tool", value: modelOrTool(event), mono: true },
     { label: "Data class", value: event.data_class ?? "—" },
     { label: "Risk score", value: riskLabel(event.risk_score), mono: true },
   ];

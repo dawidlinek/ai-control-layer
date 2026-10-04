@@ -47,6 +47,8 @@ describe("Traffic", () => {
 
     const jan = within(rowOf("evt_9b21e4")!);
     expect(jan.getByText("tool call")).toBeInTheDocument();
+    // The Model / tool cell shows the gateway tool_preview, the bare tool name when there is none.
+    expect(jan.getByText("bash: git push origin feature/loan-calc")).toBeInTheDocument();
     expect(jan.getByText("require_approval")).toBeInTheDocument();
     expect(within(rowOf("evt_8c9911")!).getByText("tool list")).toBeInTheDocument();
     expect(within(rowOf("evt_8c9911")!).getByText("MCP docs-search")).toBeInTheDocument();
