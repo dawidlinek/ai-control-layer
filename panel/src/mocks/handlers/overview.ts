@@ -1,8 +1,10 @@
-/**
- * MSW handlers: overview domain. TODO (screen agent): implement the endpoints below on top of ../db/overview.ts,
- * using the helpers in ./helpers.ts. Prototype with the demo data: docs/ux/design-reference/Dashboard.dc.html
- * Endpoints: /admin/v1/metrics/overview
- */
-import type { HttpHandler } from "msw";
+/** MSW handlers: overview domain (`/admin/v1/metrics/overview?window=15m|1h|24h|7d`). */
+import { http, HttpResponse, type HttpHandler } from "msw";
+import { buildOverview, parseWindow } from "../db/overview";
+import { adminPath, queryOf } from "./helpers";
 
-export const overviewHandlers: HttpHandler[] = [];
+export const overviewHandlers: HttpHandler[] = [
+  http.get(adminPath("/metrics/overview"), ({ request }) =>
+    HttpResponse.json(buildOverview(parseWindow(queryOf(request).get("window")))),
+  ),
+];
